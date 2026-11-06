@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #1b2a4a;
+  --gold: #d4af37;
+}
+
+body {
+  @apply bg-white text-slate-900 antialiased;
+}
+
+/* Polish mobile-first (Module 7, spec §4) : aucun défilement horizontal
+   au niveau de la page — les tableaux restent repliés en cartes sur
+   téléphone (cartes < md) ou défilent dans leur propre carte
+   (overflow-x-auto), jamais la page entière. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* 16 px minimum sur les champs : iOS ne zoome pas à la saisie, donc
+   aucun texte n'exige un zoom pour être lu ou saisi. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
