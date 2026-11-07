@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLocale } from "next-intl";
+import PublicFooter from "@/components/PublicFooter";
 
 /**
  * Mise en page commune des pages d'authentification (Module 1) :
  * bandeau navy + logo v4, carte blanche centrée, mobile-first (390 px),
- * bascule de langue FR / EN toujours visible.
+ * bascule de langue FR / EN toujours visible, pied de page public
+ * partagé (PublicFooter, avec le lien vers le site mère).
  */
 export default function AuthLayout({
   title,
@@ -18,9 +19,6 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const locale = useLocale();
-  const tb = useTranslations("brand");
-  const tn = useTranslations("nav");
-  const tc = useTranslations("common");
   const otherLocale = locale === "fr" ? "en" : "fr";
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -54,30 +52,7 @@ export default function AuthLayout({
         </div>
       </main>
 
-      <footer className="px-4 pb-6 text-center text-sm text-slate-500">
-        <nav className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-semibold">
-          <Link href="/tarifs" className="rounded px-1 py-2 hover:text-navy">
-            {tn("pricing")}
-          </Link>
-          <Link href="/contact" className="rounded px-1 py-2 hover:text-navy">
-            {tn("contact")}
-          </Link>
-          <Link href="/legal/confidentialite" className="rounded px-1 py-2 hover:text-navy">
-            {tn("privacy")}
-          </Link>
-          <Link href="/legal/cgu" className="rounded px-1 py-2 hover:text-navy">
-            {tn("terms")}
-          </Link>
-          <Link href="/legal/mentions-legales" className="rounded px-1 py-2 hover:text-navy">
-            {tn("legalNotice")}
-          </Link>
-          <Link href="/legal/cookies" className="rounded px-1 py-2 hover:text-navy">
-            {tn("cookies")}
-          </Link>
-          <LanguageSwitcher className="border-slate-400 text-navy hover:border-gold hover:text-gold" />
-        </nav>
-        CizaImmo — {tb("division")} · {tc("rights")}
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

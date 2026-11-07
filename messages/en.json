@@ -673,6 +673,7 @@
   "feedEmpty": "No events yet — events will appear here as they are recorded.",
   "feedFilterBuilding": "Building",
   "feedTitle": "Activity feed",
+  "greeting": "Hello, {name}",
   "lateAmount": "Amount overdue",
   "lateCount": "{count} overdue payment(s)",
   "lateList": "Overdue rent",
@@ -747,8 +748,13 @@
   "uploadedButNotKept": "Document saved. Content not kept in demo (file too large for local storage)."
  },
  "footer": {
+  "company": "Company",
   "contactEmail": "infos@cizagroup.com",
   "languageLabel": "Language",
+  "legal": "Legal",
+  "parentSite": "Ciza Group — cizagroup.com",
+  "product": "Product",
+  "rentals": "Apartments for rent",
   "tagline": "Your properties, managed simply."
  },
  "indivision": {
@@ -803,6 +809,7 @@
   "ctaPrimary": "Start for free",
   "ctaSecondary": "See pricing",
   "ctaTrial": "Start the free 30-day trial",
+  "ctaTrialShort": "Free trial",
   "currenciesList": "USD · EUR · BIF · CAD · GBP · XAF · XOF · KES · TZS · RWF · UGX · BRL",
   "currenciesText": "Every rent is recorded in its original currency. Totals are converted with a dated rate, never presented as a live rate.",
   "currenciesTitle": "Your currencies, shown the way you use them",

@@ -673,6 +673,7 @@
   "feedEmpty": "Aucun événement pour l'instant — les événements apparaîtront ici dès qu'ils seront enregistrés.",
   "feedFilterBuilding": "Immeuble",
   "feedTitle": "Fil d'actualité",
+  "greeting": "Bonjour, {name}",
   "lateAmount": "Montant en retard",
   "lateCount": "{count} échéance(s) en retard",
   "lateList": "Retards",
@@ -747,8 +748,13 @@
   "uploadedButNotKept": "Document enregistré. Contenu non conservé en démo (fichier trop gros pour le stockage local)."
  },
  "footer": {
+  "company": "Entreprise",
   "contactEmail": "infos@cizagroup.com",
   "languageLabel": "Langue",
+  "legal": "Légal",
+  "parentSite": "Ciza Group — cizagroup.com",
+  "product": "Produit",
+  "rentals": "Appartements à louer",
   "tagline": "Vos biens, gérés simplement."
  },
  "indivision": {
@@ -803,6 +809,7 @@
   "ctaPrimary": "Commencer gratuitement",
   "ctaSecondary": "Voir les tarifs",
   "ctaTrial": "Commencer l'essai gratuit de 30 jours",
+  "ctaTrialShort": "Essai gratuit",
   "currenciesList": "USD · EUR · BIF · CAD · GBP · XAF · XOF · KES · TZS · RWF · UGX · BRL",
   "currenciesText": "Chaque loyer est enregistré dans sa devise d'origine. Les totaux sont convertis avec un taux daté, jamais présenté comme un taux du jour.",
   "currenciesTitle": "Vos devises, affichées comme vous les utilisez",

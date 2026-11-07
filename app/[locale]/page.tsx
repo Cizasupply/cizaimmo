@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 import { PRIX_PLANS, GESTIONNAIRES_MAX, VITRINE_PAR_PLAN, INDIVISION_PAR_PLAN } from "@/lib/abonnement";
 import type { Plan } from "@/lib/data/types";
@@ -24,78 +23,49 @@ export default async function LandingPage({
   setRequestLocale(locale);
   const t = await getTranslations("landing");
   const tb = await getTranslations("brand");
-  const tn = await getTranslations("nav");
 
   return (
     <div className="min-h-screen bg-navy-dark text-white">
-      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-6 md:px-12">
-        <div className="shrink-0">
-          <Image
-            src="/cizaimmo-logo-v4.png"
-            alt="CizaImmo"
-            width={260}
-            height={115}
-            priority
-            className="h-auto w-[180px] md:w-[260px]"
-          />
-        </div>
-        <nav className="flex flex-wrap items-center gap-4 text-sm">
-          <Link href="/tarifs" className="rounded px-1 py-2 hover:text-gold">
-            {tn("pricing")}
-          </Link>
-          <Link href="/a-louer" className="rounded px-1 py-2 hover:text-gold">
-            {t("navRent")}
-          </Link>
-          <Link href="/contact" className="rounded px-1 py-2 hover:text-gold">
-            {tn("contact")}
-          </Link>
-          <Link href="/dashboard" className="rounded px-1 py-2 hover:text-gold">
-            {tn("dashboard")}
-          </Link>
-          <Link
-            href="/inscription"
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-5 py-2 font-semibold text-navy-dark hover:bg-gold-light"
-          >
-            {t("ctaTrial")}
-          </Link>
-          <LanguageSwitcher className="border-gold text-gold hover:bg-gold hover:text-navy-dark" />
-        </nav>
-      </header>
+      <PublicHeader />
 
-      <main className="px-6 md:px-12 pt-16 pb-24 text-center max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-          {t("headline")}
-        </h1>
-        <p className="mt-4 text-xl text-gold">{tb("slogan")}</p>
-        <p className="mt-6 text-lg text-slate-300">{t("subheadline")}</p>
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/inscription"
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-8 py-3 font-semibold text-navy-dark hover:bg-gold-light"
-          >
-            {t("ctaTrial")}
-          </Link>
-          <Link
-            href="#tarifs"
-            className="rounded-full border border-gold px-8 py-3 font-semibold text-gold hover:bg-gold hover:text-navy-dark"
-          >
-            {t("ctaSecondary")}
-          </Link>
-        </div>
-
-        <div className="mt-20 grid gap-6 sm:grid-cols-2 text-left">
-          {features.map((f) => (
-            <div
-              key={f}
-              className="rounded-2xl bg-navy p-6 border border-navy-light"
+      <main className="mx-auto max-w-4xl px-6 pb-24 pt-16 text-center md:px-12">
+        <section>
+          <h1 className="text-4xl font-bold leading-tight md:text-6xl">
+            {t("headline")}
+          </h1>
+          <p className="mt-4 text-xl text-gold">{tb("slogan")}</p>
+          <p className="mt-6 text-lg text-slate-300">{t("subheadline")}</p>
+          <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
+            <Link
+              href="/inscription"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-8 py-3 font-semibold text-navy-dark hover:bg-gold-light"
             >
-              <h3 className="text-lg font-semibold text-gold">
-                {t(`features.${f}.title`)}
-              </h3>
-              <p className="mt-2 text-slate-300">{t(`features.${f}.desc`)}</p>
-            </div>
-          ))}
-        </div>
+              {t("ctaTrial")}
+            </Link>
+            <Link
+              href="#tarifs"
+              className="rounded-full border border-gold px-8 py-3 font-semibold text-gold hover:bg-gold hover:text-navy-dark"
+            >
+              {t("ctaSecondary")}
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-20 text-left">
+          <div className="grid gap-6 sm:grid-cols-2">
+            {features.map((f) => (
+              <div
+                key={f}
+                className="rounded-2xl bg-navy p-6 border border-navy-light"
+              >
+                <h3 className="text-lg font-semibold text-gold">
+                  {t(`features.${f}.title`)}
+                </h3>
+                <p className="mt-2 text-slate-300">{t(`features.${f}.desc`)}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-20 text-left">
           <h2 className="text-center text-3xl font-bold">{t("benefitsTitle")}</h2>
@@ -160,10 +130,9 @@ export default async function LandingPage({
           <p className="mt-3 text-center text-slate-300">{t("previewText")}</p>
         </section>
 
-        <p className="mt-16 text-slate-400">{t("pricingTeaser")}</p>
-
         <section id="tarifs" className="mt-20 text-left">
-          <h2 className="text-center text-3xl font-bold">{t("pricing.title")}</h2>
+          <p className="text-center font-semibold text-gold">{t("pricingTeaser")}</p>
+          <h2 className="mt-3 text-center text-3xl font-bold">{t("pricing.title")}</h2>
           <p className="mt-3 text-center text-slate-300">{t("pricing.subtitle")}</p>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {plans.map((plan) => (

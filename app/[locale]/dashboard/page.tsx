@@ -24,6 +24,7 @@ import type {
 } from "@/lib/data";
 import { DEVISES } from "@/lib/data";
 import { moisCourant } from "@/lib/parc";
+import { prenomDe } from "@/lib/nom";
 import { calculerIndicateurs, convertirMontant, urlActivite } from "@/lib/module4";
 import { totalPayeValide } from "@/lib/loyers";
 import { messageErreur } from "@/lib/translateError";
@@ -210,6 +211,14 @@ export default function DashboardPage() {
             {tc("retry")}
           </button>
         </div>
+      ) : null}
+
+      {/* Salutation — prénom de l'utilisateur connecté ; rien pendant le
+          chargement (profil null), jamais de clé brute ni de « — ». */}
+      {profil?.nom && prenomDe(profil.nom) ? (
+        <p className="mb-4 break-words text-xl font-bold text-navy sm:text-2xl">
+          {td("greeting", { name: prenomDe(profil.nom) as string })}
+        </p>
       ) : null}
 
       {chargement ? (

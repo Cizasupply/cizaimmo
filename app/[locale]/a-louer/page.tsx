@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { formatMoney } from "@/lib/format";
+import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getDataProvider, TYPES_APPARTEMENT } from "@/lib/data";
 import type { AnnoncePublique, Devise } from "@/lib/data";
 import { DEVISES } from "@/lib/data";
@@ -63,23 +63,7 @@ export default function ALouerPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-navy-dark px-6 py-6 text-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xl font-bold tracking-wide">
-              <span className="text-white">CIZA</span>
-              <span className="text-gold">IMMO</span>
-            </p>
-            <p className="text-xs text-slate-400">CizaImmo — division de Ciza Group</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href={`/${locale}`} className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-500 px-4 py-2 text-sm font-semibold hover:border-gold hover:text-gold">
-              {t("backToHome")}
-            </Link>
-            <LanguageSwitcher className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
         <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("title")}</h1>

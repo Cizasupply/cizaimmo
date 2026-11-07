@@ -73,7 +73,7 @@ export function buildDemoDb(): DemoDb {
 
   const profil: Profil = {
     id: OWNER_ID,
-    nom: "Démo — Amina Niyonzima",
+    nom: "Amina Niyonzima",
     email: "demo@cizaimmo.com",
     pays: "Burundi",
     langue: "fr",
@@ -319,7 +319,7 @@ export function buildDemoDb(): DemoDb {
       id: "00000000-0000-4000-8000-000000000d01",
       owner_id: OWNER_ID,
       email: GESTIONNAIRE_DEMO_EMAIL,
-      nom: "Démo — Marc Dubois",
+      nom: "Marc Dubois",
       immeuble_ids: [immeubles[1].id],
       statut: "actif",
       created_at: now,

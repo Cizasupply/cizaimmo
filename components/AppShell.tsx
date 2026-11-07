@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
+import type { Profil } from "@/lib/data";
+import { prenomDe } from "@/lib/nom";
 
 const links = [
   { key: "dashboard", href: "/dashboard" },
@@ -58,6 +60,22 @@ function AlertBell() {
   );
 }
 
+/** Bloc utilisateur : initiale + nom complet + e-mail, tronqués (noms longs). */
+function BlocUtilisateur({ profil }: { profil: Profil }) {
+  const initiale = (profil.nom.trim()[0] ?? "?").toUpperCase();
+  return (
+    <div className="mt-8 flex min-w-0 items-center gap-3 rounded-xl border border-slate-600 px-3 py-2.5">
+      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-bold text-navy-dark">
+        {initiale}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-white">{profil.nom}</span>
+        <span className="block truncate text-xs text-slate-400">{profil.email}</span>
+      </span>
+    </div>
+  );
+}
+
 export default function AppShell({
   title,
   children,
@@ -70,21 +88,23 @@ export default function AppShell({
   const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
-  const [role, setRole] = useState<string | null>(null);
+  const [profil, setProfil] = useState<Profil | null>(null);
   const [menuOuvert, setMenuOuvert] = useState(false);
 
   useEffect(() => {
     let actif = true;
     getDataProvider()
       .getProfil()
-      .then((profil) => {
-        if (actif && profil) setRole(profil.role);
+      .then((p) => {
+        if (actif && p) setProfil(p);
       })
       .catch(() => undefined);
     return () => {
       actif = false;
     };
   }, []);
+
+  const role = profil?.role ?? null;
 
   const estProprietaire = role === "proprietaire";
   const estCoproprietaire = role === "coproprietaire";
@@ -178,10 +198,11 @@ export default function AppShell({
         <nav className="space-y-1">
           <LiensNavigation />
         </nav>
+        {profil ? <BlocUtilisateur profil={profil} /> : null}
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-8 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+          className="mt-3 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
         >
           {tc("logout")}
         </button>
@@ -197,7 +218,7 @@ export default function AppShell({
         >
           <span aria-hidden="true">☰</span>
         </button>
-        <Link href={`/${locale}/dashboard`} aria-label="CizaImmo" className="min-w-0">
+        <Link href={`/${locale}/dashboard`} aria-label="CizaImmo" className="min-w-0 shrink-0">
           <Image
             src="/cizaimmo-logo-compact.png"
             alt="CizaImmo"
@@ -206,6 +227,11 @@ export default function AppShell({
             priority
           />
         </Link>
+        {profil?.nom && prenomDe(profil.nom) ? (
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+            {prenomDe(profil.nom)}
+          </span>
+        ) : null}
       </header>
       {/* Tiroir mobile — téléphone seulement, jamais sur ordinateur. */}
       {menuOuvert ? (
@@ -245,10 +271,11 @@ export default function AppShell({
             <nav className="space-y-1">
               <LiensNavigation onNavigate={() => setMenuOuvert(false)} />
             </nav>
+            {profil ? <BlocUtilisateur profil={profil} /> : null}
             <button
               type="button"
               onClick={handleLogout}
-              className="mt-8 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+              className="mt-3 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
             >
               {tc("logout")}
             </button>
