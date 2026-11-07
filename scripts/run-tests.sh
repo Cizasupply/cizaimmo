@@ -145,6 +145,21 @@ else
   ECHEC=1
 fi
 
+# Correctif « premier immeuble en réel » (2026-11-07) : clés i18n
+# utilisées mais absentes (crud.common.create sur 6 pages de création)
+# + colonnes passeport du Module 6 (module-correctif-immeuble.sql).
+# Le balayage COMPLET des clés utilisées vit dans
+# scripts/i18n-cles-utilisees.py : la parité FR/EN seule ne suffisait
+# pas (les deux fichiers manquaient la clé de la même façon).
+echo ""
+echo "===== Correctif immeuble (i18n clés utilisées + SQL passeport) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-correctif-immeuble.cjs"; then
+  echo "Correctif immeuble : OK"
+else
+  echo "Correctif immeuble : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

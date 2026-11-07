@@ -64,5 +64,13 @@ export function messageErreur(
 ): string {
   const code = erreur instanceof Error ? erreur.message : "";
   if (CODES.has(code)) return t(`errors.${code}`);
+  // Correctif 2026-11-07 : une erreur non reconnue (typiquement une
+  // erreur PostgREST brute — RLS, colonne absente du cache de schéma…)
+  // ne doit plus être un mur silencieux : on la journalise dans la
+  // console du navigateur pour rendre le diagnostic possible, tout en
+  // gardant le message générique côté utilisateur.
+  if (typeof console !== "undefined") {
+    console.error("[CizaImmo] Erreur non reconnue :", erreur);
+  }
   return t("errors.ERR_GENERIC");
 }
