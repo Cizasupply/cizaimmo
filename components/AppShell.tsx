@@ -20,6 +20,7 @@ const links = [
   { key: "expenses", href: "/depenses" },
   { key: "documents", href: "/documents" },
   { key: "alerts", href: "/alertes" },
+  { key: "messages", href: "/messages" },
   { key: "reports", href: "/rapports" },
   { key: "settings", href: "/parametres" },
 ] as const;

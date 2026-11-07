@@ -15,6 +15,7 @@ import type {
   CibleAudit,
   CompteAdmin,
   ComptePlateforme,
+  Conversation,
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
@@ -45,6 +46,8 @@ import type {
   Locataire,
   LocataireInput,
   LocatairePatch,
+  MembreEquipe,
+  MessageDirect,
   ModeleAvis,
   MotifRefus,
   OperateurMobileMoney,
@@ -57,12 +60,14 @@ import type {
   ProfilPatch,
   RattachementGestionnaire,
   Recu,
+  Role,
   SessionUser,
   SignUpInput,
   StatutAppartement,
   StatutContrat,
   StatutWhatsApp,
   SupervisionGestionnaire,
+  SuppressionEnAttente,
   TarifPlateforme,
   TauxChange,
   TauxManuelInput,
@@ -287,6 +292,25 @@ function loadDb(): DemoDb {
         }
       }
     }
+    // Migration douce (v1.5) : messagerie directe + suppression de
+    // compte — collections absentes des bases enregistrées avant la
+    // v1.5, remplies depuis la seed (vides) sans rien écraser.
+    if (!Array.isArray(db.conversations)) {
+      db.conversations = frais.conversations;
+      migre = true;
+    }
+    if (!Array.isArray(db.messages)) {
+      db.messages = frais.messages;
+      migre = true;
+    }
+    for (const f of db.factures ?? []) {
+      const rec = f as unknown as Record<string, unknown>;
+      if (rec.anonymise === undefined) { rec.anonymise = false; migre = true; }
+    }
+    if (db.abonnement && (db.abonnement as unknown as Record<string, unknown>).instantane_avant_suppression === undefined) {
+      (db.abonnement as unknown as Record<string, unknown>).instantane_avant_suppression = null;
+      migre = true;
+    }
     // Migration douce (v1.3) : Display ID, intention, statut du contrat,
     // demandes de rattachement et documents de dossier.
     if (typeof db.compteurDisplayId !== "number") {
@@ -489,8 +513,12 @@ export class DemoProvider implements DataProvider {
       type_intention: input.intention,
       photo_profil_path: null,
       statut_contrat: "sans_objet",
+      // v1.5 : un compte neuf n'a ni suppression en cours ni responsable.
+      suppression_demandee_le: null,
+      admin_responsable_id: null,
       created_at: debut,
     };
+    db.principalSupprime = false;
     db.compteurDisplayId += 1;
     db.abonnement = {
       ...db.abonnement,
@@ -513,6 +541,7 @@ export class DemoProvider implements DataProvider {
       grace_ends_at: null,
       lecture_seule_jusqu_au: null,
       statut_pre_suspension: null,
+      instantane_avant_suppression: null,
     };
     saveDb(db);
     const session: SessionUser = { id: db.profil.id, email: db.profil.email, nom: db.profil.nom };
@@ -559,6 +588,8 @@ export class DemoProvider implements DataProvider {
         role: entree.role,
         telephone: null,
         suspendu: entree.statut === "suspendu",
+        // v1.5 : accès console de l'employé (coupé par le Super Admin).
+        acces_admin_actif: entree.acces_admin_actif ?? true,
         created_at: entree.created_at,
       };
     }
@@ -643,6 +674,20 @@ export class DemoProvider implements DataProvider {
    * dépassée) et persiste si quelque chose a changé.
    */
   private chargerAbonnement(db: DemoDb): Abonnement {
+    // v1.5 — POINT CRITIQUE : tant qu'une suppression de compte est en
+    // cours (suppression_demandee_le posé), l'abonnement reste en
+    // LECTURE SEULE : les transitions paresseuses par dates ne doivent
+    // JAMAIS l'écraser (une résiliation programmée le passerait par
+    // exemple à « annule », et toute transition future pourrait
+    // restaurer un statut antérieur). L'instantané reste la référence,
+    // restauré tel quel par annulerSuppressionCompte().
+    if (db.profil?.suppression_demandee_le && !db.principalSupprime) {
+      if (db.abonnement.statut !== "lecture_seule") {
+        db.abonnement = { ...db.abonnement, statut: "lecture_seule" };
+        saveDb(db);
+      }
+      return db.abonnement;
+    }
     const { abo, change } = appliquerTransitions(db.abonnement);
     if (change) {
       db.abonnement = abo;
@@ -2722,6 +2767,8 @@ export class DemoProvider implements DataProvider {
       statut: "payee",
       stripe_invoice_id: null,
       reference_mobile_money: referenceMobileMoney,
+      // v1.5 : anonymisée seulement à l'exécution d'une suppression.
+      anonymise: false,
     };
     db.factures.push(facture);
     return facture;
@@ -2820,7 +2867,10 @@ export class DemoProvider implements DataProvider {
     if (!session) throw err("ERR_NOT_FOUND");
     return loadDb()
       .factures.slice()
-      .sort((a, b) => b.date_emission.localeCompare(a.date_emission));
+      .sort((a, b) => b.date_emission.localeCompare(a.date_emission))
+      // v1.5 : relire le drapeau d'anonymisation (défaut false pour les
+      // factures stockées avant la v1.5).
+      .map((f) => ({ ...f, anonymise: f.anonymise ?? false }));
   }
 
   async signalerEchecPaiement(): Promise<Abonnement> {
@@ -2962,6 +3012,23 @@ export class DemoProvider implements DataProvider {
       (a) => a.email.toLowerCase() === email
     );
     if (!entree || entree.statut === "suspendu") throw err("ERR_ACCES_PLATEFORME");
+    // v1.5 (miroir de est_admin_plateforme) : un employé Admin dont
+    // l'accès console a été coupé par le Super Admin
+    // (acces_admin_actif = false, sur l'entrée Admin OU sur le profil
+    // lié par e-mail) est refusé par CETTE garde centrale — toutes les
+    // méthodes plateforme passent par ici. Le Super Admin n'est pas
+    // concerné par la coupure d'accès employé.
+    if (entree.role === "admin") {
+      let accesActif = entree.acces_admin_actif ?? true;
+      if (db.profil.email.toLowerCase() === email) {
+        accesActif = accesActif && (db.profil.acces_admin_actif ?? true);
+      }
+      const lie = db.plateforme.comptesClients.find(
+        (c) => c.email.toLowerCase() === email
+      );
+      if (lie) accesActif = accesActif && (lie.acces_admin_actif ?? true);
+      if (!accesActif) throw err("ERR_ACCES_PLATEFORME");
+    }
     return { id: entree.id, email: entree.email, nom: entree.nom, role: entree.role };
   }
 
@@ -2973,7 +3040,11 @@ export class DemoProvider implements DataProvider {
 
   private journaliserAudit(
     db: DemoDb,
-    acteur: { id: string; email: string; role: "admin" | "super_admin" },
+    // v1.5 : l'acteur peut aussi être un CLIENT (demande / annulation
+    // de suppression de son propre compte) — acteur_role reflète alors
+    // son rôle réel (proprietaire / gestionnaire…), même si le type
+    // EntreeAudit historique ne déclare que les rôles plateforme.
+    acteur: { id: string; email: string; role: string },
     action: string,
     cibleType: CibleAudit,
     cibleId: string | null,
@@ -2984,7 +3055,7 @@ export class DemoProvider implements DataProvider {
       id: uid(),
       acteur_id: acteur.id,
       acteur_email: acteur.email,
-      acteur_role: acteur.role,
+      acteur_role: acteur.role as EntreeAudit["acteur_role"],
       action,
       cible_type: cibleType,
       cible_id: cibleId,
@@ -3066,6 +3137,12 @@ export class DemoProvider implements DataProvider {
       type_intention: db.profil.type_intention ?? "proprietaire",
       statut_contrat: db.profil.statut_contrat ?? "sans_objet",
       dossier_complet: this.dossierCompletPrincipal(db),
+      // v1.5 : assignation + suppression (champs OBLIGATOIRES du type).
+      admin_responsable_id: db.profil.admin_responsable_id ?? null,
+      admin_responsable_nom: db.profil.admin_responsable_id
+        ? this.resoudreNomAdmin(db, db.profil.admin_responsable_id)
+        : null,
+      suppression_demandee_le: db.profil.suppression_demandee_le ?? null,
     };
   }
 
@@ -3091,6 +3168,12 @@ export class DemoProvider implements DataProvider {
       type_intention: entree.type_intention,
       statut_contrat: entree.statut_contrat,
       dossier_complet: entree.dossier_complet,
+      // v1.5 : assignation + suppression (champs OBLIGATOIRES du type).
+      admin_responsable_id: entree.admin_responsable_id ?? null,
+      admin_responsable_nom: entree.admin_responsable_id
+        ? this.resoudreNomAdmin(db, entree.admin_responsable_id)
+        : null,
+      suppression_demandee_le: entree.suppression_demandee_le ?? null,
     };
   }
 
@@ -3098,7 +3181,9 @@ export class DemoProvider implements DataProvider {
     const db = loadDb();
     this.acteurPlateforme(db);
     const comptes = [
-      this.comptePrincipal(db),
+      // v1.5 : après exécution de sa suppression, le compte principal
+      // ne figure plus dans la console.
+      ...(db.principalSupprime ? [] : [this.comptePrincipal(db)]),
       ...db.plateforme.comptesClients.map((c) => this.compteRegistre(db, c)),
     ];
     return comptes.sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -3402,7 +3487,16 @@ export class DemoProvider implements DataProvider {
       .slice()
       .sort((a, b) =>
         a.role === b.role ? a.email.localeCompare(b.email) : a.role === "super_admin" ? -1 : 1
-      );
+      )
+      // v1.5 : accès console + charge (dossiers assignés) résolus.
+      .map((a) => ({
+        ...a,
+        acces_admin_actif: this.resoudreAccesAdmin(db, a),
+        dossiers_assignes: this.compterDossiersAssignes(
+          db,
+          this.aliasAdmin(db, a.id, a.email)
+        ),
+      }));
   }
 
   async creerAdmin(email: string, nom: string): Promise<CompteAdmin> {
@@ -3420,6 +3514,7 @@ export class DemoProvider implements DataProvider {
       role: "admin",
       statut: "actif",
       created_at: new Date().toISOString(),
+      acces_admin_actif: true,
     };
     db.plateforme.comptesAdmins.push(cree);
     this.journaliserAudit(db, acteur, "admin_cree", "admin", cree.id, cree.email);
@@ -3435,23 +3530,49 @@ export class DemoProvider implements DataProvider {
       throw err("ERR_DEJA_ADMIN");
     }
     let nom: string | null = null;
-    if (db.profil.email.toLowerCase() === adresse) nom = db.profil.nom;
+    // v1.5 (miroir du fournisseur réel) : la promotion pose le rôle
+    // « admin » sur le PROFIL du compte et conserve son rôle client
+    // d'origine dans role_avant_admin, pour un retrait fidèle par
+    // retirerRoleAdmin(). L'identifiant de l'entrée Admin créée est
+    // celui du profil promu — un seul identifiant par personne.
+    let idCible: string | null = null;
+    if (db.profil.email.toLowerCase() === adresse) {
+      nom = db.profil.nom;
+      idCible = db.profil.id;
+      if (db.profil.role !== "admin" && db.profil.role !== "super_admin") {
+        db.profil.role_avant_admin = db.profil.role;
+        db.profil.role = "admin";
+      }
+      db.profil.acces_admin_actif = true;
+    }
     const client = db.plateforme.comptesClients.find(
       (c) => c.email.toLowerCase() === adresse
     );
-    if (client) nom = client.nom;
+    if (client) {
+      nom = client.nom;
+      idCible = client.id;
+      if (client.role !== "admin" && client.role !== "super_admin") {
+        client.role_avant_admin = client.role;
+        client.role = "admin";
+      }
+      client.acces_admin_actif = true;
+    }
     const invitation = db.gestionnaires.find(
       (g) => g.email.toLowerCase() === adresse
     );
-    if (invitation) nom = invitation.nom ?? nom;
+    if (invitation) {
+      nom = invitation.nom ?? nom;
+      idCible = idCible ?? invitation.id;
+    }
     if (!nom) throw err("ERR_INTROUVABLE");
     const cree: CompteAdmin = {
-      id: uid(),
+      id: idCible ?? uid(),
       email: adresse,
       nom,
       role: "admin",
       statut: "actif",
       created_at: new Date().toISOString(),
+      acces_admin_actif: true,
     };
     db.plateforme.comptesAdmins.push(cree);
     this.journaliserAudit(db, acteur, "admin_promu", "admin", cree.id, cree.email);
@@ -4380,5 +4501,1013 @@ export class DemoProvider implements DataProvider {
       email_activation: emailStatut,
     });
     saveDb(db);
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.5 — Suppression de compte par le client, messagerie
+  // directe supervisée, assignation des dossiers, page Équipe et espace
+  // « Mes dossiers ». Voir docs/messagerie-suppression-v15.md.
+  // Miroir DÉMO de la base : demande → lecture seule immédiate +
+  // instantané ; annulation ≤ 30 jours → restauration à l'identique ;
+  // exécution ≥ 30 jours par le Super Admin → factures anonymisées
+  // puis compte supprimé ; plateforme en LECTURE SEULE sur les fils
+  // propriétaire ↔ gestionnaire ; assignation = responsabilité.
+  // ==========================================================================
+
+  /** Session brute (synchrone) lue dans le stockage démo. */
+  private sessionBrute(): SessionUser | null {
+    if (!isBrowser()) return null;
+    try {
+      const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw) as SessionUser;
+      return s?.id && s?.email ? s : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Copie profonde (données démo = JSON pur). */
+  private copieProfonde<T>(valeur: T): T {
+    return JSON.parse(JSON.stringify(valeur)) as T;
+  }
+
+  // --- Résolution d'identités (principal, registre, démo, plateforme) ----
+
+  /** Résout une personne par id OU e-mail, toutes sources démo confondues. */
+  private resoudrePersonne(
+    db: DemoDb,
+    ref: string | null | undefined
+  ): {
+    id: string;
+    email: string;
+    nom: string;
+    display_id: string | null;
+    admin_responsable_id: string | null;
+  } | null {
+    if (!ref) return null;
+    const cle = ref.toLowerCase();
+    const admin = db.plateforme.comptesAdmins.find(
+      (a) => a.id === ref || a.email.toLowerCase() === cle
+    );
+    if (admin) {
+      return { id: admin.id, email: admin.email, nom: admin.nom, display_id: null, admin_responsable_id: null };
+    }
+    if (db.profil.id === ref || db.profil.email.toLowerCase() === cle) {
+      return {
+        id: db.profil.id,
+        email: db.profil.email,
+        nom: db.profil.nom,
+        display_id: db.profil.display_id ?? null,
+        admin_responsable_id: db.profil.admin_responsable_id ?? null,
+      };
+    }
+    if (
+      db.parcCizaGroup.profil.id === ref ||
+      db.parcCizaGroup.profil.email.toLowerCase() === cle
+    ) {
+      const p = db.parcCizaGroup.profil;
+      return { id: p.id, email: p.email, nom: p.nom, display_id: null, admin_responsable_id: null };
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.id === ref || c.email.toLowerCase() === cle
+    );
+    if (client) {
+      return {
+        id: client.id,
+        email: client.email,
+        nom: client.nom,
+        display_id: client.display_id,
+        admin_responsable_id: client.admin_responsable_id ?? null,
+      };
+    }
+    const marc = this.compteGestionnaireDemo(db);
+    if (marc && (marc.id === ref || marc.email.toLowerCase() === cle)) {
+      return {
+        id: marc.id,
+        email: marc.email,
+        nom: marc.nom,
+        display_id: marc.display_id,
+        admin_responsable_id: null,
+      };
+    }
+    const rattachement = db.plateforme.rattachements.find(
+      (r) =>
+        r.gestionnaire_id === ref ||
+        r.gestionnaire_email.toLowerCase() === cle ||
+        r.proprietaire_id === ref
+    );
+    if (rattachement) {
+      if (rattachement.proprietaire_id === ref) {
+        return {
+          id: ref,
+          email: "",
+          nom: rattachement.proprietaire_nom ?? ref,
+          display_id: null,
+          admin_responsable_id: null,
+        };
+      }
+      return {
+        id: rattachement.gestionnaire_id,
+        email: rattachement.gestionnaire_email,
+        nom: rattachement.gestionnaire_nom ?? rattachement.gestionnaire_email,
+        display_id: null,
+        admin_responsable_id: null,
+      };
+    }
+    return null;
+  }
+
+  /** Nom d'affichage d'un Admin responsable (null si introuvable). */
+  private resoudreNomAdmin(db: DemoDb, ref: string | null | undefined): string | null {
+    if (!ref) return null;
+    return this.resoudrePersonne(db, ref)?.nom ?? null;
+  }
+
+  /**
+   * Tous les identifiants équivalents d'un Admin (entrée Admin, profil
+   * principal lié, compte registre lié — même personne, par e-mail).
+   */
+  private aliasAdmin(db: DemoDb, id: string, email: string): Set<string> {
+    const alias = new Set<string>([id, email.toLowerCase()]);
+    const entree = db.plateforme.comptesAdmins.find(
+      (a) => a.id === id || a.email.toLowerCase() === email.toLowerCase()
+    );
+    if (entree) {
+      alias.add(entree.id);
+      alias.add(entree.email.toLowerCase());
+    }
+    if (db.profil.id === id || db.profil.email.toLowerCase() === email.toLowerCase()) {
+      alias.add(db.profil.id);
+      alias.add(db.profil.email.toLowerCase());
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.id === id || c.email.toLowerCase() === email.toLowerCase()
+    );
+    if (client) {
+      alias.add(client.id);
+      alias.add(client.email.toLowerCase());
+    }
+    return alias;
+  }
+
+  /** Accès console effectif d'un Admin (entrée + profil lié). */
+  private resoudreAccesAdmin(db: DemoDb, entree: CompteAdmin): boolean {
+    let acces = entree.acces_admin_actif ?? true;
+    if (db.profil.email.toLowerCase() === entree.email.toLowerCase()) {
+      acces = acces && (db.profil.acces_admin_actif ?? true);
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.email.toLowerCase() === entree.email.toLowerCase()
+    );
+    if (client) acces = acces && (client.acces_admin_actif ?? true);
+    return acces;
+  }
+
+  /** Charge d'un Admin : dossiers clients dont il est le responsable. */
+  private compterDossiersAssignes(db: DemoDb, alias: Set<string>): number {
+    let total = 0;
+    if (
+      !db.principalSupprime &&
+      db.profil.admin_responsable_id &&
+      alias.has(db.profil.admin_responsable_id)
+    ) {
+      total += 1;
+    }
+    total += db.plateforme.comptesClients.filter(
+      (c) => c.admin_responsable_id && alias.has(c.admin_responsable_id)
+    ).length;
+    return total;
+  }
+
+  /** Cibles liées d'un Admin désigné par id (entrée + profil + registre). */
+  private ciblesAdmin(
+    db: DemoDb,
+    ref: string
+  ): {
+    entree: CompteAdmin | null;
+    principalLie: boolean;
+    registreLie: CompteClientDemo | null;
+    role: Role | null;
+    idCanonique: string;
+    email: string | null;
+  } {
+    let entree =
+      db.plateforme.comptesAdmins.find((a) => a.id === ref) ?? null;
+    const principalLieDirect = db.profil.id === ref;
+    const registreLieDirect =
+      db.plateforme.comptesClients.find((c) => c.id === ref) ?? null;
+    if (!entree) {
+      const emailLie = principalLieDirect
+        ? db.profil.email
+        : registreLieDirect?.email ?? null;
+      if (emailLie) {
+        entree =
+          db.plateforme.comptesAdmins.find(
+            (a) => a.email.toLowerCase() === emailLie.toLowerCase()
+          ) ?? null;
+      }
+    }
+    const principalLie =
+      principalLieDirect ||
+      (entree !== null &&
+        db.profil.email.toLowerCase() === entree.email.toLowerCase());
+    const registreLie =
+      registreLieDirect ??
+      (entree
+        ? db.plateforme.comptesClients.find(
+            (c) => c.email.toLowerCase() === entree!.email.toLowerCase()
+          ) ?? null
+        : null);
+    const role: Role | null =
+      entree?.role ??
+      (principalLie ? db.profil.role : registreLie?.role ?? null);
+    return {
+      entree,
+      principalLie,
+      registreLie,
+      role,
+      idCanonique: entree?.id ?? ref,
+      email:
+        entree?.email ??
+        (principalLie ? db.profil.email : registreLie?.email ?? null),
+    };
+  }
+
+  /** Résout un Admin par id pour l'assignation (rôle plateforme exigé). */
+  private resoudreAdminParId(
+    db: DemoDb,
+    ref: string
+  ): { id: string; email: string; nom: string; role: "admin" | "super_admin" } | null {
+    const cibles = this.ciblesAdmin(db, ref);
+    if (!cibles.role || (cibles.role !== "admin" && cibles.role !== "super_admin")) {
+      return null;
+    }
+    const personne = this.resoudrePersonne(db, cibles.idCanonique);
+    return {
+      id: cibles.idCanonique,
+      email: cibles.email ?? personne?.email ?? "",
+      nom: personne?.nom ?? cibles.email ?? ref,
+      role: cibles.role,
+    };
+  }
+
+  // --- Suppression de compte par le client --------------------------------
+
+  /**
+   * Garde des demandes de suppression : acteur CLIENT uniquement —
+   * une session plateforme (ou restreinte gestionnaire/co-propriétaire,
+   * sans compte propre en démo) est refusée ERR_OPERATION_INTERDITE.
+   */
+  private acteurClientSuppression(): void {
+    const session = this.sessionBrute();
+    if (!session) throw err("ERR_NOT_FOUND");
+    if (
+      session.id.startsWith("plateforme:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("coprop:")
+    ) {
+      throw err("ERR_OPERATION_INTERDITE");
+    }
+  }
+
+  async demanderSuppressionCompte(): Promise<Profil> {
+    this.acteurClientSuppression();
+    const db = loadDb();
+    if (db.profil.suppression_demandee_le) {
+      throw err("ERR_SUPPRESSION_DEJA_DEMANDEE");
+    }
+    const maintenant = new Date().toISOString();
+    // Instantané COMPLET de l'abonnement courant (transitions
+    // paresseuses appliquées d'abord), pris AVANT le passage en
+    // lecture seule — restauré tel quel à l'annulation.
+    const abo = this.chargerAbonnement(db);
+    const instantane = this.copieProfonde(abo) as unknown as Record<string, unknown>;
+    instantane.instantane_avant_suppression = null;
+    db.profil.suppression_demandee_le = maintenant;
+    abo.instantane_avant_suppression = instantane;
+    abo.statut = "lecture_seule";
+    // Audit signé par le CLIENT lui-même (rôle réel dans l'entrée).
+    this.journaliserAudit(
+      db,
+      { id: db.profil.id, email: db.profil.email, role: db.profil.role },
+      "suppression_demandee",
+      "compte",
+      db.profil.id,
+      db.profil.email,
+      { suppression_demandee_le: maintenant, echeance_le: ajouterJours(maintenant, 30) }
+    );
+    saveDb(db);
+    return { ...db.profil };
+  }
+
+  async annulerSuppressionCompte(): Promise<Profil> {
+    this.acteurClientSuppression();
+    const db = loadDb();
+    const demandeeLe = db.profil.suppression_demandee_le;
+    if (!demandeeLe) throw err("ERR_AUCUNE_SUPPRESSION");
+    const echeance = ajouterJours(demandeeLe, 30);
+    if (Date.now() >= new Date(echeance).getTime()) throw err("ERR_DELAI_EXPIRE");
+    const instantane = db.abonnement.instantane_avant_suppression;
+    if (instantane) {
+      // Restauration À L'IDENTIQUE (tous les champs de l'abonnement).
+      const restaure = this.copieProfonde(instantane) as unknown as Abonnement;
+      restaure.instantane_avant_suppression = null;
+      db.abonnement = restaure;
+    } else {
+      db.abonnement.instantane_avant_suppression = null;
+    }
+    db.profil.suppression_demandee_le = null;
+    this.journaliserAudit(
+      db,
+      { id: db.profil.id, email: db.profil.email, role: db.profil.role },
+      "suppression_annulee",
+      "compte",
+      db.profil.id,
+      db.profil.email,
+      { suppression_demandee_le: demandeeLe }
+    );
+    saveDb(db);
+    return { ...db.profil };
+  }
+
+  async listerSuppressionsEnAttente(): Promise<SuppressionEnAttente[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const maintenant = Date.now();
+    const construire = (
+      compteId: string,
+      email: string,
+      nom: string,
+      displayId: string | null,
+      demandeeLe: string
+    ): SuppressionEnAttente => {
+      const echeanceLe = ajouterJours(demandeeLe, 30);
+      return {
+        compte_id: compteId,
+        email,
+        nom,
+        display_id: displayId,
+        suppression_demandee_le: demandeeLe,
+        echeance_le: echeanceLe,
+        executable: maintenant >= new Date(echeanceLe).getTime(),
+      };
+    };
+    const liste: SuppressionEnAttente[] = [];
+    if (!db.principalSupprime && db.profil.suppression_demandee_le) {
+      liste.push(
+        construire(
+          db.profil.id,
+          db.profil.email,
+          db.profil.nom,
+          db.profil.display_id ?? null,
+          db.profil.suppression_demandee_le
+        )
+      );
+    }
+    for (const c of db.plateforme.comptesClients) {
+      if (c.suppression_demandee_le) {
+        liste.push(
+          construire(c.id, c.email, c.nom, c.display_id, c.suppression_demandee_le)
+        );
+      }
+    }
+    return liste.sort((a, b) =>
+      a.suppression_demandee_le.localeCompare(b.suppression_demandee_le)
+    );
+  }
+
+  async executerSuppressionCompte(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const cible = this.trouverCible(db, compteId);
+    const demandeeLe = cible.principal
+      ? db.profil.suppression_demandee_le
+      : cible.entree!.suppression_demandee_le;
+    if (!demandeeLe) throw err("ERR_AUCUNE_SUPPRESSION");
+    const echeanceLe = ajouterJours(demandeeLe, 30);
+    if (Date.now() < new Date(echeanceLe).getTime()) {
+      throw err("ERR_DELAI_NON_ECOULE");
+    }
+    const emailCible = cible.principal ? db.profil.email : cible.entree!.email;
+    // Factures du compte : anonymisation comptable (montants, dates et
+    // moyens conservés ; références remplacées par « ANONYMISE »).
+    // En démo, db.factures ne contient que les factures du compte
+    // principal (owner_id) — le filtre par owner_id couvre donc les
+    // seules factures accessibles ; un compte du registre n'en a pas.
+    for (const f of db.factures) {
+      if (f.owner_id !== compteId) continue;
+      f.anonymise = true;
+      if (f.stripe_invoice_id) f.stripe_invoice_id = "ANONYMISE";
+      if (f.reference_mobile_money) f.reference_mobile_money = "ANONYMISE";
+    }
+    // Audit AVANT la suppression : l'entrée survit à la cible.
+    this.journaliserAudit(db, acteur, "suppression_executee", "compte", compteId, emailCible, {
+      suppression_demandee_le: demandeeLe,
+      echeance_le: echeanceLe,
+    });
+    // Fils de discussion du compte supprimé (+ leurs messages).
+    const convsSupprimees = new Set(
+      db.conversations
+        .filter((c) => c.proprietaire_id === compteId || c.gestionnaire_id === compteId)
+        .map((c) => c.id)
+    );
+    db.conversations = db.conversations.filter((c) => !convsSupprimees.has(c.id));
+    db.messages = db.messages.filter((m) => !convsSupprimees.has(m.conversation_id));
+    if (cible.principal) {
+      // Compte principal : le parc et les données liées sont vidés et
+      // le compte est retiré des listes console (drapeau
+      // principalSupprime — db.profil ne peut pas disparaître de la
+      // structure démo mono-compte). Les factures ANONYMISÉES restent.
+      db.immeubles = [];
+      db.appartements = [];
+      db.locataires = [];
+      db.baux = [];
+      db.echeances = [];
+      db.paiements = [];
+      db.depenses = [];
+      db.documents = [];
+      db.activites = [];
+      db.alertes = [];
+      db.coproprietaires = [];
+      db.gestionnaires = [];
+      db.paiementsMobileMoney = db.paiementsMobileMoney.filter(
+        (p) => p.owner_id !== compteId
+      );
+      db.plateforme.demandesRattachement =
+        db.plateforme.demandesRattachement.filter(
+          (d) => d.proprietaire_id !== compteId && d.gestionnaire_id !== compteId
+        );
+      db.abonnement = {
+        ...db.abonnement,
+        statut: "annule",
+        instantane_avant_suppression: null,
+      };
+      db.profil = {
+        ...db.profil,
+        nom: "Compte supprimé",
+        suspendu: true,
+        suppression_demandee_le: null,
+      };
+      db.principalSupprime = true;
+    } else {
+      // Compte du registre : suppression de l'entrée (profil +
+      // abonnement embarqués) et de ses documents de dossier.
+      db.plateforme.comptesClients = db.plateforme.comptesClients.filter(
+        (c) => c.id !== compteId
+      );
+      db.plateforme.documentsComptes = db.plateforme.documentsComptes.filter(
+        (d) => d.entite_id !== compteId && d.owner_id !== compteId
+      );
+      db.plateforme.demandesRattachement =
+        db.plateforme.demandesRattachement.filter(
+          (d) => d.proprietaire_id !== compteId && d.gestionnaire_id !== compteId
+        );
+    }
+    saveDb(db);
+  }
+
+  // --- Messagerie directe ---------------------------------------------------
+
+  /** Acteur messagerie de la session (null si non connecté). */
+  private acteurMessagerieOuNull(db: DemoDb): {
+    id: string;
+    email: string;
+    nom: string;
+    role: string;
+    estPlateforme: boolean;
+    ids: Set<string>;
+  } | null {
+    const session = this.sessionBrute();
+    if (!session) return null;
+    if (session.id.startsWith("plateforme:")) {
+      // Garde centrale (suspension + accès coupé v1.5 inclus).
+      const acteur = this.acteurPlateforme(db);
+      return {
+        id: acteur.id,
+        email: acteur.email,
+        nom: acteur.nom,
+        role: acteur.role,
+        estPlateforme: true,
+        ids: new Set([acteur.id, acteur.email.toLowerCase(), session.id]),
+      };
+    }
+    if (session.id.startsWith("gestionnaire:")) {
+      const marc = this.compteGestionnaireDemo(db);
+      const email = session.id.slice("gestionnaire:".length);
+      const id = marc?.id ?? session.id;
+      return {
+        id,
+        email,
+        nom: session.nom ?? marc?.nom ?? email,
+        role: "gestionnaire",
+        estPlateforme: false,
+        ids: new Set([id, session.id, email.toLowerCase()]),
+      };
+    }
+    if (session.id.startsWith("coprop:")) {
+      const email = session.id.slice("coprop:".length);
+      return {
+        id: session.id,
+        email,
+        nom: session.nom ?? email,
+        role: "coproprietaire",
+        estPlateforme: false,
+        ids: new Set([session.id, email.toLowerCase()]),
+      };
+    }
+    return {
+      id: db.profil.id,
+      email: db.profil.email,
+      nom: db.profil.nom,
+      role: db.profil.role,
+      estPlateforme: false,
+      ids: new Set([db.profil.id, session.id, db.profil.email.toLowerCase(), session.email.toLowerCase()]),
+    };
+  }
+
+  private acteurMessagerie(db: DemoDb) {
+    const acteur = this.acteurMessagerieOuNull(db);
+    if (!acteur) throw err("ERR_NOT_FOUND");
+    return acteur;
+  }
+
+  /** Un acteur est participant d'un fil (ou plateforme = supervision). */
+  private estParticipantConversation(
+    db: DemoDb,
+    acteur: { ids: Set<string>; estPlateforme: boolean },
+    conv: Conversation
+  ): boolean {
+    if (acteur.estPlateforme) return true;
+    for (const ref of [conv.proprietaire_id, conv.gestionnaire_id]) {
+      if (!ref) continue;
+      if (acteur.ids.has(ref) || acteur.ids.has(ref.toLowerCase())) return true;
+      const personne = this.resoudrePersonne(db, ref);
+      if (
+        personne &&
+        (acteur.ids.has(personne.id) || acteur.ids.has(personne.email.toLowerCase()))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Conversation enrichie pour l'affichage (jointures + non-lus acteur). */
+  private enrichirConversation(
+    db: DemoDb,
+    conv: Conversation,
+    acteur: { ids: Set<string>; estPlateforme: boolean } | null
+  ): Conversation {
+    const msgs = db.messages
+      .filter((m) => m.conversation_id === conv.id)
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const dernier = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const prop = this.resoudrePersonne(db, conv.proprietaire_id);
+    const gest = conv.gestionnaire_id
+      ? this.resoudrePersonne(db, conv.gestionnaire_id)
+      : null;
+    const adminResp = conv.admin_responsable_id
+      ? this.resoudrePersonne(db, conv.admin_responsable_id)
+      : null;
+    let nonLus = 0;
+    if (acteur) {
+      nonLus = msgs.filter((m) => {
+        if (acteur.ids.has(m.expediteur_id)) return false;
+        return acteur.estPlateforme ? !m.lu_par_plateforme : !m.lu_par_client;
+      }).length;
+    }
+    return {
+      ...conv,
+      proprietaire_nom: prop?.nom ?? conv.proprietaire_nom,
+      proprietaire_email: prop?.email ?? conv.proprietaire_email,
+      proprietaire_display_id: prop?.display_id ?? conv.proprietaire_display_id ?? null,
+      gestionnaire_nom: gest?.nom ?? conv.gestionnaire_nom ?? null,
+      gestionnaire_display_id: gest?.display_id ?? conv.gestionnaire_display_id ?? null,
+      admin_responsable_nom: adminResp?.nom ?? conv.admin_responsable_nom ?? null,
+      dernier_message: dernier?.corps ?? null,
+      dernier_message_le: dernier?.created_at ?? null,
+      non_lus: nonLus,
+    };
+  }
+
+  async listerConversations(): Promise<Conversation[]> {
+    const db = loadDb();
+    const acteur = this.acteurMessagerieOuNull(db);
+    if (!acteur) return [];
+    const visibles = acteur.estPlateforme
+      ? db.conversations.filter((c) => c.type === "plateforme")
+      : db.conversations.filter((c) =>
+          this.estParticipantConversation(db, acteur, c)
+        );
+    return visibles
+      .map((c) => this.enrichirConversation(db, c, acteur))
+      .sort((a, b) =>
+        (b.dernier_message_le ?? b.created_at).localeCompare(
+          a.dernier_message_le ?? a.created_at
+        )
+      );
+  }
+
+  async getConversationPlateforme(compteId?: string): Promise<Conversation> {
+    const db = loadDb();
+    const acteur = this.acteurMessagerie(db);
+    let cibleId: string;
+    if (acteur.estPlateforme) {
+      cibleId = compteId ?? db.profil.id;
+      if (!this.resoudrePersonne(db, cibleId)) {
+        throw err("ERR_CONVERSATION_INTROUVABLE");
+      }
+    } else {
+      if (
+        compteId &&
+        !acteur.ids.has(compteId) &&
+        !acteur.ids.has(compteId.toLowerCase())
+      ) {
+        throw err("ERR_CONVERSATION_INTROUVABLE");
+      }
+      cibleId = acteur.id;
+    }
+    const existante = db.conversations.find(
+      (c) => c.type === "plateforme" && c.proprietaire_id === cibleId
+    );
+    if (existante) return this.enrichirConversation(db, existante, acteur);
+    const personne = this.resoudrePersonne(db, cibleId);
+    const creee: Conversation = {
+      id: uid(),
+      type: "plateforme",
+      proprietaire_id: cibleId,
+      gestionnaire_id: null,
+      rattachement_id: null,
+      // Routage : l'Admin responsable du client au moment de la création.
+      admin_responsable_id: personne?.admin_responsable_id ?? null,
+      created_at: new Date().toISOString(),
+    };
+    db.conversations.push(creee);
+    saveDb(db);
+    return this.enrichirConversation(db, creee, acteur);
+  }
+
+  async getConversationRattachement(rattachementId: string): Promise<Conversation> {
+    const db = loadDb();
+    const acteur = this.acteurMessagerie(db);
+    // Le paramètre peut désigner le rattachement ACTIF lui-même ou la
+    // DEMANDE (actif) qui l'a créé.
+    let rattachement =
+      db.plateforme.rattachements.find(
+        (r) => r.id === rattachementId && r.statut === "actif"
+      ) ?? null;
+    if (!rattachement) {
+      const demande = db.plateforme.demandesRattachement.find(
+        (d) => d.id === rattachementId
+      );
+      if (demande?.rattachement_id) {
+        rattachement =
+          db.plateforme.rattachements.find(
+            (r) => r.id === demande.rattachement_id && r.statut === "actif"
+          ) ?? null;
+      }
+    }
+    if (!rattachement) throw err("ERR_CONVERSATION_INTROUVABLE");
+    // Participants seuls (+ plateforme en supervision).
+    if (!acteur.estPlateforme) {
+      const refs = [
+        rattachement.proprietaire_id,
+        rattachement.gestionnaire_id,
+        rattachement.gestionnaire_email,
+      ].filter((r): r is string => Boolean(r));
+      const estParticipant = refs.some(
+        (ref) =>
+          acteur.ids.has(ref) ||
+          acteur.ids.has(ref.toLowerCase()) ||
+          (() => {
+            const p = this.resoudrePersonne(db, ref);
+            return (
+              p !== null &&
+              (acteur.ids.has(p.id) || acteur.ids.has(p.email.toLowerCase()))
+            );
+          })()
+      );
+      if (!estParticipant) throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    const existante = db.conversations.find(
+      (c) => c.type === "rattachement" && c.rattachement_id === rattachement!.id
+    );
+    if (existante) return this.enrichirConversation(db, existante, acteur);
+    const creee: Conversation = {
+      id: uid(),
+      type: "rattachement",
+      proprietaire_id: rattachement.proprietaire_id ?? CIZAGROUP_OWNER_ID,
+      gestionnaire_id: rattachement.gestionnaire_id,
+      rattachement_id: rattachement.id,
+      admin_responsable_id: null,
+      created_at: new Date().toISOString(),
+    };
+    db.conversations.push(creee);
+    saveDb(db);
+    return this.enrichirConversation(db, creee, acteur);
+  }
+
+  async listerMessages(conversationId: string): Promise<MessageDirect[]> {
+    const db = loadDb();
+    const acteur = this.acteurMessagerie(db);
+    const conv = db.conversations.find((c) => c.id === conversationId);
+    if (!conv || !this.estParticipantConversation(db, acteur, conv)) {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    return db.messages
+      .filter((m) => m.conversation_id === conversationId)
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((m) => ({
+        ...m,
+        expediteur_nom:
+          this.resoudrePersonne(db, m.expediteur_id)?.nom ?? m.expediteur_nom,
+      }));
+  }
+
+  async envoyerMessage(conversationId: string, corps: string): Promise<MessageDirect> {
+    if (!corps || !corps.trim()) throw err("ERR_MESSAGE_VIDE");
+    const db = loadDb();
+    const acteur = this.acteurMessagerie(db);
+    const conv = db.conversations.find((c) => c.id === conversationId);
+    if (!conv || !this.estParticipantConversation(db, acteur, conv)) {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    // Supervision = LECTURE SEULE : la plateforme n'écrit jamais dans
+    // un fil propriétaire ↔ gestionnaire (miroir du refus RLS réel).
+    if (acteur.estPlateforme && conv.type === "rattachement") {
+      throw err("ERR_SUPERVISION_LECTURE_SEULE");
+    }
+    const message: MessageDirect = {
+      id: uid(),
+      conversation_id: conversationId,
+      expediteur_id: acteur.id,
+      expediteur_nom: acteur.nom,
+      corps: corps.trim(),
+      created_at: new Date().toISOString(),
+      // Le message naît lu par le côté EXPÉDITEUR.
+      lu_par_client: !acteur.estPlateforme,
+      lu_par_plateforme: acteur.estPlateforme,
+    };
+    db.messages.push(message);
+    saveDb(db);
+    return { ...message };
+  }
+
+  async marquerLu(conversationId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurMessagerie(db);
+    const conv = db.conversations.find((c) => c.id === conversationId);
+    if (!conv || !this.estParticipantConversation(db, acteur, conv)) {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    for (const m of db.messages) {
+      if (m.conversation_id !== conversationId) continue;
+      if (acteur.estPlateforme) m.lu_par_plateforme = true;
+      else m.lu_par_client = true;
+    }
+    saveDb(db);
+  }
+
+  async listerConversationsSupervisees(): Promise<Conversation[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const acteur = this.acteurMessagerie(db);
+    return db.conversations
+      .filter((c) => c.type === "rattachement")
+      .map((c) => this.enrichirConversation(db, c, acteur))
+      .sort((a, b) =>
+        (b.dernier_message_le ?? b.created_at).localeCompare(
+          a.dernier_message_le ?? a.created_at
+        )
+      );
+  }
+
+  async journaliserConsultationMessages(conversationId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const conv = db.conversations.find((c) => c.id === conversationId);
+    if (!conv || conv.type !== "rattachement") {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    this.journaliserAudit(db, acteur, "consultation_messages", "plateforme", conv.id, null, {
+      conversation_id: conv.id,
+      rattachement_id: conv.rattachement_id,
+      proprietaire_id: conv.proprietaire_id,
+      gestionnaire_id: conv.gestionnaire_id,
+    });
+    saveDb(db);
+  }
+
+  // --- Assignation des dossiers + équipe ------------------------------------
+
+  async assignerDossier(compteId: string, adminId: string | null): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const cible = this.trouverCible(db, compteId);
+    let canonique: string | null = null;
+    if (adminId !== null) {
+      const admin = this.resoudreAdminParId(db, adminId);
+      if (!admin) throw err("ERR_ADMIN_INTROUVABLE");
+      canonique = admin.id;
+    }
+    if (cible.principal) {
+      db.profil.admin_responsable_id = canonique;
+    } else {
+      cible.entree!.admin_responsable_id = canonique;
+    }
+    // Le fil plateforme existant du client suit le nouveau routage.
+    for (const conv of db.conversations) {
+      if (conv.type === "plateforme" && conv.proprietaire_id === compteId) {
+        conv.admin_responsable_id = canonique;
+      }
+    }
+    this.journaliserAudit(
+      db,
+      acteur,
+      "assignation",
+      "compte",
+      compteId,
+      cible.principal ? db.profil.email : cible.entree!.email,
+      { admin_responsable_id: canonique }
+    );
+    saveDb(db);
+  }
+
+  async listerEquipeAdmins(): Promise<MembreEquipe[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const membres: MembreEquipe[] = [];
+    const emailsVus = new Set<string>();
+    const construire = (
+      id: string,
+      email: string,
+      nom: string,
+      role: "admin" | "super_admin",
+      statut: "actif" | "suspendu",
+      acces: boolean,
+      createdAt: string
+    ): MembreEquipe => {
+      const alias = this.aliasAdmin(db, id, email);
+      const activitesActeur = db.plateforme.journal
+        .filter(
+          (e) =>
+            (e.acteur_id !== null && alias.has(e.acteur_id)) ||
+            e.acteur_email.toLowerCase() === email.toLowerCase()
+        )
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return {
+        id,
+        email,
+        nom,
+        role,
+        statut,
+        acces_admin_actif: acces,
+        dossiers_assignes: this.compterDossiersAssignes(db, alias),
+        derniere_activite: activitesActeur[0]?.created_at ?? null,
+        created_at: createdAt,
+      };
+    };
+    for (const a of db.plateforme.comptesAdmins) {
+      emailsVus.add(a.email.toLowerCase());
+      membres.push(
+        construire(
+          a.id,
+          a.email,
+          a.nom,
+          a.role,
+          a.statut,
+          this.resoudreAccesAdmin(db, a),
+          a.created_at
+        )
+      );
+    }
+    // Profils promus sans entrée Admin distincte (filet de cohérence).
+    if (
+      (db.profil.role === "admin" || db.profil.role === "super_admin") &&
+      !emailsVus.has(db.profil.email.toLowerCase())
+    ) {
+      emailsVus.add(db.profil.email.toLowerCase());
+      membres.push(
+        construire(
+          db.profil.id,
+          db.profil.email,
+          db.profil.nom,
+          db.profil.role,
+          db.profil.suspendu ? "suspendu" : "actif",
+          db.profil.acces_admin_actif ?? true,
+          db.profil.created_at
+        )
+      );
+    }
+    for (const c of db.plateforme.comptesClients) {
+      if (
+        (c.role === "admin" || c.role === "super_admin") &&
+        !emailsVus.has(c.email.toLowerCase())
+      ) {
+        emailsVus.add(c.email.toLowerCase());
+        membres.push(
+          construire(
+            c.id,
+            c.email,
+            c.nom,
+            c.role,
+            c.abonnement.statut === "suspendu" ? "suspendu" : "actif",
+            c.acces_admin_actif ?? true,
+            c.created_at
+          )
+        );
+      }
+    }
+    return membres.sort((a, b) =>
+      a.role === b.role
+        ? a.email.localeCompare(b.email)
+        : a.role === "super_admin"
+          ? -1
+          : 1
+    );
+  }
+
+  async basculerAccesAdmin(adminId: string, actif: boolean): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const cibles = this.ciblesAdmin(db, adminId);
+    if (!cibles.entree && !cibles.principalLie && !cibles.registreLie) {
+      throw err("ERR_INTROUVABLE");
+    }
+    // Cible : un employé « admin » uniquement (jamais le Super Admin).
+    if (cibles.role !== "admin") throw err("ERR_OPERATION_INTERDITE");
+    if (cibles.entree) cibles.entree.acces_admin_actif = actif;
+    if (cibles.principalLie) db.profil.acces_admin_actif = actif;
+    if (cibles.registreLie) cibles.registreLie.acces_admin_actif = actif;
+    this.journaliserAudit(db, acteur, "acces_admin_modifie", "admin", cibles.idCanonique, cibles.email, {
+      acces_admin_actif: actif,
+    });
+    saveDb(db);
+  }
+
+  async retirerRoleAdmin(adminId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const cibles = this.ciblesAdmin(db, adminId);
+    if (!cibles.entree && !cibles.principalLie && !cibles.registreLie) {
+      throw err("ERR_INTROUVABLE");
+    }
+    if (cibles.role !== "admin") throw err("ERR_OPERATION_INTERDITE");
+    // Le compte redevient client avec son rôle d'origine
+    // (role_avant_admin, sinon l'intention déclarée à l'inscription).
+    if (cibles.principalLie) {
+      db.profil.role =
+        db.profil.role_avant_admin ??
+        (db.profil.type_intention === "gestionnaire"
+          ? "gestionnaire"
+          : "proprietaire");
+      db.profil.role_avant_admin = null;
+      db.profil.acces_admin_actif = true;
+    }
+    if (cibles.registreLie) {
+      cibles.registreLie.role =
+        cibles.registreLie.role_avant_admin ??
+        (cibles.registreLie.type_intention === "gestionnaire"
+          ? "gestionnaire"
+          : "proprietaire");
+      cibles.registreLie.role_avant_admin = null;
+      cibles.registreLie.acces_admin_actif = true;
+    }
+    // Désassignation de tous ses dossiers (clients + routage des fils).
+    const alias = this.aliasAdmin(db, cibles.idCanonique, cibles.email ?? "");
+    alias.add(adminId);
+    if (!db.principalSupprime && db.profil.admin_responsable_id && alias.has(db.profil.admin_responsable_id)) {
+      db.profil.admin_responsable_id = null;
+    }
+    for (const c of db.plateforme.comptesClients) {
+      if (c.admin_responsable_id && alias.has(c.admin_responsable_id)) {
+        c.admin_responsable_id = null;
+      }
+    }
+    for (const conv of db.conversations) {
+      if (conv.admin_responsable_id && alias.has(conv.admin_responsable_id)) {
+        conv.admin_responsable_id = null;
+      }
+    }
+    this.journaliserAudit(db, acteur, "admin_retire", "admin", cibles.idCanonique, cibles.email);
+    if (cibles.entree) {
+      db.plateforme.comptesAdmins = db.plateforme.comptesAdmins.filter(
+        (a) => a.id !== cibles.entree!.id
+      );
+    }
+    saveDb(db);
+  }
+
+  async listerMesDossiers(): Promise<ComptePlateforme[]> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const alias = this.aliasAdmin(db, acteur.id, acteur.email);
+    const comptes = await this.listerComptesPlateforme();
+    return comptes.filter(
+      (c) => c.admin_responsable_id !== null && alias.has(c.admin_responsable_id)
+    );
   }
 }

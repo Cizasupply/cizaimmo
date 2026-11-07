@@ -14,7 +14,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { DossierCompte, MotifRefus } from "@/lib/data";
+import type { DossierCompte, MotifRefus, Profil } from "@/lib/data";
+import type { Conversation } from "@/lib/data/types";
+import AssignationModale from "@/components/AssignationModale";
+import FilMessages from "@/components/FilMessages";
 import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
 import { formatDate } from "@/lib/format";
@@ -25,8 +28,13 @@ export default function ConsoleDossierPage({
   params: { id: string };
 }) {
   const t = useTranslations("console");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
   const [dossier, setDossier] = useState<DossierCompte | null>(null);
+  // v1.5 : responsable du dossier, modale d'assignation, fil plateforme.
+  const [moi, setMoi] = useState<Profil | null>(null);
+  const [assignationOuverte, setAssignationOuverte] = useState(false);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -35,8 +43,15 @@ export default function ConsoleDossierPage({
 
   const charger = useCallback(async () => {
     try {
-      const d = await getDataProvider().listerDossier(params.id);
+      const provider = getDataProvider();
+      const [d, profil, conv] = await Promise.all([
+        provider.listerDossier(params.id),
+        provider.getProfil(),
+        provider.getConversationPlateforme(params.id).catch(() => null),
+      ]);
       setDossier(d);
+      setMoi(profil);
+      setConversation(conv);
     } catch {
       setIntrouvable(true);
     }
@@ -259,6 +274,22 @@ export default function ConsoleDossierPage({
               <dt className="font-semibold">{t("contractLabel")}</dt>
               <dd>{t(`contractStatus.${compte.statut_contrat}` as "contractStatus.valide")}</dd>
             </div>
+            {/* v1.5 : Admin responsable du dossier (assignation Super Admin). */}
+            <div className="flex items-center justify-between gap-3">
+              <dt className="font-semibold">{t15("responsible")}</dt>
+              <dd className="flex items-center gap-2">
+                <span>{compte.admin_responsable_nom ?? t15("unassigned")}</span>
+                {moi?.role === "super_admin" ? (
+                  <button
+                    type="button"
+                    onClick={() => setAssignationOuverte(true)}
+                    className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-navy hover:border-gold"
+                  >
+                    {t15("assign")}
+                  </button>
+                ) : null}
+              </dd>
+            </div>
           </dl>
         </section>
 
@@ -428,6 +459,33 @@ export default function ConsoleDossierPage({
           )}
         </section>
       </div>
+
+      {/* v1.5 : fil plateforme du client — la plateforme peut répondre
+          (fil « plateforme » ; marquerLu à l'ouverture via FilMessages). */}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="font-bold text-navy">{t15("messagesTitle")}</h2>
+        <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
+        <div className="mt-4">
+          {conversation ? (
+            <FilMessages conversationId={conversation.id} />
+          ) : (
+            <p className="text-sm text-slate-500">{t15("noConversations")}</p>
+          )}
+        </div>
+      </section>
+
+      {assignationOuverte ? (
+        <AssignationModale
+          compteId={compte.id}
+          compteNom={compte.nom}
+          responsableActuelId={compte.admin_responsable_id}
+          onFermer={() => setAssignationOuverte(false)}
+          onAssigne={() => {
+            setMessage(t15("assignSuccess"));
+            void charger();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

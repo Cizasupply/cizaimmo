@@ -109,6 +109,13 @@ export type {
   StatutContrat,
   StatutDemandeRattachement,
   TypeIntention,
+  // Extension v1.5 — suppression de compte par le client, messagerie
+  // directe supervisée, assignation des dossiers, équipe.
+  Conversation,
+  MembreEquipe,
+  MessageDirect,
+  SuppressionEnAttente,
+  TypeConversation,
 } from "./types";
 export { CATEGORIES_DEPENSES, DEVISES, OPERATEURS_MOBILE_MONEY, TYPES_APPARTEMENT, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT_OCTETS, limiteBlocs, LIMITE_BLOCS } from "./types";
 export {

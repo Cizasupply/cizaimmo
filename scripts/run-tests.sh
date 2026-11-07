@@ -98,6 +98,28 @@ else
   ECHEC=1
 fi
 
+# Extension v1.5 — suppression de compte par le client (base :
+# RPC + instantané + anonymisation comptable) : même harnais.
+echo ""
+echo "===== Extension v1.5 (Suppression de compte par le client) ====="
+if node "scripts/test-suppression-v15.cjs"; then
+  echo "Extension v1.5 suppression : OK"
+else
+  echo "Extension v1.5 suppression : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Extension v1.5 — messagerie directe supervisée + assignation des
+# dossiers + équipe / Mes dossiers : même harnais.
+echo ""
+echo "===== Extension v1.5 (Messagerie supervisée + Assignation) ====="
+if node "scripts/test-messagerie-assignation-v15.cjs"; then
+  echo "Extension v1.5 messagerie/assignation : OK"
+else
+  echo "Extension v1.5 messagerie/assignation : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Correctif e-mails (2026-11-07) : matcher middleware (exclusion « auth »,
 # 404 des liens de confirmation) + gabarit e-mail premium (lib/email.ts,
 # déjà dans le harnais).

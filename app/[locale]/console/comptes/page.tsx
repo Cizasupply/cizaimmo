@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { ComptePlateforme, ModeleAvis, MotifRefus, Profil } from "@/lib/data";
+import AssignationModale from "@/components/AssignationModale";
 import { MODELES_AVIS, MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
 import { formatDate } from "@/lib/format";
@@ -30,6 +31,7 @@ const COULEUR_STATUT: Record<string, string> = {
 
 export default function ConsoleComptesPage() {
   const t = useTranslations("console");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
   const [comptes, setComptes] = useState<ComptePlateforme[]>([]);
   const [profil, setProfil] = useState<Profil | null>(null);
@@ -49,6 +51,8 @@ export default function ConsoleComptesPage() {
   const [refusMotif, setRefusMotif] = useState<Record<string, MotifRefus>>({});
   const [refusOuvert, setRefusOuvert] = useState<string | null>(null);
   const [suppressionArmee, setSuppressionArmee] = useState<string | null>(null);
+  // v1.5 : assignation d'un dossier à un Admin responsable (modale).
+  const [assignationPour, setAssignationPour] = useState<ComptePlateforme | null>(null);
 
   const recharger = useCallback(async () => {
     const provider = getDataProvider();
@@ -161,6 +165,18 @@ export default function ConsoleComptesPage() {
     <div>
       <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("accountsTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("accountsSubtitle")}</p>
+
+      {/* v1.5 : KPI dossiers non assignés (aucun Admin responsable). */}
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t15("statUnassigned")}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-amber-600">
+            {comptes.filter((c) => !c.admin_responsable_id).length}
+          </p>
+        </div>
+      </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {filtres.map((f) => (
@@ -335,13 +351,29 @@ export default function ConsoleComptesPage() {
                 </div>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Link
                   href={`/${locale}/console/comptes/${compte.id}`}
                   className="inline-block rounded-full border border-navy px-4 py-1.5 text-sm font-bold text-navy hover:bg-navy hover:text-white"
                 >
                   📁 {t("openFile")}
                 </Link>
+                {/* v1.5 : responsable du dossier + assignation (Super Admin). */}
+                <span className="text-sm text-slate-600">
+                  {t15("responsible")} :{" "}
+                  <strong className="text-navy">
+                    {compte.admin_responsable_nom ?? t15("unassigned")}
+                  </strong>
+                </span>
+                {estSuper ? (
+                  <button
+                    type="button"
+                    onClick={() => setAssignationPour(compte)}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-sm font-bold text-navy hover:border-gold"
+                  >
+                    {t15("assign")}
+                  </button>
+                ) : null}
               </div>
 
               <p className="mt-3 text-sm text-slate-600">
@@ -570,6 +602,19 @@ export default function ConsoleComptesPage() {
           );
         })}
       </div>
+
+      {assignationPour ? (
+        <AssignationModale
+          compteId={assignationPour.id}
+          compteNom={assignationPour.nom}
+          responsableActuelId={assignationPour.admin_responsable_id}
+          onFermer={() => setAssignationPour(null)}
+          onAssigne={() => {
+            setMessage(t15("assignSuccess"));
+            void recharger();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

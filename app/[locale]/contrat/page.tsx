@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AppShell from "@/components/AppShell";
+import DiscussionRattachement from "@/components/DiscussionRattachement";
 import DocumentUpload from "@/components/DocumentUpload";
 import { getDataProvider } from "@/lib/data";
 import type { DemandeRattachement, Profil, StatutContrat } from "@/lib/data";
@@ -248,6 +249,9 @@ export default function ContratPage() {
                 ) : null}
                 {d.statut === "en_attente_admin" ? (
                   <p className="mt-2 text-xs font-medium text-amber-700">{t("waitingAdmin")}</p>
+                ) : null}
+                {d.statut === "actif" && d.rattachement_id ? (
+                  <DiscussionRattachement rattachementId={d.rattachement_id} />
                 ) : null}
               </li>
             ))}

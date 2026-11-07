@@ -45,6 +45,7 @@ import type {
   TauxResultat,
   TypeAlerte,
   TypeActivite,
+  Conversation,
   EcheanceLoyer,
   FactureAbonnement,
   FiltreAppartements,
@@ -60,6 +61,8 @@ import type {
   Locataire,
   LocataireInput,
   LocatairePatch,
+  MembreEquipe,
+  MessageDirect,
   OperateurMobileMoney,
   Paiement,
   PaiementMobileMoney,
@@ -69,6 +72,7 @@ import type {
   SessionUser,
   SignUpInput,
   StatutAppartement,
+  SuppressionEnAttente,
 } from "./types";
 import {
   construirePrixPlans,
@@ -159,6 +163,62 @@ export class AuthError extends Error {
     this.i18nKey = i18nKey;
   }
 }
+
+/**
+ * v1.5 — Traduction des exceptions SQL des RPC (SECURITY DEFINER) en
+ * codes d'erreur métier, sur le même patron que approuverCompte /
+ * supprimerCompteDefinitivement : si le message contient la chaîne,
+ * on mappe vers le code ; les chaînes connues non listées explicitement
+ * passent en « ERR_<message> ».
+ */
+const MAPPAGE_ERREURS_RPC_V15: ReadonlyArray<readonly [string, string]> = [
+  ["SUPPRESSION_DEJA_DEMANDEE", "ERR_SUPPRESSION_DEJA_DEMANDEE"],
+  ["AUCUNE_SUPPRESSION", "ERR_AUCUNE_SUPPRESSION"],
+  ["DELAI_NON_ECOULE", "ERR_DELAI_NON_ECOULE"],
+  // DELAI_EXPIRE : la demande n'est plus annulable — assimilé à
+  // « aucune suppression (annulable) en cours ».
+  ["DELAI_EXPIRE", "ERR_AUCUNE_SUPPRESSION"],
+  ["SUPER_ADMIN_REQUIS", "ERR_SUPER_ADMIN_REQUIS"],
+  ["ADMIN_INTROUVABLE", "ERR_ADMIN_INTROUVABLE"],
+  ["ADMIN_PLATEFORME_REQUIS", "ERR_OPERATION_INTERDITE"],
+  ["CONVERSATION_NON_SUPERVISEE", "ERR_CONVERSATION_NON_SUPERVISEE"],
+  ["CIBLE_NON_ADMIN", "ERR_CIBLE_NON_ADMIN"],
+  ["AUTO_MODIFICATION_INTERDITE", "ERR_AUTO_MODIFICATION_INTERDITE"],
+  ["AUTO_SUPPRESSION_INTERDITE", "ERR_AUTO_SUPPRESSION_INTERDITE"],
+  ["COMPTE_PLATEFORME", "ERR_COMPTE_PLATEFORME"],
+  ["PROFIL_INTROUVABLE", "ERR_PROFIL_INTROUVABLE"],
+];
+
+function erreurRpcV15(error: { message: string }): Error {
+  for (const [chaine, code] of MAPPAGE_ERREURS_RPC_V15) {
+    if (error.message.includes(chaine)) return err(code);
+  }
+  return new Error(error.message);
+}
+
+/** Ligne brute de la table conversations (v1.5), avant enrichissement d'affichage. */
+type LigneConversation = Pick<
+  Conversation,
+  | "id"
+  | "type"
+  | "proprietaire_id"
+  | "gestionnaire_id"
+  | "rattachement_id"
+  | "admin_responsable_id"
+  | "created_at"
+>;
+
+/** Ligne brute de la table messages_directs (v1.5). */
+type LigneMessage = Pick<
+  MessageDirect,
+  | "id"
+  | "conversation_id"
+  | "expediteur_id"
+  | "corps"
+  | "created_at"
+  | "lu_par_client"
+  | "lu_par_plateforme"
+>;
 
 function appUrl(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -299,7 +359,7 @@ export class RealProvider implements DataProvider {
       .eq("id", session.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (data) return data as Profil;
+    if (data) return mapProfil(data as Profil);
     // Secours si le trigger handle_new_user n'est pas installé : créer le
     // profil + l'essai Pro 30 jours à la première lecture.
     // Module 6 : un e-mail invité en indivision devient un compte
@@ -351,7 +411,7 @@ export class RealProvider implements DataProvider {
         trial_ends_at: null,
       });
     }
-    return created as Profil;
+    return mapProfil(created as Profil);
   }
 
   async getAbonnement(): Promise<Abonnement | null> {
@@ -365,7 +425,7 @@ export class RealProvider implements DataProvider {
       .limit(1)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const abo = (data as Abonnement | null) ?? null;
+    const abo = data ? mapAbonnement(data as Abonnement) : null;
     if (!abo) return null;
     // Transitions paresseuses (spec §12) : fin d'essai, descente et
     // résiliation effectives, grâce dépassée. Persistées si changées.
@@ -1600,7 +1660,7 @@ export class RealProvider implements DataProvider {
       .select()
       .single();
     if (error) throw new Error(error.message);
-    return data as Profil;
+    return mapProfil(data as Profil);
   }
 
   async getPreferencesNotifications(): Promise<PreferencesNotifications> {
@@ -2089,7 +2149,7 @@ export class RealProvider implements DataProvider {
       .select()
       .single();
     if (error) throw new Error(error.message);
-    return data as Abonnement;
+    return mapAbonnement(data as Abonnement);
   }
 
   async changerPlan(plan: Plan): Promise<Abonnement> {
@@ -2181,7 +2241,12 @@ export class RealProvider implements DataProvider {
       .select("*")
       .order("date_emission", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data as FactureAbonnement[]).map((f) => ({ ...f, montant: Number(f.montant) }));
+    return (data as FactureAbonnement[]).map((f) => ({
+      ...f,
+      montant: Number(f.montant),
+      // v1.5 : anonymisation comptable après suppression de compte.
+      anonymise: (f as FactureAbonnement).anonymise ?? false,
+    }));
   }
 
   async signalerEchecPaiement(): Promise<Abonnement> {
@@ -2334,7 +2399,7 @@ export class RealProvider implements DataProvider {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    return (data as Abonnement | null) ?? null;
+    return data ? mapAbonnement(data as Abonnement) : null;
   }
 
   async listerComptesPlateforme(): Promise<ComptePlateforme[]> {
@@ -2365,7 +2430,27 @@ export class RealProvider implements DataProvider {
     const dossiersAvecPiece = new Set(
       ((piecesIdentite as { entite_id: string }[] | null) ?? []).map((d) => d.entite_id)
     );
-    return ((profils as Profil[] | null) ?? []).map((p) => {
+    // v1.5 : noms des Admins responsables (jointure manuelle en batch,
+    // les Admins ne font pas partie de la liste des comptes clients).
+    const listeProfils = (profils as Profil[] | null) ?? [];
+    const idsResponsables = Array.from(
+      new Set(
+        listeProfils
+          .map((p) => p.admin_responsable_id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+    const nomResponsableParId = new Map<string, string>();
+    if (idsResponsables.length > 0) {
+      const { data: responsables } = await client
+        .from("profils")
+        .select("id, nom")
+        .in("id", idsResponsables);
+      for (const r of (responsables as { id: string; nom: string }[] | null) ?? []) {
+        nomResponsableParId.set(r.id, r.nom);
+      }
+    }
+    return listeProfils.map((p) => {
       const abo = parProprietaire.get(p.id) ?? null;
       const vue = abo
         ? {
@@ -2403,6 +2488,12 @@ export class RealProvider implements DataProvider {
         type_intention: p.type_intention ?? "proprietaire",
         statut_contrat: p.statut_contrat ?? "sans_objet",
         dossier_complet: Boolean(p.photo_profil_path) && dossiersAvecPiece.has(p.id),
+        // v1.5 : assignation + suppression en cours (champs requis).
+        admin_responsable_id: p.admin_responsable_id ?? null,
+        admin_responsable_nom: p.admin_responsable_id
+          ? nomResponsableParId.get(p.admin_responsable_id) ?? null
+          : null,
+        suppression_demandee_le: p.suppression_demandee_le ?? null,
       };
     });
   }
@@ -2706,7 +2797,12 @@ export class RealProvider implements DataProvider {
     if (profil.role === "admin" || profil.role === "super_admin") {
       throw err("ERR_DEJA_ADMIN");
     }
-    await client.from("profils").update({ role: "admin" }).eq("id", profil.id);
+    // v1.5 : conserver le rôle client d'origine pour un retrait fidèle
+    // (retirer_role_admin / retirerRoleAdmin le restaurent).
+    await client
+      .from("profils")
+      .update({ role: "admin", role_avant_admin: profil.role })
+      .eq("id", profil.id);
     await this.journaliserAudit(acteur, "admin_promu", "admin", profil.id, profil.email);
     return {
       id: profil.id,
@@ -2745,6 +2841,11 @@ export class RealProvider implements DataProvider {
     await this.journaliserAudit(acteur, "admin_reactive", "admin", adminId, profil.email);
   }
 
+  /**
+   * v1.2 (conservée) : retrait direct du rôle Admin. La voie v1.5 est
+   * retirerRoleAdmin() (RPC base, restauration du rôle d'origine) —
+   * les deux coexistent ; les nouveaux écrans utilisent la RPC.
+   */
   async retirerAdmin(adminId: string): Promise<void> {
     const acteur = await this.acteurSuperAdmin();
     const client = this.client();
@@ -3638,6 +3739,601 @@ export class RealProvider implements DataProvider {
       email_activation: emailStatut,
     });
   }
+
+  // ==========================================================================
+  // EXTENSION v1.5 — Suppression de compte par le client, messagerie
+  // directe supervisée, assignation des dossiers, page Équipe et espace
+  // « Mes dossiers ». Voir docs/messagerie-suppression-v15.md et
+  // supabase/module-v15.sql. Principe : LA BASE DÉCIDE — les transitions
+  // sensibles sont des RPC SECURITY DEFINER qui journalisent ELLES-MÊMES
+  // dans journal_audit ; l'app n'ajoute donc AUCUN audit en double pour
+  // demande / annulation / exécution / assignation / accès / retrait /
+  // consultation (appel RPC simple, erreurs SQL mappées par erreurRpcV15).
+  // ==========================================================================
+
+  // --- Suppression de compte par le client --------------------------------
+
+  async demanderSuppressionCompte(): Promise<Profil> {
+    await this.requireSession();
+    const { error } = await this.client().rpc("demander_suppression_compte");
+    if (error) throw erreurRpcV15(error);
+    const profil = await this.getProfil();
+    if (!profil) throw err("ERR_NOT_FOUND");
+    return profil;
+  }
+
+  async annulerSuppressionCompte(): Promise<Profil> {
+    await this.requireSession();
+    const { error } = await this.client().rpc("annuler_suppression_compte");
+    if (error) throw erreurRpcV15(error);
+    const profil = await this.getProfil();
+    if (!profil) throw err("ERR_NOT_FOUND");
+    return profil;
+  }
+
+  async listerSuppressionsEnAttente(): Promise<SuppressionEnAttente[]> {
+    await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("profils")
+      .select("id, email, nom, display_id, suppression_demandee_le")
+      .not("suppression_demandee_le", "is", null)
+      .order("suppression_demandee_le", { ascending: true });
+    if (error) throw new Error(error.message);
+    const maintenant = Date.now();
+    return (
+      (data as {
+        id: string;
+        email: string;
+        nom: string;
+        display_id: string | null;
+        suppression_demandee_le: string;
+      }[] | null) ?? []
+    ).map((p) => {
+      // Échéance = demande + 30 jours (délai de rétractation).
+      const echeance = ajouterJours(p.suppression_demandee_le, 30);
+      return {
+        compte_id: p.id,
+        email: p.email,
+        nom: p.nom,
+        display_id: p.display_id ?? null,
+        suppression_demandee_le: p.suppression_demandee_le,
+        echeance_le: echeance,
+        executable: maintenant >= new Date(echeance).getTime(),
+      };
+    });
+  }
+
+  async executerSuppressionCompte(compteId: string): Promise<void> {
+    // Audit en base par la RPC — aucun journaliserAudit côté app.
+    const { error } = await this.client().rpc("executer_suppression_compte", {
+      cible: compteId,
+    });
+    if (error) throw erreurRpcV15(error);
+  }
+
+  // --- Messagerie directe : helpers d'enrichissement -----------------------
+
+  /** Jointure manuelle des profils (patron mapperRattachements). */
+  private async profilsAffichage(
+    ids: string[]
+  ): Promise<
+    Map<string, { nom: string; email: string; display_id: string | null }>
+  > {
+    const parId = new Map<
+      string,
+      { nom: string; email: string; display_id: string | null }
+    >();
+    const uniques = Array.from(new Set(ids.filter(Boolean)));
+    if (uniques.length === 0) return parId;
+    const { data } = await this.client()
+      .from("profils")
+      .select("id, nom, email, display_id")
+      .in("id", uniques);
+    for (const p of (data as {
+      id: string;
+      nom: string;
+      email: string;
+      display_id: string | null;
+    }[] | null) ?? []) {
+      parId.set(p.id, {
+        nom: p.nom,
+        email: p.email,
+        display_id: p.display_id ?? null,
+      });
+    }
+    return parId;
+  }
+
+  /**
+   * Enrichit des fils : noms / Display ID des participants, dernier
+   * message et non-lus POUR L'ACTEUR (batch messages groupés en
+   * mémoire). Supervision (plateforme sur un fil rattachement) :
+   * non_lus forcé à 0 — la plateforme lit, elle n'est pas destinataire.
+   */
+  private async enrichirConversations(
+    lignes: LigneConversation[],
+    acteurId: string,
+    acteurEstPlateforme: boolean
+  ): Promise<Conversation[]> {
+    if (lignes.length === 0) return [];
+    const idsProfils: string[] = [];
+    for (const l of lignes) {
+      idsProfils.push(l.proprietaire_id);
+      if (l.gestionnaire_id) idsProfils.push(l.gestionnaire_id);
+      if (l.admin_responsable_id) idsProfils.push(l.admin_responsable_id);
+    }
+    const parId = await this.profilsAffichage(idsProfils);
+    const { data: messagesData } = await this.client()
+      .from("messages_directs")
+      .select("*")
+      .in(
+        "conversation_id",
+        lignes.map((l) => l.id)
+      )
+      .order("created_at", { ascending: true });
+    const parConversation = new Map<string, LigneMessage[]>();
+    for (const m of (messagesData as LigneMessage[] | null) ?? []) {
+      const liste = parConversation.get(m.conversation_id) ?? [];
+      liste.push(m);
+      parConversation.set(m.conversation_id, liste);
+    }
+    return lignes.map((l) => {
+      const liste = parConversation.get(l.id) ?? [];
+      const dernier = liste.length > 0 ? liste[liste.length - 1] : null;
+      let nonLus = 0;
+      if (l.type === "rattachement" && acteurEstPlateforme) {
+        nonLus = 0;
+      } else if (
+        acteurId === l.proprietaire_id ||
+        acteurId === l.gestionnaire_id
+      ) {
+        nonLus = liste.filter(
+          (m) => m.expediteur_id !== acteurId && !m.lu_par_client
+        ).length;
+      } else {
+        nonLus = liste.filter(
+          (m) => m.expediteur_id !== acteurId && !m.lu_par_plateforme
+        ).length;
+      }
+      const proprietaire = parId.get(l.proprietaire_id);
+      const gestionnaire = l.gestionnaire_id
+        ? parId.get(l.gestionnaire_id)
+        : undefined;
+      const responsable = l.admin_responsable_id
+        ? parId.get(l.admin_responsable_id)
+        : undefined;
+      return {
+        id: l.id,
+        type: l.type,
+        proprietaire_id: l.proprietaire_id,
+        gestionnaire_id: l.gestionnaire_id ?? null,
+        rattachement_id: l.rattachement_id ?? null,
+        admin_responsable_id: l.admin_responsable_id ?? null,
+        created_at: l.created_at,
+        proprietaire_nom: proprietaire?.nom,
+        proprietaire_email: proprietaire?.email,
+        proprietaire_display_id: proprietaire?.display_id ?? null,
+        gestionnaire_nom: gestionnaire?.nom ?? null,
+        gestionnaire_display_id: gestionnaire?.display_id ?? null,
+        admin_responsable_nom: responsable?.nom ?? null,
+        dernier_message: dernier?.corps ?? null,
+        dernier_message_le: dernier?.created_at ?? null,
+        non_lus: nonLus,
+      };
+    });
+  }
+
+  /** Charge un fil visible par l'acteur (RLS) ; null si invisible. */
+  private async chargerConversation(
+    conversationId: string
+  ): Promise<LigneConversation | null> {
+    const { data, error } = await this.client()
+      .from("conversations")
+      .select("*")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as LigneConversation | null) ?? null;
+  }
+
+  private estPlateforme(profil: Profil | null): boolean {
+    return profil?.role === "admin" || profil?.role === "super_admin";
+  }
+
+  // --- Messagerie directe ---------------------------------------------------
+
+  async listerConversations(): Promise<Conversation[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+    const profil = await this.getProfil();
+    // La RLS borne déjà les fils visibles (participants + plateforme).
+    const { data, error } = await this.client()
+      .from("conversations")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return this.enrichirConversations(
+      (data as LigneConversation[] | null) ?? [],
+      session.id,
+      this.estPlateforme(profil)
+    );
+  }
+
+  async getConversationPlateforme(compteId?: string): Promise<Conversation> {
+    const session = await this.requireSession();
+    const profil = await this.getProfil();
+    const acteurEstPlateforme = this.estPlateforme(profil);
+    // Cible : le client désigné pour la plateforme, soi-même pour un client.
+    let cible: string;
+    if (acteurEstPlateforme) {
+      if (!compteId) throw err("ERR_CONVERSATION_INTROUVABLE");
+      cible = compteId;
+    } else {
+      cible = session.id;
+    }
+    const client = this.client();
+    const { data: existante, error } = await client
+      .from("conversations")
+      .select("*")
+      .eq("type", "plateforme")
+      .eq("proprietaire_id", cible)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (existante) {
+      const [conv] = await this.enrichirConversations(
+        [existante as LigneConversation],
+        session.id,
+        acteurEstPlateforme
+      );
+      return conv;
+    }
+    // Création au premier accès : routage = Admin responsable du client
+    // (relu sur SON profil au moment de la création).
+    const { data: profilClient } = await client
+      .from("profils")
+      .select("admin_responsable_id")
+      .eq("id", cible)
+      .maybeSingle();
+    if (!profilClient) throw err("ERR_INTROUVABLE");
+    const { data: cree, error: erreurCreation } = await client
+      .from("conversations")
+      .insert({
+        type: "plateforme",
+        proprietaire_id: cible,
+        admin_responsable_id:
+          (profilClient as { admin_responsable_id: string | null })
+            .admin_responsable_id ?? null,
+      })
+      .select()
+      .single();
+    if (erreurCreation) {
+      // Course possible (création simultanée) : on relit le fil.
+      const { data: relue } = await client
+        .from("conversations")
+        .select("*")
+        .eq("type", "plateforme")
+        .eq("proprietaire_id", cible)
+        .maybeSingle();
+      if (!relue) throw new Error(erreurCreation.message);
+      const [conv] = await this.enrichirConversations(
+        [relue as LigneConversation],
+        session.id,
+        acteurEstPlateforme
+      );
+      return conv;
+    }
+    const [conv] = await this.enrichirConversations(
+      [cree as LigneConversation],
+      session.id,
+      acteurEstPlateforme
+    );
+    return conv;
+  }
+
+  async getConversationRattachement(
+    rattachementId: string
+  ): Promise<Conversation> {
+    const session = await this.requireSession();
+    const profil = await this.getProfil();
+    const acteurEstPlateforme = this.estPlateforme(profil);
+    const client = this.client();
+    const { data: rattachement, error: erreurRatt } = await client
+      .from("rattachements_gestionnaires")
+      .select("id, statut, proprietaire_id, gestionnaire_id")
+      .eq("id", rattachementId)
+      .maybeSingle();
+    if (erreurRatt) throw new Error(erreurRatt.message);
+    const ratt = rattachement as {
+      statut: string;
+      proprietaire_id: string | null;
+      gestionnaire_id: string;
+    } | null;
+    if (
+      !ratt ||
+      ratt.statut !== "actif" ||
+      !ratt.proprietaire_id ||
+      !ratt.gestionnaire_id
+    ) {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    const { data: existante, error } = await client
+      .from("conversations")
+      .select("*")
+      .eq("rattachement_id", rattachementId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (existante) {
+      const [conv] = await this.enrichirConversations(
+        [existante as LigneConversation],
+        session.id,
+        acteurEstPlateforme
+      );
+      return conv;
+    }
+    const { data: cree, error: erreurCreation } = await client
+      .from("conversations")
+      .insert({
+        type: "rattachement",
+        proprietaire_id: ratt.proprietaire_id,
+        gestionnaire_id: ratt.gestionnaire_id,
+        rattachement_id: rattachementId,
+      })
+      .select()
+      .single();
+    if (erreurCreation) {
+      const { data: relue } = await client
+        .from("conversations")
+        .select("*")
+        .eq("rattachement_id", rattachementId)
+        .maybeSingle();
+      if (!relue) throw new Error(erreurCreation.message);
+      const [conv] = await this.enrichirConversations(
+        [relue as LigneConversation],
+        session.id,
+        acteurEstPlateforme
+      );
+      return conv;
+    }
+    const [conv] = await this.enrichirConversations(
+      [cree as LigneConversation],
+      session.id,
+      acteurEstPlateforme
+    );
+    return conv;
+  }
+
+  async listerMessages(conversationId: string): Promise<MessageDirect[]> {
+    await this.requireSession();
+    const { data, error } = await this.client()
+      .from("messages_directs")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const lignes = (data as LigneMessage[] | null) ?? [];
+    const parId = await this.profilsAffichage(
+      lignes.map((m) => m.expediteur_id)
+    );
+    return lignes.map((m) => ({
+      id: m.id,
+      conversation_id: m.conversation_id,
+      expediteur_id: m.expediteur_id,
+      expediteur_nom: parId.get(m.expediteur_id)?.nom,
+      corps: m.corps,
+      created_at: m.created_at,
+      lu_par_client: Boolean(m.lu_par_client),
+      lu_par_plateforme: Boolean(m.lu_par_plateforme),
+    }));
+  }
+
+  async envoyerMessage(
+    conversationId: string,
+    corps: string
+  ): Promise<MessageDirect> {
+    const texte = corps.trim();
+    if (!texte) throw err("ERR_MESSAGE_VIDE");
+    const session = await this.requireSession();
+    const profil = await this.getProfil();
+    const conversation = await this.chargerConversation(conversationId);
+    if (!conversation) throw err("ERR_CONVERSATION_INTROUVABLE");
+    const acteurEstPlateforme = this.estPlateforme(profil);
+    // Pré-vérification : la plateforme est en LECTURE SEULE sur les fils
+    // rattachement (la RLS refuserait l'insertion de toute façon).
+    if (acteurEstPlateforme && conversation.type === "rattachement") {
+      throw err("ERR_SUPERVISION_LECTURE_SEULE");
+    }
+    const coteClient =
+      session.id === conversation.proprietaire_id ||
+      session.id === conversation.gestionnaire_id;
+    const cotePlateforme = acteurEstPlateforme && !coteClient;
+    if (!coteClient && !cotePlateforme) {
+      throw err("ERR_CONVERSATION_INTROUVABLE");
+    }
+    const { data, error } = await this.client()
+      .from("messages_directs")
+      .insert({
+        conversation_id: conversationId,
+        expediteur_id: session.id,
+        corps: texte,
+        lu_par_client: coteClient,
+        lu_par_plateforme: cotePlateforme,
+      })
+      .select()
+      .single();
+    if (error) throw erreurRpcV15(error);
+    const ligne = data as LigneMessage;
+    return {
+      id: ligne.id,
+      conversation_id: ligne.conversation_id,
+      expediteur_id: ligne.expediteur_id,
+      expediteur_nom: profil?.nom,
+      corps: ligne.corps,
+      created_at: ligne.created_at,
+      lu_par_client: Boolean(ligne.lu_par_client),
+      lu_par_plateforme: Boolean(ligne.lu_par_plateforme),
+    };
+  }
+
+  async marquerLu(conversationId: string): Promise<void> {
+    const session = await this.requireSession();
+    const conversation = await this.chargerConversation(conversationId);
+    if (!conversation) throw err("ERR_CONVERSATION_INTROUVABLE");
+    const coteClient =
+      session.id === conversation.proprietaire_id ||
+      session.id === conversation.gestionnaire_id;
+    const client = this.client();
+    // On ne marque que les messages des AUTRES, du côté de l'acteur.
+    const { error } = coteClient
+      ? await client
+          .from("messages_directs")
+          .update({ lu_par_client: true })
+          .eq("conversation_id", conversationId)
+          .neq("expediteur_id", session.id)
+      : await client
+          .from("messages_directs")
+          .update({ lu_par_plateforme: true })
+          .eq("conversation_id", conversationId)
+          .neq("expediteur_id", session.id);
+    if (error) throw new Error(error.message);
+  }
+
+  async listerConversationsSupervisees(): Promise<Conversation[]> {
+    const acteur = await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("conversations")
+      .select("*")
+      .eq("type", "rattachement")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return this.enrichirConversations(
+      (data as LigneConversation[] | null) ?? [],
+      acteur.id,
+      true
+    );
+  }
+
+  async journaliserConsultationMessages(conversationId: string): Promise<void> {
+    // Audit en base par la RPC — aucun journaliserAudit côté app.
+    const { error } = await this.client().rpc(
+      "journaliser_consultation_messages",
+      { p_conversation: conversationId }
+    );
+    if (error) throw erreurRpcV15(error);
+  }
+
+  // --- Assignation des dossiers + équipe ------------------------------------
+
+  async assignerDossier(compteId: string, adminId: string | null): Promise<void> {
+    // Audit en base par la RPC — aucun journaliserAudit côté app.
+    const { error } = await this.client().rpc("assigner_dossier", {
+      cible: compteId,
+      admin_id: adminId,
+    });
+    if (error) throw erreurRpcV15(error);
+  }
+
+  async listerEquipeAdmins(): Promise<MembreEquipe[]> {
+    await this.acteurPlateforme();
+    const client = this.client();
+    const { data, error } = await client
+      .from("profils")
+      .select(
+        "id, email, nom, role, suspendu, acces_admin_actif, created_at"
+      )
+      .in("role", ["admin", "super_admin"])
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const membres = (data as {
+      id: string;
+      email: string;
+      nom: string;
+      role: "admin" | "super_admin";
+      suspendu: boolean;
+      acces_admin_actif: boolean | null;
+      created_at: string;
+    }[] | null) ?? [];
+    // Charge : RPC lister_charge_admins ; repli = comptage local des
+    // dossiers assignés si la RPC échoue (module SQL non encore appliqué).
+    const chargeParId = new Map<string, number>();
+    let chargeViaRpc = false;
+    try {
+      const { data: charges, error: erreurCharge } = await client.rpc(
+        "lister_charge_admins"
+      );
+      if (!erreurCharge && charges) {
+        for (const c of charges as { admin_id: string; dossiers: number }[]) {
+          chargeParId.set(c.admin_id, Number(c.dossiers));
+        }
+        chargeViaRpc = true;
+      }
+    } catch {
+      chargeViaRpc = false;
+    }
+    if (!chargeViaRpc) {
+      const { data: dossiers } = await client
+        .from("profils")
+        .select("admin_responsable_id")
+        .not("admin_responsable_id", "is", null);
+      for (const d of (dossiers as { admin_responsable_id: string }[] | null) ??
+        []) {
+        chargeParId.set(
+          d.admin_responsable_id,
+          (chargeParId.get(d.admin_responsable_id) ?? 0) + 1
+        );
+      }
+    }
+    // Dernière activité : 200 entrées d'audit les plus récentes, max
+    // par acteur calculé en mémoire (la requête est déjà triée desc).
+    const derniereParActeur = new Map<string, string>();
+    const { data: audit } = await client
+      .from("journal_audit")
+      .select("acteur_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    for (const e of (audit as {
+      acteur_id: string | null;
+      created_at: string;
+    }[] | null) ?? []) {
+      if (e.acteur_id && !derniereParActeur.has(e.acteur_id)) {
+        derniereParActeur.set(e.acteur_id, e.created_at);
+      }
+    }
+    return membres.map((m) => ({
+      id: m.id,
+      email: m.email,
+      nom: m.nom,
+      role: m.role,
+      statut: m.suspendu ? ("suspendu" as const) : ("actif" as const),
+      acces_admin_actif: m.acces_admin_actif ?? true,
+      dossiers_assignes: chargeParId.get(m.id) ?? 0,
+      derniere_activite: derniereParActeur.get(m.id) ?? null,
+      created_at: m.created_at,
+    }));
+  }
+
+  async basculerAccesAdmin(adminId: string, actif: boolean): Promise<void> {
+    // Audit en base par la RPC — aucun journaliserAudit côté app.
+    const { error } = await this.client().rpc("basculer_acces_admin", {
+      cible: adminId,
+      actif,
+    });
+    if (error) throw erreurRpcV15(error);
+  }
+
+  async retirerRoleAdmin(adminId: string): Promise<void> {
+    // Audit en base par la RPC — aucun journaliserAudit côté app.
+    const { error } = await this.client().rpc("retirer_role_admin", {
+      cible: adminId,
+    });
+    if (error) throw erreurRpcV15(error);
+  }
+
+  async listerMesDossiers(): Promise<ComptePlateforme[]> {
+    const profil = await this.getProfil();
+    if (!profil) throw err("ERR_NOT_FOUND");
+    const comptes = await this.listerComptesPlateforme();
+    return comptes.filter((c) => c.admin_responsable_id === profil.id);
+  }
 }
 
 function num(v: unknown): number | null {
@@ -3662,6 +4358,32 @@ function mapAppartement(r: Appartement): Appartement {
 
 function mapBail(r: Bail): Bail {
   return { ...r, loyer_mensuel: Number(r.loyer_mensuel), caution: num(r.caution) };
+}
+
+/** v1.5 : mappe les 4 nouveaux champs du profil (défauts sûrs si la ligne est antérieure à la migration). */
+function mapProfil(r: Profil): Profil {
+  const brut = r as Profil & Record<string, unknown>;
+  return {
+    ...r,
+    suppression_demandee_le:
+      (brut.suppression_demandee_le as string | null | undefined) ?? null,
+    admin_responsable_id:
+      (brut.admin_responsable_id as string | null | undefined) ?? null,
+    acces_admin_actif:
+      typeof brut.acces_admin_actif === "boolean" ? brut.acces_admin_actif : true,
+    role_avant_admin: (brut.role_avant_admin as Profil["role_avant_admin"]) ?? null,
+  };
+}
+
+/** v1.5 : instantané avant suppression (jsonb), null hors demande en cours. */
+function mapAbonnement(r: Abonnement): Abonnement {
+  const brut = r as Abonnement & Record<string, unknown>;
+  return {
+    ...r,
+    instantane_avant_suppression:
+      (brut.instantane_avant_suppression as Record<string, unknown> | null | undefined) ??
+      null,
+  };
 }
 
 function mapPaiement(r: Paiement): Paiement {

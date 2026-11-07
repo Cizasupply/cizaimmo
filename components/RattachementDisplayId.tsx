@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { DemandeRattachement, Immeuble } from "@/lib/data";
+import DiscussionRattachement from "@/components/DiscussionRattachement";
 
 export default function RattachementDisplayId() {
   const t = useTranslations("dossier");
@@ -223,6 +224,8 @@ export default function RattachementDisplayId() {
                   >
                     {t("saveAssignment")}
                   </button>
+                  {/* v1.5 : discussion directe propriétaire ↔ gestionnaire. */}
+                  <DiscussionRattachement rattachementId={d.rattachement_id} />
                 </div>
               ) : null}
             </li>

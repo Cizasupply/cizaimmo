@@ -10,15 +10,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { getDataProvider } from "@/lib/data";
 import type { CompteAdmin } from "@/lib/data";
+import type { MembreEquipe } from "@/lib/data/types";
 import { formatDate } from "@/lib/format";
 import { useLocale } from "next-intl";
 
 export default function ConsoleAdminsPage() {
   const t = useTranslations("console");
+  const t15 = useTranslations("v15");
+  const tcom = useTranslations("common");
   const locale = useLocale();
   const [admins, setAdmins] = useState<CompteAdmin[]>([]);
+  // v1.5 : vue Équipe (charge, accès console, dernière activité).
+  const [equipe, setEquipe] = useState<MembreEquipe[]>([]);
+  const [retraitAConfirmer, setRetraitAConfirmer] = useState<CompteAdmin | null>(null);
   const [emailPromotion, setEmailPromotion] = useState("");
   const [emailCreation, setEmailCreation] = useState("");
   const [nomCreation, setNomCreation] = useState("");
@@ -27,7 +34,13 @@ export default function ConsoleAdminsPage() {
   const [occupe, setOccupe] = useState(false);
 
   const recharger = useCallback(async () => {
-    setAdmins(await getDataProvider().listerAdmins());
+    const provider = getDataProvider();
+    const [liste, membres] = await Promise.all([
+      provider.listerAdmins(),
+      provider.listerEquipeAdmins().catch(() => [] as MembreEquipe[]),
+    ]);
+    setAdmins(liste);
+    setEquipe(membres);
   }, []);
 
   useEffect(() => {
@@ -66,7 +79,12 @@ export default function ConsoleAdminsPage() {
       ) : null}
 
       <div className="mt-6 space-y-3">
-        {admins.map((a) => (
+        {admins.map((a) => {
+          // v1.5 : données Équipe du même compte (charge / accès / activité).
+          const membre = equipe.find((m) => m.id === a.id);
+          const charge = membre?.dossiers_assignes ?? a.dossiers_assignes ?? 0;
+          const accesActif = membre?.acces_admin_actif ?? a.acces_admin_actif ?? true;
+          return (
           <article key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
             <div className="min-w-0">
               <h2 className="truncate font-bold text-navy">{a.nom}</h2>
@@ -78,7 +96,19 @@ export default function ConsoleAdminsPage() {
                 <span className={`rounded-full px-2 py-1 text-xs font-bold ${a.statut === "actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
                   {a.statut === "actif" ? t("adminActive") : t("adminSuspended")}
                 </span>
-                <span className="text-xs text-slate-400">{formatDate(a.created_at, locale)}</span>
+                {/* v1.5 : charge + accès console + dernière activité. */}
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">
+                  {t15("teamAssignedFiles")} : {charge}
+                </span>
+                <span className={`rounded-full px-2 py-1 text-xs font-bold ${accesActif ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
+                  {t15("teamAccess")} : {accesActif ? t15("teamAccessActive") : t15("teamAccessInactive")}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {t15("teamLastActivity")} :{" "}
+                  {membre?.derniere_activite ? formatDate(membre.derniere_activite, locale) : t15("teamNever")}
+                  {" · "}
+                  {formatDate(a.created_at, locale)}
+                </span>
               </p>
             </div>
             {a.role === "admin" ? (
@@ -102,19 +132,53 @@ export default function ConsoleAdminsPage() {
                     {t("reactivate")}
                   </button>
                 )}
+                {/* v1.5 : couper / rétablir l'accès console de l'employé. */}
                 <button
                   type="button"
                   disabled={occupe}
-                  onClick={() => agir(() => getDataProvider().retirerAdmin(a.id), t("adminRemovedMsg"))}
+                  onClick={() =>
+                    agir(
+                      () => getDataProvider().basculerAccesAdmin(a.id, !accesActif),
+                      t15("accessUpdatedMsg")
+                    )
+                  }
                   className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
                 >
-                  {t("removeAdmin")}
+                  {accesActif ? t15("revokeAccess") : t15("grantAccess")}
+                </button>
+                {/* v1.5 : retrait du rôle Admin (rôle client d'origine restauré). */}
+                <button
+                  type="button"
+                  disabled={occupe}
+                  onClick={() => setRetraitAConfirmer(a)}
+                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+                >
+                  {t15("removeRole")}
                 </button>
               </div>
             ) : null}
           </article>
-        ))}
+          );
+        })}
       </div>
+
+      {retraitAConfirmer ? (
+        <ConfirmDialog
+          title={t15("removeRoleConfirmTitle")}
+          text={t15("removeRoleConfirmText")}
+          confirmLabel={t15("removeRole")}
+          cancelLabel={tcom("cancel")}
+          onConfirm={() => {
+            const cible = retraitAConfirmer;
+            setRetraitAConfirmer(null);
+            void agir(
+              () => getDataProvider().retirerRoleAdmin(cible.id),
+              t15("roleRemovedMsg")
+            );
+          }}
+          onCancel={() => setRetraitAConfirmer(null)}
+        />
+      ) : null}
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-bold text-navy">{t("promoteTitle")}</h2>

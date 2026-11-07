@@ -22,7 +22,10 @@ const LIENS = [
   { key: "overview", href: "/console" },
   { key: "accounts", href: "/console/comptes" },
   { key: "managers", href: "/console/gestionnaires" },
+  { key: "myFiles", href: "/console/mes-dossiers", adminSeul: true },
+  { key: "supervisedMessages", href: "/console/messages-supervises" },
   { key: "journal", href: "/console/journal" },
+  { key: "suppressions", href: "/console/suppressions", superSeul: true },
   { key: "admins", href: "/console/admins", superSeul: true },
   { key: "finances", href: "/console/finances", superSeul: true },
 ] as const;
@@ -65,7 +68,12 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   }
 
   const estSuper = profil?.role === "super_admin";
-  const liensVisibles = LIENS.filter((l) => !("superSeul" in l && l.superSeul) || estSuper);
+  const liensVisibles = LIENS.filter((l) => {
+    if ("superSeul" in l && l.superSeul && !estSuper) return false;
+    // v1.5 : « Mes dossiers » = espace de l'Admin employé (pas le Super Admin).
+    if ("adminSeul" in l && l.adminSeul && estSuper) return false;
+    return true;
+  });
 
   function LiensNavigation({ onNavigate }: { onNavigate?: () => void }) {
     return (

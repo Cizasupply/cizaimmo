@@ -6,6 +6,7 @@ import type {
   Avis,
   Bail,
   CompteAdmin,
+  Conversation,
   Coproprietaire,
   DemandeRattachement,
   Depense,
@@ -18,6 +19,7 @@ import type {
   Immeuble,
   Langue,
   Locataire,
+  MessageDirect,
   MotifRefus,
   Paiement,
   PaiementMobileMoney,
@@ -99,6 +101,12 @@ export interface CompteClientDemo {
   statut_contrat: StatutContrat;
   /** Photo de profil reçue + pièce d'identité reçue. */
   dossier_complet: boolean;
+  // --- v1.5 : suppression demandée, assignation, accès admin (miroir
+  // des colonnes de profils — absents/null tant qu'ils ne s'appliquent pas).
+  suppression_demandee_le?: string | null;
+  admin_responsable_id?: string | null;
+  acces_admin_actif?: boolean;
+  role_avant_admin?: Role | null;
   abonnement: {
     plan: Plan;
     grille: Grille;
@@ -111,6 +119,8 @@ export interface CompteClientDemo {
     statut_pre_suspension?: StatutAbonnement | null;
     /** v1.4 : pack choisi pour la fin de l'essai (défaut Starter). */
     plan_apres_essai?: Plan;
+    /** v1.5 : instantané restauré à l'annulation d'une suppression. */
+    instantane_avant_suppression?: Record<string, unknown> | null;
   };
 }
 
@@ -169,6 +179,15 @@ export interface DemoDb {
    * seedés occupent CIM-000001 à CIM-000011 — voir buildDemoDb).
    */
   compteurDisplayId: number;
+  /** v1.5 : messagerie directe (fils + messages, tous types de fils). */
+  conversations: Conversation[];
+  messages: MessageDirect[];
+  /**
+   * v1.5 : true quand la suppression du compte principal a été EXÉCUTÉE
+   * (données du parc vidées, compte retiré des listes console) — la
+   * démo mono-compte ne peut pas supprimer physiquement db.profil.
+   */
+  principalSupprime?: boolean;
 }
 
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
@@ -210,6 +229,9 @@ export function buildDemoDb(): DemoDb {
     type_intention: "proprietaire",
     photo_profil_path: "demo:photo-profil-amina",
     statut_contrat: "sans_objet",
+    // v1.5 : aucune suppression en cours, aucun Admin responsable.
+    suppression_demandee_le: null,
+    admin_responsable_id: null,
     created_at: now,
   };
 
@@ -563,8 +585,8 @@ export function buildDemoDb(): DemoDb {
   // de la grâce et un compte suspendu.
   const plateforme: PlateformeDemo = {
     comptesAdmins: [
-      { id: "plateforme-super-admin", email: SUPER_ADMIN_DEMO_EMAIL, nom: "Ciza Misigaro", role: "super_admin", statut: "actif", created_at: now },
-      { id: "plateforme-admin-1", email: ADMIN_DEMO_EMAIL, nom: "Aline Uwase", role: "admin", statut: "actif", created_at: now },
+      { id: "plateforme-super-admin", email: SUPER_ADMIN_DEMO_EMAIL, nom: "Ciza Misigaro", role: "super_admin", statut: "actif", created_at: now, acces_admin_actif: true },
+      { id: "plateforme-admin-1", email: ADMIN_DEMO_EMAIL, nom: "Aline Uwase", role: "admin", statut: "actif", created_at: now, acces_admin_actif: true },
     ],
     comptesClients: [
       {
@@ -778,5 +800,5 @@ export function buildDemoDb(): DemoDb {
     parametres: { ...PARAMETRES_FINANCE_DEFAUT },
   };
 
-  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires, parcCizaGroup, plateforme, finance, compteurDisplayId: 12 };
+  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires, parcCizaGroup, plateforme, finance, compteurDisplayId: 12, conversations: [], messages: [], principalSupprime: false };
 }

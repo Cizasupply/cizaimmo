@@ -27,6 +27,10 @@ import type {
   EcheanceLoyer,
   EntreeAudit,
   FactureAbonnement,
+  Conversation,
+  MembreEquipe,
+  MessageDirect,
+  SuppressionEnAttente,
   FiltreAppartements,
   FiltreBaux,
   FiltreDepenses,
@@ -612,4 +616,101 @@ export interface DataProvider {
    * « valide », fonctions débloquées, e-mail d'activation. Journalisé.
    */
   validerContrat(compteId: string): Promise<void>;
+
+  // ==========================================================================
+  // EXTENSION v1.5 — Suppression de compte par le client, messagerie
+  // directe supervisée, assignation des dossiers, page Équipe, espace
+  // « Mes dossiers ». Voir docs/messagerie-suppression-v15.md.
+  // Nouveaux codes d'erreur :
+  //  ERR_SUPPRESSION_DEJA_DEMANDEE — une demande est déjà en cours.
+  //  ERR_AUCUNE_SUPPRESSION — annulation sans demande en cours.
+  //  ERR_DELAI_NON_ECOULE — exécution avant les 30 jours (refus BASE).
+  //  ERR_SUPER_ADMIN_REQUIS — action réservée au Super Admin.
+  //  ERR_ADMIN_INTROUVABLE — assignation vers un compte non Admin.
+  //  ERR_MESSAGE_VIDE — corps de message vide.
+  //  ERR_CONVERSATION_INTROUVABLE — fil inconnu ou non visible par l'acteur.
+  //  ERR_SUPERVISION_LECTURE_SEULE — la plateforme ne peut PAS écrire
+  //    dans un fil propriétaire ↔ gestionnaire (refus base en réel).
+  // ==========================================================================
+
+  // --- Suppression de compte par le client (la base pilote) ---------------
+  /**
+   * Le client demande la suppression de SON compte : la base pose la
+   * demande, conserve un instantané complet de l'abonnement et passe
+   * le compte en LECTURE SEULE immédiate (garde v1.4). Délai de
+   * rétractation : 30 jours. Retourne le profil mis à jour.
+   */
+  demanderSuppressionCompte(): Promise<Profil>;
+  /**
+   * Annule la demande avant l'échéance : l'abonnement est restauré À
+   * L'IDENTIQUE depuis l'instantané (statut, plan, dates, grâce…).
+   */
+  annulerSuppressionCompte(): Promise<Profil>;
+  /** File console : demandes en cours, échéance et caractère exécutable. */
+  listerSuppressionsEnAttente(): Promise<SuppressionEnAttente[]>;
+  /**
+   * Super Admin : exécute une suppression ÉCHUE (la base refuse avant
+   * 30 jours) — factures anonymisées (comptabilité conservée), puis
+   * compte supprimé. Le Display ID n'est jamais réattribué.
+   */
+  executerSuppressionCompte(compteId: string): Promise<void>;
+
+  // --- Messagerie directe ---------------------------------------------------
+  /**
+   * Fils visibles par l'acteur courant : pour un client, son fil
+   * plateforme + les fils rattachement où il participe ; pour la
+   * plateforme, les fils plateforme (routage : admin_responsable_id).
+   */
+  listerConversations(): Promise<Conversation[]>;
+  /**
+   * Fil plateforme d'un client (le sien pour un client ; celui du
+   * client désigné pour la plateforme) — créé au premier accès, avec
+   * admin_responsable_id = l'Admin responsable du client s'il existe.
+   */
+  getConversationPlateforme(compteId?: string): Promise<Conversation>;
+  /**
+   * Fil rattachement d'une demande/rattachement ACTIF entre le
+   * propriétaire connecté (ou désigné) et son gestionnaire — créé au
+   * premier accès. Participants seuls (+ supervision plateforme).
+   */
+  getConversationRattachement(rattachementId: string): Promise<Conversation>;
+  /** Messages d'un fil, du plus ancien au plus récent. */
+  listerMessages(conversationId: string): Promise<MessageDirect[]>;
+  /**
+   * Envoie un message dans un fil. La plateforme ne peut PAS envoyer
+   * dans un fil « rattachement » (ERR_SUPERVISION_LECTURE_SEULE — en
+   * réel, la RLS refuse l'insertion elle-même).
+   */
+  envoyerMessage(conversationId: string, corps: string): Promise<MessageDirect>;
+  /** Marque les messages du fil comme lus pour le côté de l'acteur. */
+  marquerLu(conversationId: string): Promise<void>;
+  /** Supervision : tous les fils « rattachement » (plateforme, lecture seule). */
+  listerConversationsSupervisees(): Promise<Conversation[]>;
+  /**
+   * Journalise (journal_audit, action « consultation_messages »)
+   * l'ouverture d'un fil supervisé par la plateforme.
+   */
+  journaliserConsultationMessages(conversationId: string): Promise<void>;
+
+  // --- Assignation des dossiers + équipe ------------------------------------
+  /**
+   * Super Admin : assigne un dossier client à un Admin (ou null =
+   * désassigner). Assignation = responsabilité (routage des messages,
+   * vue « Mes dossiers »), PAS une restriction d'accès. Journalisé.
+   */
+  assignerDossier(compteId: string, adminId: string | null): Promise<void>;
+  /** Page Équipe : Admins, charge, accès, dernière activité (audit). */
+  listerEquipeAdmins(): Promise<MembreEquipe[]>;
+  /** Super Admin : coupe ou rétablit l'accès console d'un employé Admin. */
+  basculerAccesAdmin(adminId: string, actif: boolean): Promise<void>;
+  /**
+   * Super Admin : retire le rôle Admin — le compte redevient client
+   * avec son rôle d'origine (profils.role_avant_admin, sinon intention).
+   */
+  retirerRoleAdmin(adminId: string): Promise<void>;
+  /**
+   * Espace Admin « Mes dossiers » : comptes clients dont l'Admin
+   * connecté est le responsable (dossiers complets via listerDossier).
+   */
+  listerMesDossiers(): Promise<ComptePlateforme[]>;
 }

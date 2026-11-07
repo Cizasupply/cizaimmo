@@ -75,6 +75,15 @@ export interface Profil {
    * validation Admin), valide (fonctions gestionnaire débloquées).
    */
   statut_contrat?: StatutContrat;
+  // --- Extension v1.5 : suppression de compte, assignation, accès admin.
+  /** Demande de suppression par le client (base) : date de la demande, null sinon. Échéance = demande + 30 jours. */
+  suppression_demandee_le?: string | null;
+  /** Admin (employé Ciza Group) responsable du dossier — assigné par le Super Admin. */
+  admin_responsable_id?: string | null;
+  /** Accès console de l'employé Admin : false = accès coupé par le Super Admin (est_admin_plateforme() exige true). */
+  acces_admin_actif?: boolean;
+  /** Rôle client d'origine, conservé à la promotion Admin pour un retrait fidèle. */
+  role_avant_admin?: Role | null;
   created_at: string;
 }
 
@@ -130,6 +139,13 @@ export interface Abonnement {
    * ce choix ne change rien tant que l'essai court.
    */
   plan_apres_essai: Plan;
+  /**
+   * v1.5 : instantané COMPLET de l'abonnement pris à la demande de
+   * suppression par le client (miroir de la colonne jsonb
+   * abonnements.instantane_avant_suppression) — restauré tel quel à
+   * l'annulation. null quand aucune suppression n'est en cours.
+   */
+  instantane_avant_suppression?: Record<string, unknown> | null;
 }
 
 // --- MODULE 5 : factures d'abonnement + paiements mobile money (spec §12) ---
@@ -151,6 +167,8 @@ export interface FactureAbonnement {
   statut: StatutFactureAbo;
   stripe_invoice_id: string | null;
   reference_mobile_money: string | null;
+  /** v1.5 : true après anonymisation comptable (suppression de compte exécutée) — montants/dates/moyens conservés, références remplacées par « ANONYMISE ». */
+  anonymise?: boolean;
 }
 
 export type OperateurMobileMoney = "ecocash" | "lumicash" | "enoti";
@@ -938,6 +956,12 @@ export interface ComptePlateforme {
   statut_contrat: StatutContrat;
   /** Dossier complet = photo de profil + pièce d'identité reçues. */
   dossier_complet: boolean;
+  // --- v1.5 : assignation + suppression.
+  /** Admin responsable du dossier (assignation Super Admin), null si non assigné. */
+  admin_responsable_id: string | null;
+  admin_responsable_nom: string | null;
+  /** Demande de suppression par le client en cours (date), null sinon. */
+  suppression_demandee_le: string | null;
 }
 
 /**
@@ -1009,6 +1033,98 @@ export interface CompteAdmin {
   nom: string;
   role: "admin" | "super_admin";
   statut: "actif" | "suspendu";
+  created_at: string;
+  /** v1.5 : accès console employé (false = coupé par le Super Admin). */
+  acces_admin_actif?: boolean;
+  /** v1.5 : nombre de dossiers clients assignés à cet Admin. */
+  dossiers_assignes?: number;
+}
+
+// ============================================================================
+// EXTENSION v1.5 — Suppression de compte par le client, messagerie directe
+// supervisée, assignation des dossiers, page Équipe et espace « Mes
+// dossiers ». Voir docs/messagerie-suppression-v15.md. Principe inchangé :
+// la BASE décide (RPC + RLS), le frontend ne fait qu'afficher.
+// ============================================================================
+
+/**
+ * Suppression de compte demandée par le client, en attente d'exécution
+ * (file console Super Admin). L'échéance est demande + 30 jours ;
+ * « executable » n'est qu'un affichage — le refus avant échéance vient
+ * de la RPC base executer_suppression_compte.
+ */
+export interface SuppressionEnAttente {
+  compte_id: string;
+  email: string;
+  nom: string;
+  display_id: string | null;
+  suppression_demandee_le: string;
+  /** suppression_demandee_le + 30 jours. */
+  echeance_le: string;
+  executable: boolean;
+}
+
+/** Type de fil de discussion (messagerie directe v1.5). */
+export type TypeConversation = "plateforme" | "rattachement";
+
+/**
+ * Fil de discussion. « plateforme » : client ↔ plateforme (routé vers
+ * l'Admin responsable du dossier). « rattachement » : propriétaire ↔
+ * gestionnaire d'un rattachement ACTIF ; la plateforme ne fait que
+ * superviser, en lecture seule (interdit par la RLS, pas par le front).
+ */
+export interface Conversation {
+  id: string;
+  type: TypeConversation;
+  /** Le client sujet du fil (plateforme) / le propriétaire (rattachement). */
+  proprietaire_id: string;
+  gestionnaire_id: string | null;
+  rattachement_id: string | null;
+  /** Routage plateforme : Admin responsable du client au moment de la création. */
+  admin_responsable_id: string | null;
+  created_at: string;
+  // --- Champs d'affichage (jointures faites par le fournisseur) ---------
+  proprietaire_nom?: string;
+  proprietaire_email?: string;
+  proprietaire_display_id?: string | null;
+  gestionnaire_nom?: string | null;
+  gestionnaire_display_id?: string | null;
+  admin_responsable_nom?: string | null;
+  dernier_message?: string | null;
+  dernier_message_le?: string | null;
+  /** Messages non lus POUR L'ACTEUR COURANT. */
+  non_lus?: number;
+}
+
+/** Message d'un fil direct. Corps en texte libre (canal direct v1.5). */
+export interface MessageDirect {
+  id: string;
+  conversation_id: string;
+  expediteur_id: string;
+  /** Nom de l'expéditeur (jointure d'affichage). */
+  expediteur_nom?: string;
+  corps: string;
+  created_at: string;
+  /** Lu par le côté client (propriétaire/gestionnaire) du fil. */
+  lu_par_client: boolean;
+  /** Lu par le côté plateforme (fils plateforme ; supervision). */
+  lu_par_plateforme: boolean;
+}
+
+/** Ligne de la page Équipe (console Super Admin, v1.5). */
+export interface MembreEquipe {
+  id: string;
+  email: string;
+  nom: string;
+  role: "admin" | "super_admin";
+  /** Suspension de compte plateforme (profils.suspendu). */
+  statut: "actif" | "suspendu";
+  /** Accès console employé (profils.acces_admin_actif). */
+  acces_admin_actif: boolean;
+  /** Charge : nombre de dossiers clients dont il est responsable. */
+  dossiers_assignes: number;
+  /** Dernière entrée du journal d'audit signée par cet acteur. */
+  derniere_activite: string | null;
   created_at: string;
 }
 
