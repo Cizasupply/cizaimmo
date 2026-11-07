@@ -111,16 +111,16 @@ import {
 
 function translateAuthError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("invalid login credentials")) return "auth.invalidCredentials";
-  if (m.includes("email not confirmed")) return "auth.emailNotConfirmed";
+  if (m.includes("invalid login credentials")) return "invalidCredentials";
+  if (m.includes("email not confirmed")) return "emailNotConfirmed";
   if (m.includes("user already registered") || m.includes("already registered"))
-    return "auth.emailAlreadyRegistered";
-  if (m.includes("password") && m.includes("at least")) return "auth.passwordTooShort";
-  if (m.includes("rate limit") || m.includes("too many requests")) return "auth.tooManyAttempts";
-  return "auth.genericError";
+    return "emailAlreadyRegistered";
+  if (m.includes("password") && m.includes("at least")) return "passwordTooShort";
+  if (m.includes("rate limit") || m.includes("too many requests")) return "tooManyAttempts";
+  return "genericError";
 }
 
-/** Erreur d'authentification portant une clé i18n (auth.*) plutôt qu'un texte brut. */
+/** Erreur d'authentification portant une clé i18n du namespace « auth » (clé nue, sans préfixe) plutôt qu'un texte brut. */
 export class AuthError extends Error {
   readonly i18nKey: string;
   constructor(i18nKey: string) {
@@ -149,7 +149,7 @@ export class RealProvider implements DataProvider {
 
   private client() {
     const c = getSupabaseBrowserClient();
-    if (!c) throw new AuthError("auth.genericError");
+    if (!c) throw new AuthError("genericError");
     return c;
   }
 
