@@ -354,8 +354,8 @@ export default function DepensesPage() {
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParCategorie.map((x) => (
                     <li key={`${x.categorie}-${x.devise}`} className="flex justify-between gap-2">
-                      <span>{te(`categories.${x.categorie}`)}</span>
-                      <span className="font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
+                      <span className="min-w-0 break-words">{te(`categories.${x.categorie}`)}</span>
+                      <span className="shrink-0 break-all font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -365,8 +365,8 @@ export default function DepensesPage() {
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParImmeuble.map((x) => (
                     <li key={`${x.immeubleId}-${x.devise}`} className="flex justify-between gap-2">
-                      <span>{nomImmeuble(x.immeubleId)}</span>
-                      <span className="font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
+                      <span className="min-w-0 break-words">{nomImmeuble(x.immeubleId)}</span>
+                      <span className="shrink-0 break-all font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -421,15 +421,15 @@ export default function DepensesPage() {
                 {pageDepenses.map((d) => (
                   <article key={d.id} className="rounded-2xl bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-bold text-navy">{d.libelle}</p>
-                        <p className="text-sm text-slate-600">
+                      <div className="min-w-0">
+                        <p className="break-words font-bold text-navy">{d.libelle}</p>
+                        <p className="break-words text-sm text-slate-600">
                           {formatDate(d.date, locale)} · {nomImmeuble(d.immeuble_id)}
                           {d.appartement_id ? ` · ${nomAppartement(d.appartement_id)}` : ""}
                         </p>
-                        <p className="text-sm text-slate-600">{te(`categories.${d.categorie}`)}</p>
+                        <p className="break-words text-sm text-slate-600">{te(`categories.${d.categorie}`)}</p>
                       </div>
-                      <p className="shrink-0 font-bold text-navy">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="shrink-0 break-all text-right font-bold text-navy">{formatMoney(d.montant, d.devise, locale)}</p>
                     </div>
                     <div className="mt-3 flex gap-4">
                       <button type="button" onClick={() => setAModifier(d)} className="text-sm font-semibold text-navy underline">{tc("edit")}</button>

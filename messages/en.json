@@ -1,7 +1,7 @@
 {
  "alerts": {
   "activeTitle": "Active alerts ({count})",
-  "bellLabel": "Alerts: {count} active",
+  "bellLabel": "{count, plural, =0 {Alerts: no active alerts} =1 {Alerts: 1 active alert} other {Alerts: # active alerts}}",
   "emailDisabled": "disabled",
   "emailFailed": "sending failed",
   "emailNotConfigured": "not configured",
@@ -57,7 +57,9 @@
   "countryRequired": "Choose your country.",
   "currency": "Main currency",
   "demoButton": "Continue in demo",
+  "demoManager": "Try as Manager",
   "demoNote": "Explore the app with fictional data, without creating an account.",
+  "demoOwner": "Continue in demo — Owner",
   "email": "Email",
   "emailAlreadyRegistered": "An account already exists with this email. Try signing in.",
   "emailInvalid": "Enter a valid email address.",
@@ -558,6 +560,7 @@
    "remindEmailBody": "Hello {name},\n\nThe rent for {month} for {building} — unit {unit} is {amount}. Remaining balance: {remaining}.\n\nThank you for settling it.\n\nCizaImmo — a division of Ciza Group",
    "remindEmailSubject": "Rent {month} — {building} {unit}",
    "remindWhatsApp": "Remind by WhatsApp",
+   "remindWhatsAppApi": "Remind via WhatsApp (API)",
    "remindWhatsAppMessage": "Hello {name}, the rent for {month} for {building} — unit {unit} is {amount}. Remaining balance: {remaining}. Thank you for settling it. — CizaImmo",
    "searchPlaceholder": "Search a tenant, a unit…",
    "showPayments": "Show payments",
@@ -575,7 +578,11 @@
    "totalsLate": "Late",
    "totalsRemaining": "Remaining",
    "totalsTitle": "Month totals",
-   "viewLease": "View the lease"
+   "viewLease": "View the lease",
+   "whatsappFailed": "WhatsApp reminder failed.",
+   "whatsappNotConfigured": "WhatsApp not configured: reminder not sent.",
+   "whatsappSent": "WhatsApp reminder sent.",
+   "yearLabel": "Year"
   },
   "tenants": {
    "add": "Add a tenant",
@@ -653,7 +660,7 @@
   }
  },
  "dashboard": {
-  "activeAlerts": "{count} active alert(s)",
+  "activeAlerts": "{count, plural, =0 {No active alerts} =1 {1 active alert} other {# active alerts}}",
   "chartCollected": "Collected",
   "chartExpected": "Expected",
   "chartInCurrency": "Amounts converted to {currency} (dated rates).",
@@ -758,6 +765,7 @@
   "incompleteWarning": "Incomplete shares: the income split is only shown when the total is exactly 100%.",
   "inviteTitle": "Declare the co-owners and their shares",
   "invitedDone": "Co-owner invited.",
+  "monthLabel": "Month",
   "netResult": "Net result",
   "noCoproprietaires": "No co-owner declared for this building.",
   "partsSaved": "Shares saved (total 100%).",
@@ -777,6 +785,7 @@
   "sumLabel": "Sum",
   "title": "Family co-ownership",
   "totalLabel": "Total shares",
+  "yearLabel": "Year",
   "yourAmount": "Amount due to you",
   "yourShare": "Your share",
   "yourShareTitle": "Your split"

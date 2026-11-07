@@ -414,8 +414,8 @@ export default function ParametresPage() {
               <ul className="mt-4 divide-y divide-slate-100 text-sm">
                 {taux.slice(0, 10).map((tx) => (
                   <li key={tx.id} className="flex justify-between gap-2 py-2">
-                    <span>{tx.devise_source} → {tx.devise_cible} : <strong>{tx.taux}</strong></span>
-                    <span className="text-slate-600">
+                    <span className="min-w-0 break-words">{tx.devise_source} → {tx.devise_cible} : <strong>{tx.taux}</strong></span>
+                    <span className="shrink-0 text-right text-slate-600">
                       {formatDate(tx.date_taux.slice(0, 10), locale)} · {tx.source === "manuel" ? ts("manual") : ts("auto")}
                     </span>
                   </li>
@@ -434,11 +434,11 @@ export default function ParametresPage() {
               <ul className="mt-3 divide-y divide-slate-100">
                 {gestionnaires.map((g) => (
                   <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <div>
-                      <p className="font-semibold text-navy">{g.email}</p>
-                      <p className="text-sm text-slate-600">{g.immeuble_ids.map(nomImmeuble).join(", ")}</p>
+                    <div className="min-w-0">
+                      <p className="break-all font-semibold text-navy">{g.email}</p>
+                      <p className="break-words text-sm text-slate-600">{g.immeuble_ids.map(nomImmeuble).join(", ")}</p>
                     </div>
-                    <button type="button" onClick={() => retirer(g.id)} className="rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700">
+                    <button type="button" onClick={() => retirer(g.id)} className="shrink-0 rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700">
                       {ts("removeManager")}
                     </button>
                   </li>
@@ -460,7 +460,7 @@ export default function ParametresPage() {
                             e.target.checked ? [...anciens, i.id] : anciens.filter((x) => x !== i.id)
                           )
                         }
-                        className="h-5 w-5 accent-[#1B2A4A]"
+                        className="h-5 w-5 shrink-0 accent-[#1B2A4A]"
                       />
                       {i.nom}
                     </label>
@@ -486,11 +486,11 @@ export default function ParametresPage() {
               <ul className="mt-4 space-y-3">
                 {coproprietaires.map(({ cop, immeubleNom }) => (
                   <li key={cop.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-4 py-3">
-                    <div>
-                      <p className="font-bold text-navy">{cop.nom} — {cop.part} %</p>
-                      <p className="text-sm text-slate-600">{cop.email} · {immeubleNom}</p>
+                    <div className="min-w-0">
+                      <p className="break-words font-bold text-navy">{cop.nom} — {cop.part} %</p>
+                      <p className="break-all text-sm text-slate-600">{cop.email} · {immeubleNom}</p>
                     </div>
-                    <button type="button" onClick={() => retirerCoproprietaire(cop.id)} className="rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700">
+                    <button type="button" onClick={() => retirerCoproprietaire(cop.id)} className="shrink-0 rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700">
                       {ts("removeCoOwner")}
                     </button>
                   </li>
@@ -515,7 +515,7 @@ export default function ParametresPage() {
                         checked={!coupe}
                         disabled={verrouille}
                         onChange={(e) => basculerTypeAlerte(type, !e.target.checked)}
-                        className="h-5 w-5 accent-[#1B2A4A] disabled:opacity-40"
+                        className="h-5 w-5 shrink-0 accent-[#1B2A4A] disabled:opacity-40"
                       />
                       {ts(`alertTypes.${type}`)}
                       {verrouille ? <span className="text-sm text-slate-500">({ts("cannotDisableSubscription")})</span> : null}
@@ -524,15 +524,15 @@ export default function ParametresPage() {
                 })}
                 <div className="grid gap-3 pt-2 sm:grid-cols-2">
                   <label className="flex items-center gap-2 text-base text-slate-900">
-                    <input type="checkbox" checked={prefs.canal_app} onChange={(e) => basculerCanal("canal_app", e.target.checked)} className="h-5 w-5 accent-[#1B2A4A]" />
+                    <input type="checkbox" checked={prefs.canal_app} onChange={(e) => basculerCanal("canal_app", e.target.checked)} className="h-5 w-5 shrink-0 accent-[#1B2A4A]" />
                     {ts("channelApp")}
                   </label>
                   <label className="flex items-center gap-2 text-base text-slate-900">
-                    <input type="checkbox" checked={prefs.canal_email} onChange={(e) => basculerCanal("canal_email", e.target.checked)} className="h-5 w-5 accent-[#1B2A4A]" />
+                    <input type="checkbox" checked={prefs.canal_email} onChange={(e) => basculerCanal("canal_email", e.target.checked)} className="h-5 w-5 shrink-0 accent-[#1B2A4A]" />
                     {ts("channelEmail")}
                   </label>
                   <label className="flex items-center gap-2 text-base text-slate-900">
-                    <input type="checkbox" checked={prefs.canal_whatsapp} onChange={(e) => basculerCanal("canal_whatsapp", e.target.checked)} className="h-5 w-5 accent-[#1B2A4A]" />
+                    <input type="checkbox" checked={prefs.canal_whatsapp} onChange={(e) => basculerCanal("canal_whatsapp", e.target.checked)} className="h-5 w-5 shrink-0 accent-[#1B2A4A]" />
                     {ts("channelWhatsApp")}
                   </label>
                 </div>
@@ -553,7 +553,7 @@ export default function ParametresPage() {
             <p className="mt-2 text-base text-slate-600">{ts("securityText")}</p>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
               <p className="text-base text-slate-700">{ts("twoFaText")}</p>
-              <span className="rounded-full bg-gold/20 px-3 py-1 text-sm font-bold text-navy-dark">{ts("twoFaSoon")}</span>
+              <span className="shrink-0 rounded-full bg-gold/20 px-3 py-1 text-sm font-bold text-navy-dark">{ts("twoFaSoon")}</span>
             </div>
             <Link href="/mot-de-passe-oublie" className="mt-4 inline-block text-base font-semibold text-navy underline">
               {ts("changePassword")}

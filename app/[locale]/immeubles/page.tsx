@@ -239,12 +239,12 @@ export default function ImmeublesPage() {
                 <option key={v} value={v}>{v}</option>
               ))}
             </select>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
               {t("common.sortLabel")}
               <select
                 value={tri}
                 onChange={(e) => setTri(e.target.value as Tri)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
+                className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
               >
                 <option value="nom">{t("common.sortName")}</option>
                 <option value="ville">{t("common.sortCity")}</option>
@@ -265,23 +265,23 @@ export default function ImmeublesPage() {
                   return (
                     <article key={im.id} className="rounded-2xl bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <Link href={`/${locale}/immeubles/${im.id}`} className="text-lg font-bold text-navy underline">
+                        <div className="min-w-0">
+                          <Link href={`/${locale}/immeubles/${im.id}`} className="break-words text-lg font-bold text-navy underline">
                             {im.nom}
                           </Link>
-                          <p className="text-sm text-slate-600">{im.adresse}, {im.ville}</p>
+                          <p className="break-words text-sm text-slate-600">{im.adresse}, {im.ville}</p>
                         </div>
                         {im.statut === "archive" ? (
-                          <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-bold text-slate-700">
+                          <span className="shrink-0 rounded-full bg-slate-200 px-2 py-1 text-xs font-bold text-slate-700">
                             {t("common.archived")}
                           </span>
                         ) : null}
                       </div>
                       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                        <div><dt className="text-slate-500">{t("buildings.statsApartments")}</dt><dd className="font-bold text-navy">{s?.nbAppartements ?? 0} ({t("buildings.statsOccupied")} {s?.nbOccupes ?? 0})</dd></div>
-                        <div><dt className="text-slate-500">{t("buildings.statsOccupancy")}</dt><dd className="font-bold text-navy">{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</dd></div>
-                        <div><dt className="text-slate-500">{t("buildings.statsMonthlyRent")}</dt><dd className="font-bold text-navy">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</dd></div>
-                        <div><dt className="text-slate-500">{t("buildings.statsRoi")}</dt><dd className="font-bold text-navy">{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsApartments")}</dt><dd className="font-bold text-navy">{s?.nbAppartements ?? 0} ({s?.nbOccupes ?? 0} {t("buildings.statsOccupied").toLowerCase()})</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsOccupancy")}</dt><dd className="font-bold text-navy">{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsMonthlyRent")}</dt><dd className="break-all font-bold text-navy">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsRoi")}</dt><dd className="font-bold text-navy">{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</dd></div>
                       </dl>
                       <div className="mt-3 flex gap-2">
                         <Link href={`/${locale}/immeubles/${im.id}/modifier`} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy">

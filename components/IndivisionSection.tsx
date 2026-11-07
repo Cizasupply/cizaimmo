@@ -54,6 +54,30 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
   const [revenus, setRevenus] = useState(0);
   const [depensesTotal, setDepensesTotal] = useState(0);
   const [mois, setMois] = useState(moisCourantIso());
+  /**
+   * Sélecteur mois/année LOCALISÉ (remplace <input type="month">, dont la
+   * langue est choisie par le navigateur, pas par l'application). Les noms
+   * de mois viennent de Intl.DateTimeFormat avec la locale de l'app ; les
+   * deux listes produisent la même valeur « AAAA-MM » que le champ natif.
+   */
+  const [anneeSel, moisSel] = mois.split("-").map(Number);
+  const nomsMois = useMemo(() => {
+    const format = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
+      month: "long",
+    });
+    return Array.from({ length: 12 }, (_, i) => {
+      const nom = format.format(new Date(2026, i, 1));
+      return nom.charAt(0).toUpperCase() + nom.slice(1);
+    });
+  }, [locale]);
+  const annees = useMemo(() => {
+    const anneeCourante = new Date().getFullYear();
+    return Array.from({ length: 11 }, (_, i) => anneeCourante - 5 + i);
+  }, []);
+
+  function changerMois(annee: number, moisNum: number) {
+    setMois(`${annee}-${String(moisNum).padStart(2, "0")}`);
+  }
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -298,14 +322,28 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-bold text-navy">{t("yourShareTitle")}</h3>
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
             {t("periodLabel")}
-            <input
-              type="month"
-              value={mois}
-              onChange={(e) => e.target.value && setMois(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-gold"
-            />
+            <select
+              value={moisSel}
+              onChange={(e) => changerMois(anneeSel, Number(e.target.value))}
+              aria-label={t("monthLabel")}
+              className="min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-gold"
+            >
+              {nomsMois.map((nom, i) => (
+                <option key={i + 1} value={i + 1}>{nom}</option>
+              ))}
+            </select>
+            <select
+              value={anneeSel}
+              onChange={(e) => changerMois(Number(e.target.value), moisSel)}
+              aria-label={t("yearLabel")}
+              className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-gold"
+            >
+              {annees.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
           </label>
         </div>
         <dl className="mt-3 grid grid-cols-3 gap-3 text-center">

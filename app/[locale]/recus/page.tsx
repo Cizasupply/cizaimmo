@@ -217,16 +217,16 @@ export default function RecusPage() {
                   return (
                     <article key={r.numero} className="rounded-2xl bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-lg font-bold text-navy">{r.numero}</p>
+                        <p className="min-w-0 break-words text-lg font-bold text-navy">{r.numero}</p>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${r.statut === "valide" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                           {r.statut === "valide" ? t("receipts.statusValid") : t("receipts.statusCancelled")}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{r.locataire_nom}</p>
-                      <p className="text-sm text-slate-600">
+                      <p className="mt-1 break-words text-sm font-semibold text-slate-700">{r.locataire_nom}</p>
+                      <p className="break-words text-sm text-slate-600">
                         {moisAffiche(r.mois, locale)} · {r.immeuble_nom} — {r.appartement_numero}
                       </p>
-                      <p className="mt-1 text-base font-bold text-navy">{formatMoney(r.montant, r.devise, locale)}</p>
+                      <p className="mt-1 break-all text-base font-bold text-navy">{formatMoney(r.montant, r.devise, locale)}</p>
                       <p className="text-xs text-slate-500">{formatDate(r.date_paiement, locale)}</p>
                       {r.statut === "annule" ? (
                         <p className="mt-1 text-xs font-medium text-red-700">{t("receipts.cancelledNote")}</p>

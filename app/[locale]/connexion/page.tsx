@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import AuthLayout from "@/components/AuthLayout";
 import Field from "@/components/Field";
 import { getDataProvider, isDemoMode } from "@/lib/data";
+import { GESTIONNAIRE_DEMO_EMAIL } from "@/lib/data/demo-seed";
 import { AuthError } from "@/lib/data/real";
 
 function isValidEmail(email: string): boolean {
@@ -46,11 +47,15 @@ export default function ConnexionPage() {
     }
   }
 
-  async function handleDemo() {
+  async function handleDemo(role: "proprietaire" | "gestionnaire") {
     setLoading(true);
     try {
       // Session démo : aucune donnée réelle, tout est étiqueté DÉMO.
-      await getDataProvider().signIn("demo@cizaimmo.com", "demo-demo");
+      // Le gestionnaire se connecte avec l'e-mail de son invitation :
+      // il ne voit que ses immeubles, jamais l'abonnement (spec §2).
+      const emailDemo =
+        role === "gestionnaire" ? GESTIONNAIRE_DEMO_EMAIL : "demo@cizaimmo.com";
+      await getDataProvider().signIn(emailDemo, "demo-demo");
       router.push(`/${locale}/dashboard`);
       router.refresh();
     } finally {
@@ -106,11 +111,19 @@ export default function ConnexionPage() {
           <p className="text-sm text-slate-700">{t("demoNote")}</p>
           <button
             type="button"
-            onClick={handleDemo}
+            onClick={() => handleDemo("proprietaire")}
             disabled={loading}
             className="mt-3 w-full rounded-full border-2 border-navy px-6 py-2.5 text-base font-bold text-navy hover:bg-navy hover:text-white disabled:opacity-50"
           >
-            {t("demoButton")}
+            {t("demoOwner")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemo("gestionnaire")}
+            disabled={loading}
+            className="mt-3 w-full rounded-full border-2 border-navy px-6 py-2.5 text-base font-bold text-navy hover:bg-navy hover:text-white disabled:opacity-50"
+          >
+            {t("demoManager")}
           </button>
         </div>
       ) : null}

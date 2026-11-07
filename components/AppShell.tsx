@@ -71,6 +71,7 @@ export default function AppShell({
   const locale = useLocale();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [menuOuvert, setMenuOuvert] = useState(false);
 
   useEffect(() => {
     let actif = true;
@@ -88,10 +89,73 @@ export default function AppShell({
   const estProprietaire = role === "proprietaire";
   const estCoproprietaire = role === "coproprietaire";
 
+  // Tiroir mobile : Échap le ferme et la page ne défile pas derrière.
+  useEffect(() => {
+    if (!menuOuvert) return;
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOuvert(false);
+    };
+    document.addEventListener("keydown", surTouche);
+    const precedent = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      document.body.style.overflow = precedent;
+    };
+  }, [menuOuvert]);
+
   async function handleLogout() {
+    setMenuOuvert(false);
     await getDataProvider().signOut();
     router.push(`/${locale}/connexion`);
     router.refresh();
+  }
+
+  /**
+   * Liens de navigation — UNE seule définition, partagée par la barre
+   * latérale (ordinateur) et le tiroir (téléphone) : même ordre, même
+   * visibilité par rôle. Vitrine : jamais le co-propriétaire.
+   * Abonnement : propriétaire seulement.
+   */
+  function LiensNavigation({ onNavigate }: { onNavigate?: () => void }) {
+    return (
+      <>
+        {links.map((l) => (
+          <Link
+            key={l.key}
+            href={l.href}
+            onClick={onNavigate}
+            className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
+          >
+            {t(l.key)}
+          </Link>
+        ))}
+        {!estCoproprietaire
+          ? vitrineLinks.map((l) => (
+              <Link
+                key={l.key}
+                href={l.href}
+                onClick={onNavigate}
+                className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
+              >
+                {t(l.key)}
+              </Link>
+            ))
+          : null}
+        {estProprietaire
+          ? ownerLinks.map((l) => (
+              <Link
+                key={l.key}
+                href={l.href}
+                onClick={onNavigate}
+                className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
+              >
+                {t(l.key)}
+              </Link>
+            ))
+          : null}
+      </>
+    );
   }
 
   return (
@@ -112,37 +176,7 @@ export default function AppShell({
         </Link>
         <p className="text-xs text-slate-400 mb-8">{tb("division")}</p>
         <nav className="space-y-1">
-          {links.map((l) => (
-            <Link
-              key={l.key}
-              href={l.href}
-              className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-            >
-              {t(l.key)}
-            </Link>
-          ))}
-          {!estCoproprietaire
-            ? vitrineLinks.map((l) => (
-                <Link
-                  key={l.key}
-                  href={l.href}
-                  className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-                >
-                  {t(l.key)}
-                </Link>
-              ))
-            : null}
-          {estProprietaire
-            ? ownerLinks.map((l) => (
-                <Link
-                  key={l.key}
-                  href={l.href}
-                  className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-                >
-                  {t(l.key)}
-                </Link>
-              ))
-            : null}
+          <LiensNavigation />
         </nav>
         <button
           type="button"
@@ -152,8 +186,18 @@ export default function AppShell({
           {tc("logout")}
         </button>
       </aside>
-      <header className="flex items-center bg-navy-dark px-6 py-3 md:hidden">
-        <Link href={`/${locale}/dashboard`} aria-label="CizaImmo">
+      <header className="flex items-center gap-3 bg-navy-dark px-4 py-3 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMenuOuvert(true)}
+          aria-label="Menu"
+          aria-expanded={menuOuvert}
+          aria-controls="menu-mobile"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-xl text-white hover:border-gold hover:text-gold"
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+        <Link href={`/${locale}/dashboard`} aria-label="CizaImmo" className="min-w-0">
           <Image
             src="/cizaimmo-logo-compact.png"
             alt="CizaImmo"
@@ -163,9 +207,57 @@ export default function AppShell({
           />
         </Link>
       </header>
+      {/* Tiroir mobile — téléphone seulement, jamais sur ordinateur. */}
+      {menuOuvert ? (
+        <div id="menu-mobile" className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <button
+            type="button"
+            aria-label="Menu"
+            onClick={() => setMenuOuvert(false)}
+            className="absolute inset-0 h-full w-full cursor-default bg-navy-dark/60"
+          />
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-navy-dark p-6 text-white shadow-xl">
+            <div className="mb-1 flex items-start justify-between gap-2">
+              <Link
+                href={`/${locale}/dashboard`}
+                onClick={() => setMenuOuvert(false)}
+                aria-label="CizaImmo"
+                className="min-w-0"
+              >
+                <Image
+                  src="/cizaimmo-logo-compact.png"
+                  alt="CizaImmo"
+                  width={170}
+                  height={54}
+                  priority
+                />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setMenuOuvert(false)}
+                aria-label="Menu"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-lg text-white hover:border-gold hover:text-gold"
+              >
+                <span aria-hidden="true">✕</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-8">{tb("division")}</p>
+            <nav className="space-y-1">
+              <LiensNavigation onNavigate={() => setMenuOuvert(false)} />
+            </nav>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-8 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+            >
+              {tc("logout")}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <main className="md:ml-60 p-6 md:p-10">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-navy">{title}</h1>
+          <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
           <div className="flex shrink-0 items-center gap-2">
             <AlertBell />
             <button

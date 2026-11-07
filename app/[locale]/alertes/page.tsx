@@ -107,7 +107,7 @@ export default function AlertesPage() {
           <span className="text-sm font-semibold text-slate-700">{libelleType(alerte.type)}</span>
           <span className="text-sm text-slate-500">{formatDate(alerte.created_at.slice(0, 10), locale)}</span>
         </div>
-        <p className="mt-2 text-base font-medium text-navy">{alerte.message}</p>
+        <p className="mt-2 break-words text-base font-medium text-navy">{alerte.message}</p>
         <p className="mt-1 text-sm text-slate-600">
           {ta("emailStatus")}:{" "}
           {alerte.email_statut === "envoye"

@@ -232,11 +232,11 @@ export default function RapportsPage() {
               const roi = rapport.roiParc.find((x) => x.devise === r.devise);
               const marge = rapport.margeParc.find((x) => x.devise === r.devise)?.marge ?? null;
               return (
-                <div key={r.devise} className="rounded-2xl bg-white p-4 shadow-sm">
+                <div key={r.devise} className="min-w-0 break-words rounded-2xl bg-white p-4 shadow-sm">
                   <p className="text-sm font-bold text-navy">{r.devise}</p>
-                  <p className="mt-2 text-sm text-slate-600">{tr("income")}: <span className="font-semibold text-navy">{formatMoney(r.total, r.devise, locale)}</span></p>
-                  <p className="text-sm text-slate-600">{tr("expenses")}: <span className="font-semibold text-navy">{formatMoney(dep, r.devise, locale)}</span></p>
-                  <p className="text-sm text-slate-600">{tr("netResult")}: <span className="font-semibold text-navy">{formatMoney(r.total - dep, r.devise, locale)}</span></p>
+                  <p className="mt-2 text-sm text-slate-600">{tr("income")}: <span className="break-all font-semibold text-navy">{formatMoney(r.total, r.devise, locale)}</span></p>
+                  <p className="text-sm text-slate-600">{tr("expenses")}: <span className="break-all font-semibold text-navy">{formatMoney(dep, r.devise, locale)}</span></p>
+                  <p className="text-sm text-slate-600">{tr("netResult")}: <span className="break-all font-semibold text-navy">{formatMoney(r.total - dep, r.devise, locale)}</span></p>
                   <p className="mt-2 text-sm text-slate-600">
                     ROI: <span className="font-bold text-navy">{roi?.roi === null || roi?.roi === undefined ? tr("valueToEnter") : formatPct(roi.roi, locale)}</span>
                   </p>
@@ -253,7 +253,24 @@ export default function RapportsPage() {
 
           <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{tr("byBuilding")}</h2>
-            <div className="mt-3 overflow-x-auto">
+            {/* Cartes — téléphone : le tableau 7 colonnes ne tient pas à 390 px. */}
+            <div className="mt-3 space-y-3 md:hidden">
+              {rapport.lignes.map((l) => (
+                <article key={l.immeuble_id} className="rounded-xl border border-slate-200 p-3">
+                  <p className="break-words font-bold text-navy">{l.immeuble_nom}</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("income")}</dt><dd className="break-all font-semibold text-navy">{formatMoney(l.revenus, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("expenses")}</dt><dd className="break-all font-semibold text-navy">{formatMoney(l.depenses, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("netResult")}</dt><dd className="break-all font-semibold text-navy">{formatMoney(l.resultatNet, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">ROI</dt><dd className="font-bold text-navy">{l.roi === null ? tr("valueToEnter") : formatPct(l.roi, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("netMargin")}</dt><dd className="font-bold text-navy">{l.marge === null ? "—" : formatPct(l.marge, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("occupancy")}</dt><dd className="font-bold text-navy">{l.occupation === null ? "—" : formatPct(l.occupation, locale)}</dd></div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+            {/* Tableau — ordinateur. */}
+            <div className="mt-3 hidden overflow-x-auto md:block">
               <table className="w-full min-w-[560px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600">
@@ -290,8 +307,8 @@ export default function RapportsPage() {
               <ul className="mt-3 divide-y divide-slate-100">
                 {aptsRoi.map(({ appartement, roi }) => (
                   <li key={appartement.id} className="flex justify-between gap-2 py-2">
-                    <span className="font-semibold text-navy">{appartement.numero}</span>
-                    <span className="text-sm">{roi === null ? tr("valueToEnter") : `ROI ${formatPct(roi, locale)}`}</span>
+                    <span className="min-w-0 break-words font-semibold text-navy">{appartement.numero}</span>
+                    <span className="shrink-0 text-sm">{roi === null ? tr("valueToEnter") : `ROI ${formatPct(roi, locale)}`}</span>
                   </li>
                 ))}
               </ul>
@@ -333,7 +350,7 @@ export default function RapportsPage() {
             ) : (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
                 {tauxUtilises.map((tx, i) => (
-                  <li key={i}>{tx}</li>
+                  <li key={i} className="break-words">{tx}</li>
                 ))}
               </ul>
             )}

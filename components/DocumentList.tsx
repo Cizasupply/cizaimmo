@@ -101,8 +101,8 @@ export default function DocumentList({
         {documents.map((doc) => (
           <li key={doc.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-navy">{doc.nom_fichier}</p>
-              <p className="text-sm text-slate-600">
+              <p className="truncate text-base font-semibold text-navy" title={doc.nom_fichier}>{doc.nom_fichier}</p>
+              <p className="break-words text-sm text-slate-600">
                 {typeLabel(doc.type)}
                 {showEntity && nomEntite ? ` · ${nomEntite(doc)}` : ""}
                 {` · ${formatDate(doc.created_at.slice(0, 10), locale)}`}

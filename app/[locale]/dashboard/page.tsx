@@ -265,17 +265,17 @@ export default function DashboardPage() {
 
           {/* 4 chiffres clés */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("occupancy")}</p>
               <p className="mt-1 text-2xl font-bold text-navy">
                 {indicateurs.occupation === null ? "—" : formatPct(indicateurs.occupation, locale)}
               </p>
-              <p className="text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
+              <p className="break-words text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
             </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("collectedMonth")}</p>
               {collectesConv.lignes.map((l) => (
-                <p key={l.devise} className="mt-1 text-lg font-bold text-navy">
+                <p key={l.devise} className="mt-1 break-all text-lg font-bold text-navy">
                   {formatMoney(l.total, l.devise, locale)}
                   {l.converti !== null && l.devise !== deviseAffichage ? (
                     <span className="block text-sm font-normal text-slate-600">
@@ -285,17 +285,17 @@ export default function DashboardPage() {
                   ) : null}
                 </p>
               ))}
-              <p className="text-sm text-slate-600">
+              <p className="break-words text-sm text-slate-600">
                 {td("expectedMonth")}: {attendusConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
               </p>
             </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("lateAmount")}</p>
               {retardsConv.lignes.length === 0 ? (
                 <p className="mt-1 text-2xl font-bold text-navy">0</p>
               ) : (
                 retardsConv.lignes.map((l) => (
-                  <p key={l.devise} className="mt-1 text-lg font-bold text-red-700">
+                  <p key={l.devise} className="mt-1 break-all text-lg font-bold text-red-700">
                     {formatMoney(l.total, l.devise, locale)}
                     {l.converti !== null && l.devise !== deviseAffichage ? (
                       <span className="block text-sm font-normal text-slate-600">
@@ -306,9 +306,9 @@ export default function DashboardPage() {
                   </p>
                 ))
               )}
-              <p className="text-sm text-slate-600">{td("lateCount", { count: indicateurs.retards.length })}</p>
+              <p className="break-words text-sm text-slate-600">{td("lateCount", { count: indicateurs.retards.length })}</p>
             </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("vacant")}</p>
               <p className="mt-1 text-2xl font-bold text-navy">{indicateurs.nbVacants}</p>
               <p className="text-sm text-slate-600">{td("vacantHint")}</p>
@@ -344,9 +344,9 @@ export default function DashboardPage() {
                   const paye = totalPayeValide(paiements.filter((p) => p.echeance_id === e.id), e.devise);
                   return (
                     <li key={e.id} className="flex items-center justify-between gap-2 py-2">
-                      <div>
-                        <p className="font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"} ({imm?.nom ?? "—"})</p>
-                        <p className="text-sm text-slate-600">{e.mois.slice(0, 7)} · {td("remaining")}: {formatMoney(e.montant_du - paye, e.devise, locale)}</p>
+                      <div className="min-w-0">
+                        <p className="break-words font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"} ({imm?.nom ?? "—"})</p>
+                        <p className="break-words text-sm text-slate-600">{e.mois.slice(0, 7)} · {td("remaining")}: {formatMoney(e.montant_du - paye, e.devise, locale)}</p>
                       </div>
                       <Link href="/loyers" className="shrink-0 text-sm font-semibold text-navy underline">{td("open")}</Link>
                     </li>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
                     const apt = appartementDe(b);
                     return (
                       <li key={b.id} className="py-2">
-                        <p className="font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"}</p>
+                        <p className="break-words font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"}</p>
                         <p className="text-sm text-slate-600">{td("leaseEndsOn", { date: formatDate(b.fin, locale) })}</p>
                       </li>
                     );
@@ -385,8 +385,8 @@ export default function DashboardPage() {
                 <ul className="mt-3 divide-y divide-slate-100">
                   {indicateurs.depensesMois.slice(0, 5).map((d) => (
                     <li key={d.id} className="flex items-center justify-between gap-2 py-2">
-                      <p className="font-semibold text-navy">{d.libelle}</p>
-                      <p className="shrink-0 text-sm font-semibold">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="min-w-0 break-words font-semibold text-navy">{d.libelle}</p>
+                      <p className="shrink-0 break-all text-sm font-semibold">{formatMoney(d.montant, d.devise, locale)}</p>
                     </li>
                   ))}
                 </ul>
@@ -451,7 +451,7 @@ export default function DashboardPage() {
                   const contenu = (
                     <>
                       <span aria-hidden="true" className="mr-2">{iconeActivite(a.type)}</span>
-                      <span className="font-medium text-navy">{a.description}</span>
+                      <span className="break-words font-medium text-navy">{a.description}</span>
                       <span className="block text-sm text-slate-500 sm:inline sm:ml-2">{formatDate(a.created_at.slice(0, 10), locale)}</span>
                     </>
                   );

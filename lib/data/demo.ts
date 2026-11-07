@@ -87,7 +87,7 @@ import {
   LIMITE_DEMO_CONTENU_OCTETS,
 } from "../module4";
 import { sommeParts, validerParts } from "../indivision";
-import { buildDemoDb, type DemoDb } from "./demo-seed";
+import { buildDemoDb, GESTIONNAIRE_DEMO_EMAIL, type DemoDb } from "./demo-seed";
 import { FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
 import {
   envoyerEmailViaApi,
@@ -163,6 +163,22 @@ function loadDb(): DemoDb {
           (aboFrais as unknown as Record<string, unknown>)[cle];
         migre = true;
       }
+    }
+    // Migration douce : compte démo gestionnaire (rattaché au Bloc
+    // Saint-Laurent) — les bases enregistrées avant son ajout ont un
+    // tableau gestionnaires vide ; on y ajoute l'invitation de la seed
+    // sans écraser les invitations créées depuis par le propriétaire.
+    const gestionnaireFrais = frais.gestionnaires.find(
+      (g) => g.email.toLowerCase() === GESTIONNAIRE_DEMO_EMAIL
+    );
+    if (
+      gestionnaireFrais &&
+      !db.gestionnaires.some(
+        (g) => g.email.toLowerCase() === GESTIONNAIRE_DEMO_EMAIL
+      )
+    ) {
+      db.gestionnaires.push(gestionnaireFrais);
+      migre = true;
     }
     if (!db.preferences) {
       db.preferences = frais.preferences;
@@ -240,6 +256,24 @@ export class DemoProvider implements DataProvider {
         id: `coprop:${adresse}`,
         email: adresse,
         nom: invitation.nom,
+      };
+      window.localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+      setSessionCookie();
+      return;
+    }
+    // Un gestionnaire invité se connecte avec l'e-mail de son
+    // invitation : sa session est limitée à ses immeubles (voir
+    // getProfil / filtrage ci-dessous). Même mécanisme que le
+    // co-propriétaire, avec le rôle « gestionnaire » (spec §2) et une
+    // session en lecture/écriture opérationnelle sur ses biens.
+    const invitationGestionnaire = db.gestionnaires.find(
+      (g) => g.email.trim().toLowerCase() === adresse
+    );
+    if (invitationGestionnaire) {
+      const session: SessionUser = {
+        id: `gestionnaire:${adresse}`,
+        email: adresse,
+        nom: invitationGestionnaire.nom,
       };
       window.localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
       setSessionCookie();
@@ -335,6 +369,32 @@ export class DemoProvider implements DataProvider {
         created_at: partages[0]?.created_at ?? new Date().toISOString(),
       };
     }
+    // Session gestionnaire — profil synthétique, rôle gestionnaire,
+    // limité aux immeubles de son invitation (spec §2). Lecture et
+    // écriture opérationnelles sur ses biens uniquement ; jamais
+    // l'abonnement (voir getAbonnement / getLimiteBlocs).
+    if (session.id.startsWith("gestionnaire:")) {
+      const email = session.id.slice("gestionnaire:".length);
+      const invitation = db.gestionnaires.find(
+        (g) => g.email.trim().toLowerCase() === email
+      );
+      const immeubleIds = invitation?.immeuble_ids ?? [];
+      const premierImmeuble =
+        immeubleIds.length > 0
+          ? db.immeubles.find((i) => i.id === immeubleIds[0])
+          : undefined;
+      return {
+        id: session.id,
+        nom: session.nom ?? invitation?.nom ?? email,
+        email,
+        pays: premierImmeuble?.pays ?? null,
+        langue: "fr",
+        devise_principale: premierImmeuble?.devise ?? "CAD",
+        role: "gestionnaire",
+        telephone: null,
+        created_at: invitation?.created_at ?? new Date().toISOString(),
+      };
+    }
     return db.profil;
   }
 
@@ -342,7 +402,9 @@ export class DemoProvider implements DataProvider {
     const session = await this.getSession();
     if (!session) return null;
     // Module 6 : un co-propriétaire n'a AUCUN accès à l'abonnement.
-    if (session.id.startsWith("coprop:")) return null;
+    // Gestionnaire : idem (spec §2, §12 — l'abonnement est réservé au
+    // propriétaire ; la RLS réelle le refuse aussi).
+    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) return null;
     const db = loadDb();
     return this.chargerAbonnement(db);
   }
@@ -380,10 +442,12 @@ export class DemoProvider implements DataProvider {
   }
 
   // ==========================================================================
-  // MODULE 6 — Indivision : session co-propriétaire + filtrage par bien
-  // partagé (spec §6 suite, §2, §14). Le filtrage est appliqué dans la
-  // couche données, pas seulement à l'écran : un co-propriétaire ne voit
-  // QUE ses biens, et ne voit jamais les coordonnées des locataires.
+  // MODULE 6 — Indivision + gestionnaires : sessions restreintes et
+  // filtrage par immeuble visible (spec §6 suite, §2, §14). Le filtrage
+  // est appliqué dans la couche données, pas seulement à l'écran : un
+  // co-propriétaire ne voit QUE ses biens partagés (et jamais les
+  // coordonnées des locataires) ; un gestionnaire ne voit QUE les
+  // immeubles de son invitation, jamais l'abonnement.
   // ==========================================================================
 
   /** E-mail de la session co-propriétaire en cours, ou null (synchrone). */
@@ -403,15 +467,47 @@ export class DemoProvider implements DataProvider {
     return this.sessionCoproprietaireEmail() !== null;
   }
 
-  /** Immeubles partagés avec la session co-propriétaire (null = tout voir). */
+  /** E-mail de la session gestionnaire en cours, ou null (synchrone). */
+  private sessionGestionnaireEmail(): string | null {
+    if (!isBrowser()) return null;
+    try {
+      const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw) as SessionUser;
+      return s?.id?.startsWith("gestionnaire:") ? s.id.slice("gestionnaire:".length) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private sessionEstGestionnaire(): boolean {
+    return this.sessionGestionnaireEmail() !== null;
+  }
+
+  /**
+   * Immeubles visibles par la session courante (null = tout voir).
+   * Co-propriétaire : ses biens partagés. Gestionnaire : les immeubles
+   * de son invitation (gestionnaires_immeubles, spec §2, §14). Le
+   * filtrage est appliqué dans la couche données, pas seulement à
+   * l'écran : un rôle restreint ne voit QUE ses biens.
+   */
   private immeublesVisibles(db: DemoDb): Set<string> | null {
-    const email = this.sessionCoproprietaireEmail();
-    if (!email) return null;
-    return new Set(
-      db.coproprietaires
-        .filter((c) => c.email.trim().toLowerCase() === email)
-        .map((c) => c.immeuble_id)
-    );
+    const emailCoprop = this.sessionCoproprietaireEmail();
+    if (emailCoprop) {
+      return new Set(
+        db.coproprietaires
+          .filter((c) => c.email.trim().toLowerCase() === emailCoprop)
+          .map((c) => c.immeuble_id)
+      );
+    }
+    const emailGestionnaire = this.sessionGestionnaireEmail();
+    if (emailGestionnaire) {
+      const invitation = db.gestionnaires.find(
+        (g) => g.email.trim().toLowerCase() === emailGestionnaire
+      );
+      return new Set(invitation?.immeuble_ids ?? []);
+    }
+    return null;
   }
 
   /** Immeuble d'un appartement (résolution pour le filtrage coproprietaire). */
@@ -429,6 +525,16 @@ export class DemoProvider implements DataProvider {
     return ech ? this.immeubleDeBail(db, ech.bail_id) : null;
   }
 
+  /** Un locataire est visible pour une session restreinte s'il a au
+   * moins un bail (actif ou terminé) sur un immeuble visible. */
+  private locataireVisible(db: DemoDb, locataireId: string, visibles: Set<string>): boolean {
+    return db.baux.some((b) => {
+      if (b.locataire_id !== locataireId) return false;
+      const imm = this.immeubleDeAppartement(db, b.appartement_id);
+      return imm !== null && visibles.has(imm);
+    });
+  }
+
   /** Un co-propriétaire ne voit jamais les coordonnées des locataires. */
   private masquerCoordonneesLocataire(l: Locataire): Locataire {
     if (!this.sessionEstCoproprietaire()) return l;
@@ -443,9 +549,13 @@ export class DemoProvider implements DataProvider {
     };
   }
 
-  /** Seul le propriétaire administre les parts (spec §6 suite). */
+  /** Seul le propriétaire administre le compte : parts d'indivision et
+   * invitations de gestionnaires (spec §2, §6 suite). Une session
+   * restreinte (co-propriétaire, gestionnaire) est refusée ici. */
   private verifierProprietaire(): void {
-    if (this.sessionEstCoproprietaire()) throw err("ERR_ROLE_LECTURE_SEULE");
+    if (this.sessionEstCoproprietaire() || this.sessionEstGestionnaire()) {
+      throw err("ERR_ROLE_LECTURE_SEULE");
+    }
   }
 
   /** L'indivision exige le plan Pro ou Agence (l'essai = fonctions Pro). */
@@ -782,15 +892,30 @@ export class DemoProvider implements DataProvider {
   }
 
   async listerLocataires(): Promise<Locataire[]> {
-    return loadDb()
-      .locataires.slice()
+    const db = loadDb();
+    const visibles = this.immeublesVisibles(db);
+    return db.locataires
+      .filter((l) => {
+        // Gestionnaire : locataires de ses immeubles uniquement (via
+        // leurs baux). Co-propriétaire : tous, coordonnées masquées
+        // (comportement existant, module 6).
+        if (!visibles || !this.sessionEstGestionnaire()) return true;
+        return this.locataireVisible(db, l.id, visibles);
+      })
+      .slice()
       .sort((a, b) => a.nom.localeCompare(b.nom))
       .map((l) => this.masquerCoordonneesLocataire(l));
   }
 
   async getLocataire(id: string): Promise<Locataire | null> {
-    const loc = loadDb().locataires.find((l) => l.id === id) ?? null;
-    return loc ? this.masquerCoordonneesLocataire(loc) : null;
+    const db = loadDb();
+    const loc = db.locataires.find((l) => l.id === id) ?? null;
+    if (!loc) return null;
+    if (this.sessionEstGestionnaire()) {
+      const visibles = this.immeublesVisibles(db);
+      if (!visibles || !this.locataireVisible(db, id, visibles)) return null;
+    }
+    return this.masquerCoordonneesLocataire(loc);
   }
 
   async creerLocataire(input: LocataireInput): Promise<Locataire> {
@@ -947,7 +1072,17 @@ export class DemoProvider implements DataProvider {
   }
 
   async getBail(id: string): Promise<Bail | null> {
-    return loadDb().baux.find((b) => b.id === id) ?? null;
+    const db = loadDb();
+    const bail = db.baux.find((b) => b.id === id) ?? null;
+    if (!bail) return null;
+    // Session restreinte (co-propriétaire, gestionnaire) : le bail doit
+    // appartenir à un immeuble visible — même garde-fou que les listes.
+    const visibles = this.immeublesVisibles(db);
+    if (visibles) {
+      const imm = this.immeubleDeAppartement(db, bail.appartement_id);
+      if (imm === null || !visibles.has(imm)) return null;
+    }
+    return bail;
   }
 
   async creerBail(input: BailInput): Promise<Bail> {
@@ -1113,9 +1248,16 @@ export class DemoProvider implements DataProvider {
     const moisIso = moisVersIso(mois);
     const db = loadDb();
     this.verifierEcriture(db);
-    const bauxActifs = db.baux.filter(
-      (b) => b.statut === "actif" && bailCouvreMois(b, moisIso)
-    );
+    // Session restreinte : on ne génère des échéances que pour ses
+    // immeubles — sinon la visite d'un mois créerait des échéances
+    // pour les biens des autres.
+    const visibles = this.immeublesVisibles(db);
+    const bauxActifs = db.baux.filter((b) => {
+      if (b.statut !== "actif" || !bailCouvreMois(b, moisIso)) return false;
+      if (!visibles) return true;
+      const imm = this.immeubleDeAppartement(db, b.appartement_id);
+      return imm !== null && visibles.has(imm);
+    });
     for (const bail of bauxActifs) {
       const existe = db.echeances.some(
         (e) => e.bail_id === bail.id && e.mois === moisIso
@@ -1588,11 +1730,30 @@ export class DemoProvider implements DataProvider {
     const db = loadDb();
     const session = await this.getSession();
     const echeances = await this.listerEcheances();
+    const visibles = this.immeublesVisibles(db);
+    // Session restreinte : les alertes ne se génèrent que sur ses biens
+    // (la lecture est déjà filtrée, mais on ne crée pas d'alertes pour
+    // les autres immeubles — ni d'e-mails au propriétaire à leur sujet).
+    const bauxVisibles = visibles
+      ? db.baux.filter((b) => {
+          const imm = this.immeubleDeAppartement(db, b.appartement_id);
+          return imm !== null && visibles.has(imm);
+        })
+      : db.baux;
+    const appartementsVisibles = visibles
+      ? db.appartements.filter((a) => visibles.has(a.immeuble_id))
+      : db.appartements;
+    const paiementsVisibles = visibles
+      ? db.paiements.filter((p) => {
+          const imm = this.immeubleDeEcheance(db, p.echeance_id);
+          return imm !== null && visibles.has(imm);
+        })
+      : db.paiements;
     const candidates = genererAlertesCandidates({
-      baux: db.baux,
+      baux: bauxVisibles,
       echeances,
-      paiements: db.paiements,
-      appartements: db.appartements,
+      paiements: paiementsVisibles,
+      appartements: appartementsVisibles,
       abonnement: db.abonnement,
       seuilVacanceJours: db.preferences.seuil_vacance_jours,
       langue: db.profil.langue,
@@ -1695,7 +1856,12 @@ export class DemoProvider implements DataProvider {
   async modifierProfil(patch: ProfilPatch): Promise<Profil> {
     const session = await this.getSession();
     if (!session) throw err("ERR_NOT_FOUND");
-    if (session.id.startsWith("coprop:")) throw err("ERR_ROLE_LECTURE_SEULE");
+    // Co-propriétaire et gestionnaire : le profil du compte appartient
+    // au propriétaire — une session restreinte ne le modifie pas
+    // (sinon le gestionnaire réécrirait le profil du propriétaire).
+    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) {
+      throw err("ERR_ROLE_LECTURE_SEULE");
+    }
     const db = loadDb();
     db.profil = {
       ...db.profil,
@@ -1740,12 +1906,15 @@ export class DemoProvider implements DataProvider {
   }
 
   async listerGestionnaires(): Promise<GestionnaireInvite[]> {
-    if (this.sessionEstCoproprietaire()) return [];
+    // Seul le propriétaire gère les invitations (spec §2) : une session
+    // restreinte ne voit pas la liste des gestionnaires.
+    if (this.sessionEstCoproprietaire() || this.sessionEstGestionnaire()) return [];
     return loadDb().gestionnaires.slice().sort((a, b) => a.email.localeCompare(b.email));
   }
 
   async inviterGestionnaire(email: string, immeubleIds: string[]): Promise<GestionnaireInvite> {
     const ownerId = await this.requireOwnerId();
+    this.verifierProprietaire();
     const adresse = email.trim().toLowerCase();
     if (!emailValide(adresse)) throw err("ERR_EMAIL_INVALIDE");
     if (immeubleIds.length === 0) throw err("ERR_GESTIONNAIRE_SANS_IMMEUBLE");
@@ -1768,6 +1937,7 @@ export class DemoProvider implements DataProvider {
   }
 
   async retirerGestionnaire(id: string): Promise<void> {
+    this.verifierProprietaire();
     const db = loadDb();
     if (!db.gestionnaires.some((g) => g.id === id)) throw err("ERR_NOT_FOUND");
     // Retrait = perte d'accès immédiate (spec §14).
@@ -2077,7 +2247,11 @@ export class DemoProvider implements DataProvider {
   async getLimiteBlocs(): Promise<LimiteBlocs> {
     const session = await this.getSession();
     if (!session) throw err("ERR_NOT_FOUND");
-    if (session.id.startsWith("coprop:")) throw err("ERR_ROLE_LECTURE_SEULE");
+    // Abonnement réservé au propriétaire (spec §2, §12) : une session
+    // restreinte n'y a pas accès — même refus que pour le co-propriétaire.
+    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) {
+      throw err("ERR_ROLE_LECTURE_SEULE");
+    }
     const db = loadDb();
     const abo = this.chargerAbonnement(db);
     const utilises = db.immeubles.filter(

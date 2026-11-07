@@ -219,12 +219,12 @@ export default function LocatairesPage() {
               <option value="du">{t("tenants.statusDue")}</option>
               <option value="sans_bail">{t("tenants.statusNoLease")}</option>
             </select>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
               {t("common.sortLabel")}
               <select
                 value={tri}
                 onChange={(e) => setTri(e.target.value as Tri)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
+                className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
               >
                 <option value="nom">{t("common.sortName")}</option>
                 <option value="nouveau">{t("common.sortNewest")}</option>
@@ -243,14 +243,14 @@ export default function LocatairesPage() {
                   const s = statutDuMois(l.id);
                   return (
                     <article key={l.id} className="rounded-2xl bg-white p-4 shadow-sm">
-                      <Link href={`/${locale}/locataires/${l.id}`} className="text-lg font-bold text-navy underline">
+                      <Link href={`/${locale}/locataires/${l.id}`} className="break-words text-lg font-bold text-navy underline">
                         {l.nom}
                       </Link>
-                      <p className="text-sm text-slate-600">{l.telephone}{l.email ? ` · ${l.email}` : ""}</p>
-                      <p className="mt-1 text-sm text-slate-700">
+                      <p className="break-all text-sm text-slate-600">{l.telephone}{l.email ? ` · ${l.email}` : ""}</p>
+                      <p className="mt-1 break-words text-sm text-slate-700">
                         {apt ? `${apt.numero} — ${immeubleDe(apt)?.nom ?? ""}` : t("tenants.noActiveLease")}
                       </p>
-                      <p className="text-sm text-slate-700">
+                      <p className="break-words text-sm text-slate-700">
                         {bail ? `${formatMoney(bail.loyer_mensuel, bail.devise, locale)} · ${t("tenants.leaseEnds", { date: bail.fin ? formatDate(bail.fin, locale) : "—" })}` : ""}
                       </p>
                       <p className="mt-1 text-sm font-bold text-navy">{t(`tenants.${cleStatutMois(s)}`)}</p>

@@ -1,7 +1,7 @@
 {
  "alerts": {
   "activeTitle": "Alertes actives ({count})",
-  "bellLabel": "Alertes : {count} active(s)",
+  "bellLabel": "{count, plural, =0 {Alertes : aucune alerte active} =1 {Alertes : 1 alerte active} other {Alertes : # alertes actives}}",
   "emailDisabled": "désactivé",
   "emailFailed": "échec d'envoi",
   "emailNotConfigured": "non configuré",
@@ -57,7 +57,9 @@
   "countryRequired": "Choisissez votre pays.",
   "currency": "Devise principale",
   "demoButton": "Continuer en démo",
+  "demoManager": "Essayer comme Gestionnaire",
   "demoNote": "Explorez l'application avec des données fictives, sans créer de compte.",
+  "demoOwner": "Continuer en démo — Propriétaire",
   "email": "E-mail",
   "emailAlreadyRegistered": "Un compte existe déjà avec cet e-mail. Essayez de vous connecter.",
   "emailInvalid": "Entrez une adresse e-mail valide.",
@@ -558,6 +560,7 @@
    "remindEmailBody": "Bonjour {name},\n\nLe loyer de {month} pour {building} — appartement {unit} s'élève à {amount}. Restant dû : {remaining}.\n\nMerci de régulariser.\n\nCizaImmo — division de Ciza Group",
    "remindEmailSubject": "Loyer {month} — {building} {unit}",
    "remindWhatsApp": "Relancer par WhatsApp",
+   "remindWhatsAppApi": "Relancer par WhatsApp (API)",
    "remindWhatsAppMessage": "Bonjour {name}, le loyer de {month} pour {building} — appartement {unit} s'élève à {amount}. Restant dû : {remaining}. Merci de régulariser. — CizaImmo",
    "searchPlaceholder": "Rechercher un locataire, un appartement…",
    "showPayments": "Voir les paiements",
@@ -575,7 +578,11 @@
    "totalsLate": "En retard",
    "totalsRemaining": "Restant",
    "totalsTitle": "Totaux du mois",
-   "viewLease": "Voir le bail"
+   "viewLease": "Voir le bail",
+   "whatsappFailed": "Échec de la relance WhatsApp.",
+   "whatsappNotConfigured": "WhatsApp non configuré : relance non envoyée.",
+   "whatsappSent": "Relance WhatsApp envoyée.",
+   "yearLabel": "Année"
   },
   "tenants": {
    "add": "Ajouter un locataire",
@@ -653,7 +660,7 @@
   }
  },
  "dashboard": {
-  "activeAlerts": "{count} alerte(s) active(s)",
+  "activeAlerts": "{count, plural, =0 {Aucune alerte active} =1 {1 alerte active} other {# alertes actives}}",
   "chartCollected": "Collecté",
   "chartExpected": "Attendu",
   "chartInCurrency": "Montants convertis en {currency} (taux datés).",
@@ -758,6 +765,7 @@
   "incompleteWarning": "Parts incomplètes : la répartition des revenus n'est affichée que quand le total fait exactement 100 %.",
   "inviteTitle": "Déclarer les co-propriétaires et leurs parts",
   "invitedDone": "Co-propriétaire invité.",
+  "monthLabel": "Mois",
   "netResult": "Résultat net",
   "noCoproprietaires": "Aucun co-propriétaire déclaré pour cet immeuble.",
   "partsSaved": "Parts enregistrées (total 100 %).",
@@ -777,6 +785,7 @@
   "sumLabel": "Somme",
   "title": "Indivision familiale",
   "totalLabel": "Total des parts",
+  "yearLabel": "Année",
   "yourAmount": "Montant qui vous revient",
   "yourShare": "Votre part",
   "yourShareTitle": "Votre répartition"

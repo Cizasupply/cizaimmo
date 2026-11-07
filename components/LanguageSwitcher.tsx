@@ -33,9 +33,27 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
     }
   }, [locale]);
 
+  /**
+   * Le middleware next-intl (localePrefix "as-needed", defaultLocale "fr")
+   * résout la locale de "/" d'abord via le cookie NEXT_LOCALE, puis via
+   * Accept-Language. Sans ce cookie, un clic vers "/" depuis /en avec un
+   * navigateur en anglais était redirigé vers /en : la bascule ne
+   * fonctionnait pas. On pose donc le cookie (mêmes attributs que
+   * next-intl : max-age 1 an, SameSite=Lax) avant la navigation, dans
+   * les deux sens (FR→EN et EN→FR).
+   */
+  function handleClick() {
+    try {
+      document.cookie = `NEXT_LOCALE=${otherLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+      // Cookie indisponible : la bascule par lien reste fonctionnelle.
+    }
+  }
+
   return (
     <Link
       href={switchPathForLocale(pathname ?? "/", otherLocale)}
+      onClick={handleClick}
       aria-label={`${t("language")} : ${otherLocale === "fr" ? "Français" : "English"}`}
       className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold ${className}`}
     >

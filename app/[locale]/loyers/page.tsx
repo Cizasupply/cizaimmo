@@ -129,6 +129,34 @@ export default function LoyersPage() {
 
   const moisIso = moisVersIso(mois);
 
+  /**
+   * Sélecteur mois/année LOCALISÉ (remplace <input type="month">, dont la
+   * langue est choisie par le navigateur, pas par l'application : il
+   * affichait « November » en anglais). Les noms de mois viennent de
+   * Intl.DateTimeFormat avec la locale de l'app ; les deux listes
+   * produisent la même valeur « AAAA-MM » que le champ natif, donc le
+   * filtrage des loyers est inchangé.
+   */
+  const [anneeSel, moisSel] = mois.split("-").map(Number);
+  const nomsMois = useMemo(() => {
+    const format = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
+      month: "long",
+    });
+    return Array.from({ length: 12 }, (_, i) => {
+      const nom = format.format(new Date(2026, i, 1));
+      return nom.charAt(0).toUpperCase() + nom.slice(1);
+    });
+  }, [locale]);
+  const annees = useMemo(() => {
+    const anneeCourante = new Date().getFullYear();
+    return Array.from({ length: 11 }, (_, i) => anneeCourante - 5 + i);
+  }, []);
+
+  function changerMois(annee: number, moisNum: number) {
+    setMois(`${annee}-${String(moisNum).padStart(2, "0")}`);
+    setPage(1);
+  }
+
   async function charger(moisCible: string) {
     setChargement(true);
     setErreur(null);
@@ -541,20 +569,29 @@ export default function LoyersPage() {
       ) : (
         <>
           <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:flex-wrap">
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              {t("rents.monthLabel")}
-              <input
-                type="month"
-                value={mois}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setMois(e.target.value);
-                    setPage(1);
-                  }
-                }}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
-              />
-            </label>
+            <div role="group" aria-label={t("rents.monthLabel")} className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700">{t("rents.monthLabel")}</span>
+              <select
+                value={moisSel}
+                onChange={(e) => changerMois(anneeSel, Number(e.target.value))}
+                aria-label={t("rents.monthLabel")}
+                className="min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
+              >
+                {nomsMois.map((nom, i) => (
+                  <option key={i + 1} value={i + 1}>{nom}</option>
+                ))}
+              </select>
+              <select
+                value={anneeSel}
+                onChange={(e) => changerMois(Number(e.target.value), moisSel)}
+                aria-label={t("rents.yearLabel")}
+                className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-gold"
+              >
+                {annees.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
             <input
               type="search"
               value={recherche}
@@ -613,10 +650,10 @@ export default function LoyersPage() {
                 <div key={deviseTot} className="rounded-xl border border-slate-200 p-3">
                   <p className="text-sm font-bold text-navy">{deviseTot}</p>
                   <dl className="mt-1 space-y-1 text-sm text-slate-700">
-                    <div className="flex justify-between"><dt>{t("rents.totalsExpected")}</dt><dd className="font-semibold">{formatMoney(tot.attendu, deviseTot, locale)}</dd></div>
-                    <div className="flex justify-between"><dt>{t("rents.totalsCollected")}</dt><dd className="font-semibold text-green-700">{formatMoney(tot.collecte, deviseTot, locale)}</dd></div>
-                    <div className="flex justify-between"><dt>{t("rents.totalsRemaining")}</dt><dd className="font-semibold">{formatMoney(tot.restant, deviseTot, locale)}</dd></div>
-                    <div className="flex justify-between"><dt>{t("rents.totalsLate")}</dt><dd className="font-semibold text-red-700">{formatMoney(tot.retard, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsExpected")}</dt><dd className="font-semibold break-all">{formatMoney(tot.attendu, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsCollected")}</dt><dd className="font-semibold break-all text-green-700">{formatMoney(tot.collecte, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsRemaining")}</dt><dd className="font-semibold break-all">{formatMoney(tot.restant, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsLate")}</dt><dd className="font-semibold break-all text-red-700">{formatMoney(tot.retard, deviseTot, locale)}</dd></div>
                   </dl>
                 </div>
               ))}
@@ -634,8 +671,8 @@ export default function LoyersPage() {
                   return (
                     <article key={x.echeance.id} className="rounded-2xl bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-lg font-bold text-navy">{x.locataire?.nom ?? "—"}</p>
+                        <div className="min-w-0">
+                          <p className="text-lg font-bold text-navy break-words">{x.locataire?.nom ?? "—"}</p>
                           <p className="text-sm text-slate-600">
                             {x.appartement?.numero ?? "—"} — {x.immeuble?.nom ?? "—"}
                           </p>
@@ -648,7 +685,7 @@ export default function LoyersPage() {
                         {t("rents.colDue")} : <span className="font-bold text-navy">{formatMoney(x.echeance.montant_du, x.echeance.devise, locale)}</span>
                       </p>
                       {prorata ? <p className="text-xs text-slate-500">{prorata}</p> : null}
-                      <p className="text-sm text-slate-700">
+                      <p className="text-sm text-slate-700 break-words">
                         {t("rents.paidLabel")} : {formatMoney(x.paye, x.echeance.devise, locale)} · {t("rents.remainingLabel")} : {formatMoney(x.restant, x.echeance.devise, locale)}
                       </p>
                       {x.tropPercu > 0 ? <p className="text-sm font-semibold text-amber-700">{t("rents.overpaid", { amount: formatMoney(x.tropPercu, x.echeance.devise, locale) })}</p> : null}
@@ -789,7 +826,7 @@ export default function LoyersPage() {
                   <p className="mt-1">
                     1 {devise} = {taux ? `${taux} ` : ""}{echCible.echeance.devise}
                   </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field id="taux" label={t("rents.fields.rate")} type="number" value={taux} onChange={setTaux} required />
                     <Field id="date-taux" label={t("rents.fields.rateDate")} type="date" value={dateTaux} onChange={setDateTaux} required />
                   </div>
@@ -869,7 +906,7 @@ export default function LoyersPage() {
             {x.paiements.map((p) => (
               <li key={p.id} className="rounded-lg border border-slate-200 bg-white p-2.5 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-navy">
+                  <span className="font-semibold text-navy min-w-0 break-words">
                     {formatMoney(p.montant, p.devise, locale)} · {formatDate(p.date_paiement, locale)}
                   </span>
                   {p.statut === "annule" ? (

@@ -28,14 +28,15 @@ export default async function LandingPage({
 
   return (
     <div className="min-h-screen bg-navy-dark text-white">
-      <header className="flex items-center justify-between px-6 md:px-12 py-6">
-        <div>
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-6 md:px-12">
+        <div className="shrink-0">
           <Image
             src="/cizaimmo-logo-v4.png"
             alt="CizaImmo"
             width={260}
             height={115}
             priority
+            className="h-auto w-[180px] md:w-[260px]"
           />
         </div>
         <nav className="flex flex-wrap items-center gap-4 text-sm">

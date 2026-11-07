@@ -292,33 +292,33 @@ export default function AbonnementPage() {
             <h2 className="text-lg font-bold text-navy">{ts("currentPlan")}</h2>
             <dl className="mt-3 space-y-2 text-base text-slate-700">
               <div className="flex justify-between gap-4">
-                <dt className="font-semibold">{ts("plan")}</dt>
-                <dd>{ts(`plans.${abonnement.plan}`)}</dd>
+                <dt className="shrink-0 font-semibold">{ts("plan")}</dt>
+                <dd className="min-w-0 break-words text-right">{ts(`plans.${abonnement.plan}`)}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="font-semibold">{ts("status")}</dt>
-                <dd>{ts(statutCle)}</dd>
+                <dt className="shrink-0 font-semibold">{ts("status")}</dt>
+                <dd className="min-w-0 break-words text-right">{ts(statutCle)}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="font-semibold">{ts("grid")}</dt>
-                <dd>{abonnement.grille === "afrique" ? ts("gridAfrique") : ts("gridInternationale")}</dd>
+                <dt className="shrink-0 font-semibold">{ts("grid")}</dt>
+                <dd className="min-w-0 break-words text-right">{abonnement.grille === "afrique" ? ts("gridAfrique") : ts("gridInternationale")}</dd>
               </div>
               {abonnement.statut === "essai" && abonnement.trial_ends_at ? (
                 <div className="flex justify-between gap-4">
-                  <dt className="font-semibold">{ts("trialEnds")}</dt>
-                  <dd>{formatDate(abonnement.trial_ends_at, locale)}</dd>
+                  <dt className="shrink-0 font-semibold">{ts("trialEnds")}</dt>
+                  <dd className="min-w-0 break-words text-right">{formatDate(abonnement.trial_ends_at, locale)}</dd>
                 </div>
               ) : null}
               {abonnement.fin_periode ? (
                 <div className="flex justify-between gap-4">
-                  <dt className="font-semibold">{ts("periodEnds")}</dt>
-                  <dd>{formatDate(abonnement.fin_periode, locale)}</dd>
+                  <dt className="shrink-0 font-semibold">{ts("periodEnds")}</dt>
+                  <dd className="min-w-0 break-words text-right">{formatDate(abonnement.fin_periode, locale)}</dd>
                 </div>
               ) : null}
               {limite ? (
                 <div className="flex justify-between gap-4">
-                  <dt className="font-semibold">{ts("blocks")}</dt>
-                  <dd>
+                  <dt className="shrink-0 font-semibold">{ts("blocks")}</dt>
+                  <dd className="min-w-0 break-words text-right">
                     {Number.isFinite(limite.autorises)
                       ? ts("blocksUsed", { used: String(limite.utilises), allowed: String(limite.autorises) })
                       : ts("blocksUnlimited", { used: String(limite.utilises) })}
@@ -472,10 +472,10 @@ export default function AbonnementPage() {
               <ul className="mt-3 space-y-3">
                 {paiementsMm.map((p) => (
                   <li key={p.id} className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-base font-semibold text-slate-800">
+                    <p className="break-words text-base font-semibold text-slate-800">
                       {p.operateur} — {formatMoney(p.montant, "USD", locale)} — {ts(`plans.${p.plan}`)}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 break-words text-sm text-slate-600">
                       {ts("reference")} : {p.reference} ·{" "}
                       {p.statut === "en_attente"
                         ? ts("paymentPending")
@@ -517,11 +517,11 @@ export default function AbonnementPage() {
               <ul className="mt-3 space-y-3">
                 {factures.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
-                    <div>
-                      <p className="text-base font-semibold text-slate-800">
+                    <div className="min-w-0">
+                      <p className="break-words text-base font-semibold text-slate-800">
                         {f.numero} — {formatMoney(f.montant, "USD", locale)}
                       </p>
-                      <p className="text-sm text-slate-600">
+                      <p className="break-words text-sm text-slate-600">
                         {formatDate(f.date_emission, locale)} · {ts(`plans.${f.plan}`)} ·{" "}
                         {f.moyen === "stripe"
                           ? ts("methodStripe")
@@ -534,7 +534,7 @@ export default function AbonnementPage() {
                     <button
                       type="button"
                       onClick={() => telechargerFacture(f)}
-                      className="rounded-full border border-navy px-4 py-2 text-sm font-bold text-navy hover:bg-navy hover:text-white"
+                      className="shrink-0 rounded-full border border-navy px-4 py-2 text-sm font-bold text-navy hover:bg-navy hover:text-white"
                     >
                       {ts("download")}
                     </button>

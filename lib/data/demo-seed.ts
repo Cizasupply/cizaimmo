@@ -26,7 +26,9 @@ import type {
  * doivent JAMAIS être présentées comme réelles. Le mode démo permet de
  * parcourir l'application avant la création du projet Supabase.
  *
- * Parc de démo : 1 propriétaire, 3 immeubles (Bujumbura en BIF, Montréal
+ * Parc de démo : 1 propriétaire, 1 gestionnaire (rattaché au Bloc
+ * Saint-Laurent, Montréal — il ne voit que ce bien, jamais l'abonnement
+ * ni les autres immeubles), 3 immeubles (Bujumbura en BIF, Montréal
  * en CAD, 1 archivé), 7 appartements (dont 1 vacant depuis sept. 2026),
  * 5 locataires, 5 baux, échéances d'octobre et novembre 2026, paiements
  * déclarés et dépenses.
@@ -61,6 +63,9 @@ export interface DemoDb {
 }
 
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
+
+/** E-mail de connexion du compte démo gestionnaire (bouton « Essayer comme Gestionnaire »). */
+export const GESTIONNAIRE_DEMO_EMAIL = "gestion.demo@cizaimmo.com";
 
 export function buildDemoDb(): DemoDb {
   const now = new Date().toISOString();
@@ -301,5 +306,25 @@ export function buildDemoDb(): DemoDb {
     },
   ];
 
-  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires: [], preferences, factures: [], paiementsMobileMoney: [], coproprietaires };
+  // Gestionnaire de démonstration (spec §2) : rattaché au Bloc
+  // Saint-Laurent uniquement — il ne voit que ce bien, jamais
+  // l'abonnement ni les autres immeubles. Ses données visibles :
+  // appartements 101 et 102, locataires Marie Tremblay et Sophie Gagnon,
+  // leurs baux et échéances (oct. et nov. 2026, CAD), les paiements
+  // CIM-2026-000001 et CIM-2026-000004, et la dépense de nettoyage de
+  // 85 CAD. Connexion avec GESTIONNAIRE_DEMO_EMAIL (bouton « Essayer
+  // comme Gestionnaire » sur la page de connexion).
+  const gestionnaires: GestionnaireInvite[] = [
+    {
+      id: "00000000-0000-4000-8000-000000000d01",
+      owner_id: OWNER_ID,
+      email: GESTIONNAIRE_DEMO_EMAIL,
+      nom: "Démo — Marc Dubois",
+      immeuble_ids: [immeubles[1].id],
+      statut: "actif",
+      created_at: now,
+    },
+  ];
+
+  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires };
 }
