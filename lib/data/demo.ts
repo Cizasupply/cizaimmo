@@ -184,6 +184,33 @@ function loadDb(): DemoDb {
       db.preferences = frais.preferences;
       migre = true;
     }
+    // Migration douce : le préfixe technique « Démo — » a été retiré
+    // des noms de la seed (profil propriétaire et gestionnaire démo).
+    // Les bases déjà enregistrées sur le téléphone de l'utilisateur
+    // gardent l'ancien nom — on nettoie le préfixe au chargement pour
+    // que la salutation (« Bonjour, Amina ») et le nom affiché soient
+    // corrects sans effacer les données du site.
+    const nettoyerNom = (nom: string | null | undefined): string | null => {
+      if (!nom) return nom ?? null;
+      const propre = nom.replace(/^\s*D[ée]mo\s*[—–-]\s*/i, "").trim();
+      return propre || nom;
+    };
+    if (db.profil?.nom) {
+      const propre = nettoyerNom(db.profil.nom);
+      if (propre && propre !== db.profil.nom) {
+        db.profil.nom = propre;
+        migre = true;
+      }
+    }
+    for (const g of db.gestionnaires ?? []) {
+      if (g.nom) {
+        const propre = nettoyerNom(g.nom);
+        if (propre && propre !== g.nom) {
+          g.nom = propre;
+          migre = true;
+        }
+      }
+    }
     if (migre) window.localStorage.setItem(DEMO_DB_KEY, JSON.stringify(db));
     return db;
   } catch {

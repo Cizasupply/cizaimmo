@@ -11,6 +11,9 @@ export function prenomDe(nom: string | null | undefined): string | null {
   const propre = (nom ?? "").trim();
   if (!propre) return null;
   const base = propre.includes("@") ? propre.split("@")[0] : propre;
-  const premier = base.trim().split(/\s+/)[0] ?? "";
+  // Sécurité : ne jamais saluer avec le préfixe technique « Démo — »
+  // si un ancien nom enregistré le porte encore.
+  const sansPrefixe = base.replace(/^\s*D[ée]mo\s*[—–-]\s*/i, "").trim();
+  const premier = sansPrefixe.split(/\s+/)[0] ?? "";
   return premier || null;
 }
