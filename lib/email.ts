@@ -110,6 +110,9 @@ export async function envoyerEmailAlerte(email: EmailAlerte): Promise<ResultatEn
         Authorization: `Bearer ${cle}`,
       },
       body: JSON.stringify({
+        // Expéditeur exigé par Resend (domaine vérifié) ; surchargeable
+        // par la variable EMAIL_FROM.
+        from: process.env.EMAIL_FROM ?? "CizaImmo <noreply@cizagroup.com>",
         to: email.destinataire,
         subject: email.sujet,
         text: email.texte,
