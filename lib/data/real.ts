@@ -2881,14 +2881,14 @@ export class RealProvider implements DataProvider {
       ids.add(l.gestionnaire_id as string);
       if (l.proprietaire_id) ids.add(l.proprietaire_id as string);
     }
-    const parId = new Map<string, { email: string; nom: string }>();
+    const parId = new Map<string, { email: string; nom: string; telephone: string | null }>();
     if (ids.size > 0) {
       const { data } = await this.client()
         .from("profils")
-        .select("id, email, nom")
+        .select("id, email, nom, telephone")
         .in("id", Array.from(ids));
-      for (const p of (data as { id: string; email: string; nom: string }[] | null) ?? []) {
-        parId.set(p.id, { email: p.email, nom: p.nom });
+      for (const p of (data as { id: string; email: string; nom: string; telephone: string | null }[] | null) ?? []) {
+        parId.set(p.id, { email: p.email, nom: p.nom, telephone: p.telephone ?? null });
       }
     }
     return lignes.map((l) => ({
@@ -2896,10 +2896,17 @@ export class RealProvider implements DataProvider {
       gestionnaire_id: l.gestionnaire_id as string,
       gestionnaire_email: parId.get(l.gestionnaire_id as string)?.email ?? "",
       gestionnaire_nom: parId.get(l.gestionnaire_id as string)?.nom ?? null,
+      gestionnaire_telephone: parId.get(l.gestionnaire_id as string)?.telephone ?? null,
       contexte: l.contexte as RattachementGestionnaire["contexte"],
       proprietaire_id: (l.proprietaire_id as string | null) ?? null,
       proprietaire_nom: l.proprietaire_id
         ? parId.get(l.proprietaire_id as string)?.nom ?? null
+        : null,
+      proprietaire_email: l.proprietaire_id
+        ? parId.get(l.proprietaire_id as string)?.email ?? null
+        : null,
+      proprietaire_telephone: l.proprietaire_id
+        ? parId.get(l.proprietaire_id as string)?.telephone ?? null
         : null,
       immeuble_ids: (l.immeuble_ids as string[] | null) ?? [],
       statut: l.statut as RattachementGestionnaire["statut"],
@@ -3337,9 +3344,9 @@ export class RealProvider implements DataProvider {
 
     const { data: immeublesRows } = await client
       .from("immeubles")
-      .select("id, nom, ville")
+      .select("id, nom, ville, adresse")
       .eq("owner_id", compteId);
-    const immeublesPossedes = (immeublesRows as { id: string; nom: string; ville: string }[] | null) ?? [];
+    const immeublesPossedes = (immeublesRows as { id: string; nom: string; ville: string; adresse: string }[] | null) ?? [];
     const idsPossedes = immeublesPossedes.map((i) => i.id);
 
     let preuvesPropriete: Document[] = [];
@@ -3374,13 +3381,13 @@ export class RealProvider implements DataProvider {
     );
 
     const idsGeres = Array.from(new Set(commeGestionnaire.flatMap((r) => r.immeuble_ids)));
-    let immeublesGeres: { id: string; nom: string; ville: string }[] = [];
+    let immeublesGeres: { id: string; nom: string; ville: string; adresse: string }[] = [];
     if (idsGeres.length > 0) {
       const { data } = await client
         .from("immeubles")
-        .select("id, nom, ville")
+        .select("id, nom, ville, adresse")
         .in("id", idsGeres);
-      immeublesGeres = (data as { id: string; nom: string; ville: string }[] | null) ?? [];
+      immeublesGeres = (data as { id: string; nom: string; ville: string; adresse: string }[] | null) ?? [];
     }
 
     let annonces: { id: string; immeuble_nom: string; numero: string }[] = [];

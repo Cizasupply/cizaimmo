@@ -398,12 +398,16 @@ export default function ConsoleDossierPage({
                 <p key={r.id}>
                   {t("managesFor")} : <strong>{r.proprietaire_nom ?? r.proprietaire_id}</strong>{" "}
                   ({r.immeuble_ids.length} {t("buildingsAssigned")})
+                  {r.proprietaire_email ? ` · ${r.proprietaire_email}` : ""}
+                  {r.proprietaire_telephone ? ` · ${r.proprietaire_telephone}` : ""}
                 </p>
               ))}
               {dossier.rattachements_comme_proprietaire.map((r) => (
                 <p key={r.id}>
                   {t("managedBy")} : <strong>{r.gestionnaire_nom ?? r.gestionnaire_email}</strong>{" "}
                   ({r.immeuble_ids.length} {t("buildingsAssigned")})
+                  {r.gestionnaire_nom && r.gestionnaire_email ? ` · ${r.gestionnaire_email}` : ""}
+                  {r.gestionnaire_telephone ? ` · ${r.gestionnaire_telephone}` : ""}
                 </p>
               ))}
               {dossier.demandes.map((d) => (
@@ -425,12 +429,12 @@ export default function ConsoleDossierPage({
             <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
               {dossier.immeubles_possedes.map((i) => (
                 <li key={i.id}>
-                  🏠 {i.nom} — {i.ville}
+                  🏠 {i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}
                 </li>
               ))}
               {dossier.immeubles_geres.map((i) => (
                 <li key={i.id}>
-                  🔑 {i.nom} — {i.ville}
+                  🔑 {i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}
                 </li>
               ))}
             </ul>

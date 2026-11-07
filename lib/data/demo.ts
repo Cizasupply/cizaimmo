@@ -3673,14 +3673,23 @@ export class DemoProvider implements DataProvider {
     const invitation = db.gestionnaires.find(
       (g) => g.email.toLowerCase() === adresse
     );
+    const compteGestR = db.plateforme.comptesClients.find(
+      (c) => c.email.toLowerCase() === adresse
+    );
+    const compteProprioR = db.plateforme.comptesClients.find(
+      (c) => c.id === proprietaireId
+    );
     const cree: RattachementGestionnaire = {
       id: uid(),
       gestionnaire_id: adresse,
       gestionnaire_email: adresse,
       gestionnaire_nom: input.gestionnaire_nom ?? invitation?.nom ?? null,
+      gestionnaire_telephone: compteGestR?.telephone ?? null,
       contexte: input.contexte,
       proprietaire_id: proprietaireId,
       proprietaire_nom: proprietaireNom,
+      proprietaire_email: compteProprioR?.email ?? null,
+      proprietaire_telephone: compteProprioR?.telephone ?? null,
       immeuble_ids: input.immeuble_ids,
       statut: "actif",
       created_at: new Date().toISOString(),
@@ -4049,7 +4058,7 @@ export class DemoProvider implements DataProvider {
     const immeublesPossedes = estPrincipal
       ? db.immeubles
           .filter((i) => i.owner_id === compteId)
-          .map((i) => ({ id: i.id, nom: i.nom, ville: i.ville }))
+          .map((i) => ({ id: i.id, nom: i.nom, ville: i.ville, adresse: i.adresse }))
       : [];
     const idsPossedes = new Set(immeublesPossedes.map((i) => i.id));
     const preuvesPropriete = estPrincipal
@@ -4073,14 +4082,14 @@ export class DemoProvider implements DataProvider {
     const resoudre = (id: string) => {
       for (const parc of parcs) {
         const trouve = parc.find((i) => i.id === id);
-        if (trouve) return { id: trouve.id, nom: trouve.nom, ville: trouve.ville };
+        if (trouve) return { id: trouve.id, nom: trouve.nom, ville: trouve.ville, adresse: trouve.adresse };
       }
       return null;
     };
     const immeublesGeres = commeGestionnaire
       .flatMap((r) => r.immeuble_ids)
       .map(resoudre)
-      .filter((i): i is { id: string; nom: string; ville: string } => i !== null);
+      .filter((i): i is { id: string; nom: string; ville: string; adresse: string } => i !== null);
 
     const annonces = estPrincipal
       ? db.appartements
@@ -4262,14 +4271,23 @@ export class DemoProvider implements DataProvider {
     demande.valide_par = acteur.id;
     demande.valide_le = new Date().toISOString();
     if (accepter) {
+      const compteGestV = db.plateforme.comptesClients.find(
+        (c) => c.email.toLowerCase() === demande.gestionnaire_email.toLowerCase()
+      );
+      const compteProprioV = db.plateforme.comptesClients.find(
+        (c) => c.id === demande.proprietaire_id
+      );
       const rattachement: RattachementGestionnaire = {
         id: uid(),
         gestionnaire_id: demande.gestionnaire_email,
         gestionnaire_email: demande.gestionnaire_email,
         gestionnaire_nom: demande.gestionnaire_nom,
+        gestionnaire_telephone: compteGestV?.telephone ?? null,
         contexte: "proprietaire",
         proprietaire_id: demande.proprietaire_id,
         proprietaire_nom: demande.proprietaire_nom,
+        proprietaire_email: compteProprioV?.email ?? null,
+        proprietaire_telephone: compteProprioV?.telephone ?? null,
         // AUCUN immeuble à la création : l'assignation est le geste du
         // propriétaire, via le mécanisme existant (immeuble_ids).
         immeuble_ids: [],

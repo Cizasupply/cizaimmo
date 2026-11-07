@@ -813,10 +813,15 @@ export interface RattachementGestionnaire {
   gestionnaire_id: string;
   gestionnaire_email: string;
   gestionnaire_nom: string | null;
+  /** Téléphone du gestionnaire (affiché au dossier, v1.5.1). */
+  gestionnaire_telephone: string | null;
   contexte: ContexteRattachement;
   /** Propriétaire servi (contexte « proprietaire ») ; null pour Ciza Group. */
   proprietaire_id: string | null;
   proprietaire_nom: string | null;
+  /** E-mail et téléphone du propriétaire (affichés au dossier, v1.5.1). */
+  proprietaire_email: string | null;
+  proprietaire_telephone: string | null;
   /** Immeubles du contexte accessibles au gestionnaire. */
   immeuble_ids: string[];
   statut: StatutRattachement;
@@ -1025,8 +1030,8 @@ export interface DossierCompte {
   rattachements_comme_proprietaire: RattachementGestionnaire[];
   rattachements_comme_gestionnaire: RattachementGestionnaire[];
   demandes: DemandeRattachement[];
-  immeubles_possedes: { id: string; nom: string; ville: string }[];
-  immeubles_geres: { id: string; nom: string; ville: string }[];
+  immeubles_possedes: { id: string; nom: string; ville: string; adresse: string }[];
+  immeubles_geres: { id: string; nom: string; ville: string; adresse: string }[];
   /** Annonces vitrine : appartements publiés des immeubles possédés. */
   annonces: { id: string; immeuble_nom: string; numero: string }[];
   audit: EntreeAudit[];

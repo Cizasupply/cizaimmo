@@ -309,6 +309,23 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
   check("console : la page Dossier affiche la photo (vignette cliquable)",
     srcPageDossierV13.includes("dossier.photo_profil_url") && srcPageDossierV13.includes("<img"));
 
+  // Dossier complété (v1.5.1, demande du fondateur) : coordonnées de
+  // l'autre partie sur les rattachements + adresse des immeubles.
+  const rattSeed = dossierProprio.rattachements_comme_proprietaire
+    .find((r) => r.proprietaire_email === "demo@cizaimmo.com");
+  check("dossier : rattachement avec e-mail + téléphone du propriétaire",
+    !!rattSeed && rattSeed.proprietaire_telephone === "+257 79 00 00 01"
+      && "gestionnaire_telephone" in rattSeed,
+    JSON.stringify(rattSeed && rattSeed.proprietaire_telephone));
+  check("dossier : chaque immeuble possédé porte son adresse",
+    dossierProprio.immeubles_possedes.length > 0
+      && dossierProprio.immeubles_possedes.every((i) => typeof i.adresse === "string" && i.adresse.length > 0),
+    JSON.stringify(dossierProprio.immeubles_possedes.map((i) => i.adresse)));
+  check("console : la page Dossier affiche contacts du rattachement + adresse des immeubles",
+    srcPageDossierV13.includes("r.proprietaire_telephone")
+      && srcPageDossierV13.includes("r.gestionnaire_telephone")
+      && srcPageDossierV13.includes("i.adresse"));
+
   // Toujours aucun accès tant que rien n'est assigné.
   await connecter(GESTIONNAIRE_DEMO_EMAIL);
   await p.definirContexteActif(validee.rattachement_id);
