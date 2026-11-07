@@ -53,12 +53,15 @@ export default function MiniGrilleTarifs() {
         if (actif) setPrix(construirePrixPlans(tarifs));
       })
       .catch(() => undefined);
-    provider
-      .listerTaux()
-      .then((liste) => {
-        if (actif) setTaux(liste);
+    // Taux du convertisseur PUBLIC : la table taux_change est protégée
+    // par RLS (un visiteur anonyme n'y lit rien) — la route publique
+    // interroge Frankfurter + ER-API et retourne des taux datés.
+    fetch("/api/taux/publics")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("taux_indisponible"))))
+      .then((data: { taux?: TauxChange[] }) => {
+        if (actif && Array.isArray(data.taux)) setTaux(data.taux);
       })
-      .catch(() => undefined); // Sans taux lisibles : affichage USD, jamais inventé.
+      .catch(() => undefined); // Sans taux : affichage USD, jamais inventé.
     return () => {
       actif = false;
     };

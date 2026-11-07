@@ -101,22 +101,6 @@ export default async function LandingPage({
           <p className="mt-4 text-center text-sm font-semibold tracking-wide text-gold">
             {t("currenciesList")}
           </p>
-          <div className="mx-auto mt-8 max-w-md rounded-2xl bg-white p-6 text-left text-navy shadow-lg">
-            <p className="text-sm font-semibold text-slate-500">{t("previewCurrencyLabel")}</p>
-            <ul className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-300">
-              <li className="flex items-center justify-between px-4 py-3 font-bold">
-                <span>$ USD</span>
-                <span aria-hidden="true" className="text-gold">✓</span>
-              </li>
-              <li className="flex items-center justify-between px-4 py-3">
-                <span>€ EUR</span>
-              </li>
-              <li className="flex items-center justify-between px-4 py-3">
-                <span>BIF</span>
-              </li>
-            </ul>
-            <p className="mt-3 text-sm text-slate-500">{t("previewNote")}</p>
-          </div>
           <h3 className="mt-12 text-center text-2xl font-bold">{t("previewTitle")}</h3>
           <p className="mt-3 text-center text-slate-300">{t("previewText")}</p>
         </section>

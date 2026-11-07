@@ -63,6 +63,17 @@ else
   ECHEC=1
 fi
 
+# Convertisseur public de la mini-grille : fusion Frankfurter + ER-API
+# (fonction pure de lib/taux.ts) : même harnais.
+echo ""
+echo "===== Convertisseur public (Frankfurter + ER-API) ====="
+if node "scripts/test-taux-convertisseur.cjs"; then
+  echo "Convertisseur public : OK"
+else
+  echo "Convertisseur public : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."
