@@ -9,6 +9,7 @@ import { getDataProvider } from "@/lib/data";
 import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
 import { prenomDe } from "@/lib/nom";
 import DossierBloc from "@/components/DossierBloc";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const links = [
   { key: "dashboard", href: "/dashboard" },
@@ -145,6 +146,12 @@ function EcranBlocage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-dark px-4 py-10">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+        {/* Correctif bilingue 2026-11-07 : le sélecteur de langue doit
+            rester accessible même sur les écrans de blocage (attente
+            d'approbation / suspension), partie de l'espace client. */}
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher className="border-slate-300 text-navy hover:border-gold" />
+        </div>
         <div
           aria-hidden="true"
           className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full text-2xl ${
@@ -406,6 +413,9 @@ export default function AppShell({
           <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
         ) : null}
         {profil ? <BlocUtilisateur profil={profil} /> : null}
+        <div className="mt-3">
+          <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        </div>
         <button
           type="button"
           onClick={handleLogout}
@@ -496,6 +506,7 @@ export default function AppShell({
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
           <div className="flex shrink-0 items-center gap-2">
+            <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
             <AlertBell />
             <button
               type="button"

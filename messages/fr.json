@@ -244,7 +244,16 @@
       "ERR_ADMIN_INTROUVABLE": "Admin introuvable ou non éligible à l'assignation.",
       "ERR_MESSAGE_VIDE": "Le message est vide.",
       "ERR_CONVERSATION_INTROUVABLE": "Conversation introuvable ou non visible.",
-      "ERR_SUPERVISION_LECTURE_SEULE": "Supervision en lecture seule : la plateforme ne peut pas écrire dans ce fil."
+      "ERR_SUPERVISION_LECTURE_SEULE": "Supervision en lecture seule : la plateforme ne peut pas écrire dans ce fil.",
+      "ERR_GRILLE_INVALIDE": "Grille tarifaire invalide.",
+      "ERR_CONVERSATION_NON_SUPERVISEE": "Cette conversation n'est pas supervisée par la plateforme.",
+      "ERR_CIBLE_NON_ADMIN": "La cible n'est pas un compte Admin.",
+      "ERR_AUTO_MODIFICATION_INTERDITE": "Vous ne pouvez pas modifier votre propre accès.",
+      "ERR_AUTO_SUPPRESSION_INTERDITE": "Vous ne pouvez pas supprimer votre propre compte.",
+      "ERR_COMPTE_PLATEFORME": "Compte plateforme protégé : action impossible.",
+      "ERR_PROFIL_INTROUVABLE": "Profil introuvable.",
+      "ERR_COMPTE_SUSPENDU": "Ce compte est suspendu.",
+      "ERR_COMPTE_REFUSE": "Ce compte a été refusé."
     },
     "fileAudit": "Historique du compte",
     "fileBuildings": "Immeubles",

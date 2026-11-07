@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Field from "@/components/Field";
 import RattachementDisplayId from "@/components/RattachementDisplayId";
 import { formatDate } from "@/lib/format";
@@ -38,6 +39,7 @@ export default function ParametresPage() {
   const tp = useTranslations("pages");
   const tc = useTranslations("crud.common");
   const td = useTranslations("dossier");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
   const router = useRouter();
 
@@ -51,6 +53,10 @@ export default function ParametresPage() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Correctif 2026-11-07 : suppression de compte par le client (v1.5) —
+  // point d'entrée standard ICI, dans les paramètres (elle n'existait
+  // qu'en bas de la page Abonnement, introuvable pour le fondateur).
+  const [aConfirmerSuppression, setAConfirmerSuppression] = useState(false);
 
   const [nom, setNom] = useState("");
   const [pays, setPays] = useState("");
@@ -72,6 +78,45 @@ export default function ParametresPage() {
   const [actualisationTaux, setActualisationTaux] = useState(false);
   const [messageTaux, setMessageTaux] = useState<string | null>(null);
   const [erreurActualisationTaux, setErreurActualisationTaux] = useState<string | null>(null);
+
+  /** v1.5 : codes du namespace dédié, sinon repli générique traduit. */
+  function gererErreurSuppression(e: unknown) {
+    const code = e instanceof Error ? e.message : "";
+    if (
+      code === "ERR_SUPPRESSION_DEJA_DEMANDEE" ||
+      code === "ERR_AUCUNE_SUPPRESSION" ||
+      code === "ERR_DELAI_NON_ECOULE" ||
+      code === "ERR_SUPER_ADMIN_REQUIS" ||
+      code === "ERR_ADMIN_INTROUVABLE"
+    ) {
+      setErreur(t15(`errors.${code}` as "errors.ERR_AUCUNE_SUPPRESSION"));
+    } else {
+      setErreur(messageErreur(t as unknown as (k: string) => string, e));
+    }
+  }
+
+  async function demanderSuppression() {
+    setAConfirmerSuppression(false);
+    try {
+      const maj = await getDataProvider().demanderSuppressionCompte();
+      setProfil(maj);
+      setMessage(t15("deletionRequestedMsg"));
+      setErreur(null);
+    } catch (e) {
+      gererErreurSuppression(e);
+    }
+  }
+
+  async function annulerSuppression() {
+    try {
+      const maj = await getDataProvider().annulerSuppressionCompte();
+      setProfil(maj);
+      setMessage(t15("deletionCancelledMsg"));
+      setErreur(null);
+    } catch (e) {
+      gererErreurSuppression(e);
+    }
+  }
 
   async function charger() {
     setChargement(true);
@@ -590,6 +635,64 @@ export default function ParametresPage() {
               {ts("changePassword")}
             </Link>
           </section>
+
+          {/* Suppression du compte (v1.5) — correctif 2026-11-07 :
+              point d'entrée standard dans les paramètres, pour le
+              propriétaire ET le gestionnaire. Même mécanique que la
+              section de la page Abonnement : la RPC base pose la
+              demande, le compte passe en lecture seule immédiate,
+              rétractation possible pendant 30 jours, exécution par
+              le Super Admin après le délai. */}
+          <section aria-labelledby="suppression-titre" className="mt-6 rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+            <h2 id="suppression-titre" className="text-lg font-bold text-red-800">{t15("deletionTitle")}</h2>
+            {profil?.suppression_demandee_le ? (
+              <div className="mt-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
+                <p className="text-base font-bold text-red-800">{t15("deletionPendingTitle")}</p>
+                <p className="mt-1 text-sm text-red-700">
+                  {t15("deletionScheduled", {
+                    date: formatDate(
+                      new Date(
+                        new Date(profil.suppression_demandee_le).getTime() +
+                          30 * 24 * 60 * 60 * 1000
+                      ).toISOString(),
+                      locale
+                    ),
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={annulerSuppression}
+                  className="mt-3 rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+                >
+                  {t15("cancelDeletionButton")}
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {t15("deletionText")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAConfirmerSuppression(true)}
+                  className="mt-3 rounded-full bg-red-600 px-5 py-2.5 text-base font-bold text-white hover:bg-red-700"
+                >
+                  {t15("deletionButton")}
+                </button>
+              </>
+            )}
+          </section>
+
+          {aConfirmerSuppression ? (
+            <ConfirmDialog
+              title={t15("deletionConfirmTitle")}
+              text={t15("deletionConfirmText")}
+              confirmLabel={t15("deletionConfirmButton")}
+              cancelLabel={tc("cancel")}
+              onConfirm={demanderSuppression}
+              onCancel={() => setAConfirmerSuppression(false)}
+            />
+          ) : null}
         </>
       )}
     </AppShell>

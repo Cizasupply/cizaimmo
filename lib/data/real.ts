@@ -2887,13 +2887,24 @@ export class RealProvider implements DataProvider {
   async reattribuerGrille(compteId: string, grille: Grille): Promise<void> {
     const acteur = await this.acteurPlateforme();
     const client = this.client();
-    const abo = await this.abonnementDe(compteId);
-    if (!abo) throw err("ERR_INTROUVABLE");
-    await client.from("abonnements").update({ grille }).eq("id", abo.id);
-    await client
-      .from("profils")
-      .update({ grille_attribuee: grille, grille_statut: "ok" })
-      .eq("id", compteId);
+    // Correctif grille (2026-11-07) — LA BASE DÉCIDE (patron v1.4) :
+    // la mutation passe par la RPC public.reattribuer_grille
+    // (module-correctif-grille.sql), qui vérifie le rôle plateforme
+    // en interne et lève des erreurs nommées. L'ancien chemin (deux
+    // UPDATE directs dont le champ « error » n'était jamais lu)
+    // avalait tout refus de la base en silence : la grille et le
+    // drapeau « à vérifier » ne changeaient jamais, sans message.
+    const { error: rpcError } = await client.rpc("reattribuer_grille", {
+      cible: compteId,
+      nouvelle_grille: grille,
+    });
+    if (rpcError) {
+      if (rpcError.message.includes("ADMIN_PLATEFORME_REQUIS")) throw err("ERR_ACCES_PLATEFORME");
+      if (rpcError.message.includes("COMPTE_INTROUVABLE")) throw err("ERR_INTROUVABLE");
+      if (rpcError.message.includes("ABONNEMENT_INTROUVABLE")) throw err("ERR_INTROUVABLE");
+      if (rpcError.message.includes("GRILLE_INVALIDE")) throw err("ERR_GRILLE_INVALIDE");
+      throw new Error(rpcError.message);
+    }
     const { data: profil } = await client
       .from("profils")
       .select("email")

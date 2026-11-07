@@ -17,6 +17,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider, isDemoMode } from "@/lib/data";
 import type { Profil } from "@/lib/data";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const LIENS = [
   { key: "overview", href: "/console" },
@@ -136,6 +137,11 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         >
           {t("backToSite")}
         </Link>
+        {/* Correctif bilingue 2026-11-07 : sélecteur de langue dans la
+            console (il n'existait que sur les pages publiques). */}
+        <div className="mt-3">
+          <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        </div>
         <button
           type="button"
           onClick={handleLogout}
@@ -163,6 +169,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-gold">
           {t("title")}
         </span>
+        <LanguageSwitcher className="shrink-0 border-slate-500 px-3 text-slate-200 hover:border-gold hover:text-gold" />
         <button
           type="button"
           onClick={handleLogout}
@@ -201,6 +208,9 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
             >
               {t("backToSite")}
             </Link>
+            <div className="mt-3">
+              <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+            </div>
           </div>
         </div>
       ) : null}

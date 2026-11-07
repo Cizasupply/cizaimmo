@@ -244,7 +244,16 @@
       "ERR_ADMIN_INTROUVABLE": "Admin not found or not eligible for assignment.",
       "ERR_MESSAGE_VIDE": "The message is empty.",
       "ERR_CONVERSATION_INTROUVABLE": "Conversation not found or not visible.",
-      "ERR_SUPERVISION_LECTURE_SEULE": "Read-only supervision: the platform cannot post in this thread."
+      "ERR_SUPERVISION_LECTURE_SEULE": "Read-only supervision: the platform cannot post in this thread.",
+      "ERR_GRILLE_INVALIDE": "Invalid pricing grid.",
+      "ERR_CONVERSATION_NON_SUPERVISEE": "This conversation is not supervised by the platform.",
+      "ERR_CIBLE_NON_ADMIN": "The target is not an Admin account.",
+      "ERR_AUTO_MODIFICATION_INTERDITE": "You cannot change your own access.",
+      "ERR_AUTO_SUPPRESSION_INTERDITE": "You cannot delete your own account.",
+      "ERR_COMPTE_PLATEFORME": "Protected platform account: action not allowed.",
+      "ERR_PROFIL_INTROUVABLE": "Profile not found.",
+      "ERR_COMPTE_SUSPENDU": "This account is suspended.",
+      "ERR_COMPTE_REFUSE": "This account was refused."
     },
     "fileAudit": "Account history",
     "fileBuildings": "Buildings",

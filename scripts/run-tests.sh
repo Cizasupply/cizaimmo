@@ -160,6 +160,20 @@ else
   ECHEC=1
 fi
 
+# Correctif « grille console + suppression Paramètres + bilingue »
+# (2026-11-07) : RPC reattribuer_grille (la réattribution v1.2
+# écrivait en direct sans lire les erreurs), point d'entrée
+# suppression dans Paramètres, sélecteur de langue dans les shells
+# App/Console, codes console.errors complétés.
+echo ""
+echo "===== Correctif grille + suppression + bilingue ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-correctif-grille-suppression.cjs"; then
+  echo "Correctif grille/suppression/bilingue : OK"
+else
+  echo "Correctif grille/suppression/bilingue : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."
