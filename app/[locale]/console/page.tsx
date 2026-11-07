@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { ComptePlateforme, DemandeRattachement, EntreeAudit } from "@/lib/data";
+import type { AnnonceAValider, ComptePlateforme, DemandeRattachement, EntreeAudit } from "@/lib/data";
 import { construirePrixPlans } from "@/lib/tarifs";
 import { formatDate, formatMoney } from "@/lib/format";
 
@@ -22,6 +22,7 @@ export default function ConsoleAccueilPage() {
   const [comptes, setComptes] = useState<ComptePlateforme[]>([]);
   const [journal, setJournal] = useState<EntreeAudit[]>([]);
   const [demandes, setDemandes] = useState<DemandeRattachement[]>([]);
+  const [vitrineAValider, setVitrineAValider] = useState<AnnonceAValider[]>([]);
   const [mrr, setMrr] = useState(0);
   const [charge, setCharge] = useState(false);
 
@@ -30,16 +31,18 @@ export default function ConsoleAccueilPage() {
     (async () => {
       try {
         const provider = getDataProvider();
-        const [liste, tarifs, audit, demandesListe] = await Promise.all([
+        const [liste, tarifs, audit, demandesListe, vitrineListe] = await Promise.all([
           provider.listerComptesPlateforme(),
           provider.getTarifsPlateforme(),
           provider.listerJournalAudit(),
           provider.listerDemandesRattachement(),
+          provider.listerVitrineAValider().catch(() => [] as AnnonceAValider[]),
         ]);
         if (!actif) return;
         const prix = construirePrixPlans(tarifs);
         setComptes(liste);
         setDemandes(demandesListe);
+        setVitrineAValider(vitrineListe);
         setJournal(audit.slice(0, 5));
         setMrr(
           liste
@@ -83,6 +86,7 @@ export default function ConsoleAccueilPage() {
     { label: t("statIncompleteFiles"), valeur: dossiersIncomplets.length, couleur: "text-amber-600" },
     { label: t("statContractsPending"), valeur: contratsEnAttente.length, couleur: "text-amber-600" },
     { label: t("statLinkRequestsPending"), valeur: demandesEnAttenteAdmin.length, couleur: "text-amber-600" },
+    { label: t("statVitrinePending"), valeur: vitrineAValider.length, couleur: "text-amber-600" },
     {
       label: t("statMrr"),
       valeur: formatMoney(mrr, "USD", locale),

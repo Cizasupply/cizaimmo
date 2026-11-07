@@ -41,9 +41,11 @@ export default function ImmeubleForm({
   const tv = useTranslations("crud.validation");
   const tc = useTranslations("crud.common");
   const td = useTranslations("dossier");
+  const t16 = useTranslations("v16");
 
   const [nom, setNom] = useState(initial?.nom ?? "");
   const [adresse, setAdresse] = useState(initial?.adresse ?? "");
+  const [quartier, setQuartier] = useState(initial?.quartier ?? "");
   const [ville, setVille] = useState(initial?.ville ?? "");
   const [pays, setPays] = useState(initial?.pays ?? "");
   const [devise, setDevise] = useState<Devise>(initial?.devise ?? "USD");
@@ -86,6 +88,7 @@ export default function ImmeubleForm({
       await onSubmit({
         nom: nom.trim(),
         adresse: adresse.trim(),
+        quartier: quartier.trim() || null,
         ville: ville.trim(),
         pays,
         devise,
@@ -110,6 +113,7 @@ export default function ImmeubleForm({
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <Field id="nom" label={tf("name")} value={nom} onChange={setNom} error={errors.nom} required />
       <Field id="adresse" label={tf("address")} value={adresse} onChange={setAdresse} error={errors.adresse} required />
+      <Field id="quartier" label={t16("district")} value={quartier} onChange={setQuartier} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="ville" label={tf("city")} value={ville} onChange={setVille} error={errors.ville} required />
         <Field id="pays" label={tf("country")} value={pays} onChange={setPays} error={errors.pays} required>

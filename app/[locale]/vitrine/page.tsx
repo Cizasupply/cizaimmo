@@ -23,6 +23,7 @@ import { messageErreur } from "@/lib/translateError";
  */
 export default function VitrinePage() {
   const t = useTranslations("vitrine");
+  const t16 = useTranslations("v16");
   const tc = useTranslations("crud.common");
   const tErr = useTranslations("crud");
   const locale = useLocale();
@@ -81,16 +82,63 @@ export default function VitrinePage() {
   const villeImmeuble = (id: string) =>
     immeubles.find((i) => i.id === id)?.ville ?? "—";
 
-  async function basculer(apt: Appartement) {
+  // v1.6 « Vitrine vérifiée » : la publication n'est plus un bascule —
+  // le propriétaire DEMANDE, un Admin valide, puis seulement l'annonce
+  // approuvée est publique. Le retrait reste libre et immédiat.
+  async function demander(apt: Appartement) {
     setErreur(null);
+    setMessage(null);
     try {
-      const maj = await getDataProvider().basculerVitrine(apt.id, !apt.vitrine);
+      const maj = await getDataProvider().demanderPublicationVitrine(apt.id);
       setAppartements((anciens) =>
         anciens.map((a) => (a.id === apt.id ? maj : a))
       );
-      setMessage(tc("updated"));
+      setMessage(t16("requestSentMsg"));
     } catch (e) {
       setErreur(messageErreur(tErr as unknown as (k: string) => string, e));
+    }
+  }
+
+  async function retirer(apt: Appartement) {
+    setErreur(null);
+    setMessage(null);
+    try {
+      const maj = await getDataProvider().retirerPublicationVitrine(apt.id);
+      setAppartements((anciens) =>
+        anciens.map((a) => (a.id === apt.id ? maj : a))
+      );
+      setMessage(t16("withdrawnMsg"));
+    } catch (e) {
+      setErreur(messageErreur(tErr as unknown as (k: string) => string, e));
+    }
+  }
+
+  function pastilleStatut(a: Appartement) {
+    switch (a.vitrine_statut) {
+      case "en_attente":
+        return (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+            {t16("statusPending")}
+          </span>
+        );
+      case "approuve":
+        return (
+          <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800">
+            {t16("statusApproved")}
+          </span>
+        );
+      case "refuse":
+        return (
+          <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+            {t16("statusRefused")}
+          </span>
+        );
+      default:
+        return (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+            {t16("statusNotPublished")}
+          </span>
+        );
     }
   }
 
@@ -149,23 +197,37 @@ export default function VitrinePage() {
                         </p>
                       ) : null}
                       <p className="mt-2">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${a.vitrine ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
-                          {a.vitrine ? t("published") : t("notPublished")}
-                        </span>
+                        {pastilleStatut(a)}
                         <span className="ml-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
                           {a.statut === "vacant" ? t("statusVacant") : t("statusSoonFree")}
                         </span>
                       </p>
+                      {a.vitrine_statut === "refuse" && a.vitrine_motif_refus ? (
+                        <p role="note" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                          {t16("refusalReasonLabel")} : {a.vitrine_motif_refus}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => basculer(a)}
-                        className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white"
-                      >
-                        {a.vitrine ? t("unpublish") : t("publish")}
-                      </button>
-                      {a.vitrine ? (
+                      {a.vitrine_statut === "non_publie" || a.vitrine_statut === "refuse" ? (
+                        <button
+                          type="button"
+                          onClick={() => demander(a)}
+                          className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white"
+                        >
+                          {t16("requestPublication")}
+                        </button>
+                      ) : null}
+                      {a.vitrine_statut === "en_attente" || a.vitrine_statut === "approuve" ? (
+                        <button
+                          type="button"
+                          onClick={() => retirer(a)}
+                          className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white"
+                        >
+                          {t16("withdrawPublication")}
+                        </button>
+                      ) : null}
+                      {a.vitrine_statut === "approuve" ? (
                         <Link href={`/${locale}/a-louer/${a.id}`} target="_blank" rel="noreferrer" className="rounded-full border border-slate-300 px-4 py-2 text-sm font-bold text-navy">
                           {t("preview")}
                         </Link>

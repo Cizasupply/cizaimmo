@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import AppartementForm from "@/components/AppartementForm";
 import { getDataProvider } from "@/lib/data";
+import { contactDossierPourImmeuble, type ContactDossier } from "@/lib/contactDossier";
 import type { Appartement, AppartementInput, Immeuble } from "@/lib/data";
 
 export default function ModifierAppartementPage({ params }: { params: { id: string } }) {
@@ -15,6 +16,7 @@ export default function ModifierAppartementPage({ params }: { params: { id: stri
   const router = useRouter();
   const [appartement, setAppartement] = useState<Appartement | null>(null);
   const [immeubles, setImmeubles] = useState<Immeuble[]>([]);
+  const [contactDossier, setContactDossier] = useState<ContactDossier | null>(null);
   const [chargement, setChargement] = useState(true);
   const [introuvable, setIntrouvable] = useState(false);
 
@@ -31,7 +33,12 @@ export default function ModifierAppartementPage({ params }: { params: { id: stri
         p.listerImmeubles(),
       ]);
       if (!apt) setIntrouvable(true);
-      else setAppartement(apt);
+      else {
+        setAppartement(apt);
+        // v1.6 : contact attendu du dossier pour l'immeuble de
+        // l'appartement (gestionnaire rattaché ou propriétaire).
+        setContactDossier(await contactDossierPourImmeuble(p, apt.immeuble_id));
+      }
       setImmeubles(ims);
       setChargement(false);
     })();
@@ -64,6 +71,7 @@ export default function ModifierAppartementPage({ params }: { params: { id: stri
             mode="single"
             onSubmitSingle={handleSubmit}
             submitLabel={t("common.save")}
+            contactDossier={contactDossier}
           />
         </div>
       )}

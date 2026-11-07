@@ -3,6 +3,7 @@ import type {
   AccesLocataire,
   Activite,
   Alerte,
+  AnnonceAValider,
   AnnoncePublique,
   Appartement,
   AppartementInput,
@@ -365,6 +366,46 @@ export interface DataProvider {
    */
   listerAnnoncesPubliques(): Promise<AnnoncePublique[]>;
   getAnnoncePublique(appartementId: string): Promise<AnnoncePublique | null>;
+  // --- v1.6 « Vitrine vérifiée » : modération des annonces publiques ----
+  // RÈGLE : aucune annonce ne devient publique sans approbation d'un
+  // Admin — la demande fait passer l'appartement en « en_attente » et
+  // seule la validation Admin (validerPublicationVitrine) le fait
+  // passer en « approuve », seul statut affiché par
+  // listerAnnoncesPubliques. Toute annonce affichée porte le badge
+  // « ✓ Vérifié ». Les transitions sont décidées DANS LA BASE (RPC) :
+  // le fournisseur ne fait que les appeler et relire l'appartement.
+  /**
+   * Demande la publication d'un appartement sur la vitrine : passe
+   * vitrine_statut en « en_attente » (file de validation Admin).
+   * Si le contact annoncé (contact_telephone / contact_email) diffère
+   * du contact du dossier, une justification (contact_justification)
+   * est obligatoire — exigée par la base à la demande.
+   */
+  demanderPublicationVitrine(appartementId: string): Promise<Appartement>;
+  /**
+   * Retire un appartement de la vitrine (ou annule sa demande en
+   * attente) : vitrine_statut repasse en « non_publie ».
+   */
+  retirerPublicationVitrine(appartementId: string): Promise<Appartement>;
+  /**
+   * File de validation console : annonces « en_attente », avec le
+   * contact annoncé comparé au contact ATTENDU du dossier (gestionnaire
+   * rattaché actif de l'immeuble, sinon propriétaire) — `divergent`
+   * signale un téléphone ou un e-mail annoncé différent du dossier.
+   * Plateforme uniquement.
+   */
+  listerVitrineAValider(): Promise<AnnonceAValider[]>;
+  /**
+   * Décision Admin sur une annonce en attente : accepter → « approuve »
+   * (l'annonce devient publique, avec le badge « ✓ Vérifié ») ;
+   * refuser → « refuse », avec un motif (vitrine_motif_refus).
+   * Plateforme uniquement.
+   */
+  validerPublicationVitrine(
+    appartementId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<Appartement>;
 
   // --- MODULE 6 : taux automatiques (spec §9) -------------------------------
   /**

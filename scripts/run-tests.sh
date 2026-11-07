@@ -120,6 +120,19 @@ else
   ECHEC=1
 fi
 
+# Extension v1.6 — Vitrine vérifiée : aucune annonce publique sans
+# approbation Admin (base : RPC + trigger de revalidation +
+# politiques publiques), badge « ✓ Vérifié », règle contact +
+# justification, file console : même harnais.
+echo ""
+echo "===== Extension v1.6 (Vitrine vérifiée) ====="
+if node "scripts/test-vitrine-v16.cjs"; then
+  echo "Extension v1.6 : OK"
+else
+  echo "Extension v1.6 : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Correctif e-mails (2026-11-07) : matcher middleware (exclusion « auth »,
 # 404 des liens de confirmation) + gabarit e-mail premium (lib/email.ts,
 # déjà dans le harnais).

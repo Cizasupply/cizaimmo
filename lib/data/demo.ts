@@ -4,6 +4,7 @@ import type {
   AccesLocataire,
   Activite,
   Alerte,
+  AnnonceAValider,
   AnnoncePublique,
   Appartement,
   AppartementInput,
@@ -15,6 +16,7 @@ import type {
   CibleAudit,
   CompteAdmin,
   ComptePlateforme,
+  ContactPublic,
   Conversation,
   Coproprietaire,
   CoproprietaireInput,
@@ -1053,6 +1055,7 @@ export class DemoProvider implements DataProvider {
       id: uid(),
       owner_id: ownerId,
       ...input,
+      quartier: input.quartier ?? null,
       nom: input.nom.trim(),
       statut: "actif",
       created_at: new Date().toISOString(),
@@ -1166,6 +1169,21 @@ export class DemoProvider implements DataProvider {
       numero: input.numero.trim(),
       archive: false,
       created_at: new Date().toISOString(),
+      // v1.6 : défauts « Vitrine vérifiée » — la modération démarre
+      // toujours à « non_publie », jamais validée à la création.
+      vitrine_statut: "non_publie",
+      vitrine_motif_refus: null,
+      vitrine_valide_par: null,
+      vitrine_valide_le: null,
+      pieces: input.pieces ?? null,
+      meuble: input.meuble ?? false,
+      disponible_le: input.disponible_le ?? null,
+      visite_jours: input.visite_jours ?? [],
+      visite_heures: input.visite_heures ?? null,
+      contact_nom: input.contact_nom ?? null,
+      contact_telephone: input.contact_telephone ?? null,
+      contact_email: input.contact_email ?? null,
+      contact_justification: input.contact_justification ?? null,
     };
     parc.appartements.push(appartement);
     saveDb(db);
@@ -1196,6 +1214,20 @@ export class DemoProvider implements DataProvider {
       numero: item.numero.trim(),
       archive: false,
       created_at: new Date().toISOString(),
+      // v1.6 : mêmes défauts « Vitrine vérifiée » que creerAppartement.
+      vitrine_statut: "non_publie" as const,
+      vitrine_motif_refus: null,
+      vitrine_valide_par: null,
+      vitrine_valide_le: null,
+      pieces: item.pieces ?? null,
+      meuble: item.meuble ?? false,
+      disponible_le: item.disponible_le ?? null,
+      visite_jours: item.visite_jours ?? [],
+      visite_heures: item.visite_heures ?? null,
+      contact_nom: item.contact_nom ?? null,
+      contact_telephone: item.contact_telephone ?? null,
+      contact_email: item.contact_email ?? null,
+      contact_justification: item.contact_justification ?? null,
     }));
     parc.appartements.push(...crees);
     saveDb(db);
@@ -1224,6 +1256,17 @@ export class DemoProvider implements DataProvider {
       vitrine: patch.vitrine ?? courant.vitrine,
       valeur_bien: patch.valeur_bien ?? courant.valeur_bien,
       devise_valeur: patch.devise_valeur ?? courant.devise_valeur,
+      // v1.6 : champs d'annonce publique (le statut de modération
+      // n'est JAMAIS dans le patch — géré par demander/valider/retirer).
+      pieces: patch.pieces ?? courant.pieces,
+      meuble: patch.meuble ?? courant.meuble,
+      disponible_le: patch.disponible_le ?? courant.disponible_le,
+      visite_jours: patch.visite_jours ?? courant.visite_jours,
+      visite_heures: patch.visite_heures ?? courant.visite_heures,
+      contact_nom: patch.contact_nom ?? courant.contact_nom,
+      contact_telephone: patch.contact_telephone ?? courant.contact_telephone,
+      contact_email: patch.contact_email ?? courant.contact_email,
+      contact_justification: patch.contact_justification ?? courant.contact_justification,
     };
     this.verifierAppartementInput(db, courant.immeuble_id, candidat, id);
     // Cohérence statut / bail : « occupé » exige un bail actif, et un
@@ -1235,7 +1278,34 @@ export class DemoProvider implements DataProvider {
     if (candidat.statut !== "occupe" && bailActif && courant.statut === "occupe") {
       throw err("ERR_APPARTEMENT_OCCUPE");
     }
-    const maj: Appartement = { ...courant, ...patch, numero: candidat.numero.trim() };
+    let maj: Appartement = { ...courant, ...patch, numero: candidat.numero.trim() };
+    // v1.6 — règle anti-fraude (miroir du trigger SQL) : modifier un
+    // champ CRITIQUE d'une annonce APPROUVÉE la renvoie en validation
+    // (« en_attente », validation effacée) — l'annonce publique ne
+    // peut pas changer sous le badge « ✓ Vérifié » sans re-contrôle.
+    if (courant.vitrine_statut === "approuve") {
+      const champsCritiques = [
+        "loyer_defaut", "devise", "charges", "photos", "description",
+        "visite_jours", "visite_heures", "contact_nom",
+        "contact_telephone", "contact_email",
+      ] as const;
+      const modifie = champsCritiques.some((champ) => {
+        const avant = courant[champ];
+        const apres = maj[champ];
+        if (Array.isArray(avant) || Array.isArray(apres)) {
+          return JSON.stringify(avant ?? null) !== JSON.stringify(apres ?? null);
+        }
+        return avant !== apres;
+      });
+      if (modifie) {
+        maj = {
+          ...maj,
+          vitrine_statut: "en_attente",
+          vitrine_valide_par: null,
+          vitrine_valide_le: null,
+        };
+      }
+    }
     parc.appartements[idx] = maj;
     saveDb(db);
     return maj;
@@ -2617,12 +2687,98 @@ export class DemoProvider implements DataProvider {
     return maj;
   }
 
+  // ==========================================================================
+  // v1.6 « Vitrine vérifiée » — helpers contact du dossier / divergence.
+  // Le contact ATTENDU d'une annonce est celui du DOSSIER : le
+  // gestionnaire rattaché ACTIF (contexte « proprietaire ») de
+  // l'immeuble s'il existe, sinon le propriétaire du parc.
+  // ==========================================================================
+
+  private contactDossierAttendu(
+    db: DemoDb,
+    parc: { profil: Profil },
+    immeuble: Immeuble
+  ): { contact: ContactPublic; role: "gestionnaire" | "proprietaire" } {
+    const rattachement = db.plateforme.rattachements.find(
+      (r) =>
+        r.contexte === "proprietaire" &&
+        r.proprietaire_id === parc.profil.id &&
+        r.statut === "actif" &&
+        r.immeuble_ids.includes(immeuble.id)
+    );
+    if (rattachement) {
+      const entree = db.plateforme.comptesClients.find(
+        (c) =>
+          c.id === rattachement.gestionnaire_id ||
+          c.email.toLowerCase() === rattachement.gestionnaire_id.toLowerCase() ||
+          c.email.toLowerCase() === rattachement.gestionnaire_email.toLowerCase()
+      );
+      if (entree) {
+        return {
+          contact: { nom: entree.nom, email: entree.email, telephone: entree.telephone ?? null },
+          role: "gestionnaire",
+        };
+      }
+      return {
+        contact: {
+          nom: rattachement.gestionnaire_nom ?? rattachement.gestionnaire_email,
+          email: rattachement.gestionnaire_email,
+          telephone: rattachement.gestionnaire_telephone ?? null,
+        },
+        role: "gestionnaire",
+      };
+    }
+    return {
+      contact: {
+        nom: parc.profil.nom,
+        email: parc.profil.email,
+        telephone: parc.profil.telephone ?? null,
+      },
+      role: "proprietaire",
+    };
+  }
+
+  /** Divergence annonce/dossier : champ annoncé NON VIDE et différent
+   * du dossier (e-mail normalisé trim/minuscules ; téléphone réduit
+   * aux chiffres et au « + »). */
+  private contactsDivergent(
+    annonce: { contact_telephone: string | null; contact_email: string | null },
+    dossier: ContactPublic
+  ): boolean {
+    const normEmail = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+    const normTel = (v: string | null | undefined) => (v ?? "").replace(/[^0-9+]/g, "");
+    const emailAnnonce = normEmail(annonce.contact_email);
+    if (emailAnnonce && emailAnnonce !== normEmail(dossier.email)) return true;
+    const telAnnonce = normTel(annonce.contact_telephone);
+    if (telAnnonce && telAnnonce !== normTel(dossier.telephone)) return true;
+    return false;
+  }
+
+  /** Parc principal sous forme ParcDemo (références directes à db.*). */
+  private parcPrincipal(db: DemoDb): ParcDemo {
+    return {
+      profil: db.profil,
+      immeubles: db.immeubles,
+      appartements: db.appartements,
+      locataires: db.locataires,
+      baux: db.baux,
+      echeances: db.echeances,
+      paiements: db.paiements,
+      depenses: db.depenses,
+      documents: db.documents,
+      activites: db.activites,
+      alertes: db.alertes,
+      coproprietaires: db.coproprietaires,
+    };
+  }
+
   async listerAnnoncesPubliques(): Promise<AnnoncePublique[]> {
     // Page publique : aucune session requise. Seuls les appartements
     // publiés, vacants ou réservés — jamais de coordonnée de locataire.
+    // v1.6 : seules les annonces APPROUVÉES par un Admin s'affichent.
     const db = loadDb();
     return db.appartements
-      .filter((a) => a.vitrine && !a.archive && (a.statut === "vacant" || a.statut === "reserve"))
+      .filter((a) => a.vitrine && a.vitrine_statut === "approuve" && !a.archive && (a.statut === "vacant" || a.statut === "reserve"))
       .map((a) => this.construireAnnonce(db, a))
       .filter((x): x is AnnoncePublique => x !== null)
       .sort((a, b) =>
@@ -2634,7 +2790,7 @@ export class DemoProvider implements DataProvider {
   async getAnnoncePublique(appartementId: string): Promise<AnnoncePublique | null> {
     const db = loadDb();
     const apt = db.appartements.find((a) => a.id === appartementId);
-    if (!apt || !apt.vitrine || apt.archive || (apt.statut !== "vacant" && apt.statut !== "reserve")) {
+    if (!apt || !apt.vitrine || apt.vitrine_statut !== "approuve" || apt.archive || (apt.statut !== "vacant" && apt.statut !== "reserve")) {
       return null;
     }
     return this.construireAnnonce(db, apt);
@@ -2643,18 +2799,181 @@ export class DemoProvider implements DataProvider {
   private construireAnnonce(db: DemoDb, appartement: Appartement): AnnoncePublique | null {
     const immeuble = db.immeubles.find((i) => i.id === appartement.immeuble_id);
     if (!immeuble) return null;
+    // v1.6 : contact AFFICHÉ = celui de l'annonce s'il est renseigné,
+    // sinon le contact du dossier (parc principal uniquement — les
+    // annonces publiques démo ne lisent que db.appartements).
+    const dossier = this.contactDossierAttendu(db, { profil: db.profil }, immeuble);
+    const contact: ContactPublic =
+      appartement.contact_telephone !== null || appartement.contact_email !== null
+        ? {
+            nom: appartement.contact_nom ?? dossier.contact.nom,
+            email: appartement.contact_email,
+            telephone: appartement.contact_telephone,
+          }
+        : dossier.contact;
     return {
       appartement,
       immeuble_id: immeuble.id,
       immeuble_nom: immeuble.nom,
       ville: immeuble.ville,
       pays: immeuble.pays,
-      contact: {
-        nom: db.profil.nom,
-        email: db.profil.email,
-        telephone: db.profil.telephone ?? null,
-      },
+      adresse: immeuble.adresse,
+      quartier: immeuble.quartier ?? null,
+      contact,
     };
+  }
+
+  // ==========================================================================
+  // v1.6 « Vitrine vérifiée » — demande / retrait / validation Admin.
+  // Miroir démo des RPC base : mêmes codes d'erreur, mêmes transitions.
+  // ==========================================================================
+
+  async demanderPublicationVitrine(appartementId: string): Promise<Appartement> {
+    const db = loadDb();
+    const parc = this.cols(db);
+    const apt = parc.appartements.find((a) => a.id === appartementId);
+    if (!apt) throw err("ERR_NOT_FOUND");
+    if (this.sessionGestionnaireEmail()) {
+      const visibles = this.immeublesVisibles(db);
+      if (visibles && !visibles.has(apt.immeuble_id)) throw err("ERR_VITRINE_ACCES");
+    }
+    if (this.sessionEstCoproprietaire()) throw err("ERR_VITRINE_ACCES");
+    this.verifierEcriture(db);
+    // Plan : la vitrine vérifiée exige Pro ou Agence — parc principal
+    // uniquement (le parc Ciza Group est un compte interne, sans plan).
+    if (this.parcActif(db).estPrincipal) {
+      const plan = db.abonnement.plan;
+      if (plan !== "pro" && plan !== "agence") throw err("ERR_VITRINE_PLAN");
+    }
+    if (apt.statut !== "vacant" && apt.statut !== "reserve") throw err("ERR_VITRINE_STATUT");
+    if (!apt.photos || apt.photos.length < 1 || apt.photos.length > 10) {
+      throw err("ERR_VITRINE_PHOTOS");
+    }
+    if (!apt.contact_telephone?.trim() && !apt.contact_email?.trim()) {
+      throw err("ERR_VITRINE_CONTACT_MANQUANT");
+    }
+    const immeuble = parc.immeubles.find((i) => i.id === apt.immeuble_id);
+    if (immeuble) {
+      const dossier = this.contactDossierAttendu(db, parc, immeuble);
+      if (
+        this.contactsDivergent(apt, dossier.contact) &&
+        !apt.contact_justification?.trim()
+      ) {
+        throw err("ERR_JUSTIFICATION_CONTACT");
+      }
+    }
+    apt.vitrine = true;
+    apt.vitrine_statut = "en_attente";
+    apt.vitrine_motif_refus = null;
+    apt.vitrine_valide_par = null;
+    apt.vitrine_valide_le = null;
+    saveDb(db);
+    return apt;
+  }
+
+  async retirerPublicationVitrine(appartementId: string): Promise<Appartement> {
+    const db = loadDb();
+    const parc = this.cols(db);
+    const apt = parc.appartements.find((a) => a.id === appartementId);
+    if (!apt) throw err("ERR_NOT_FOUND");
+    if (this.sessionGestionnaireEmail()) {
+      const visibles = this.immeublesVisibles(db);
+      if (visibles && !visibles.has(apt.immeuble_id)) throw err("ERR_VITRINE_ACCES");
+    }
+    if (this.sessionEstCoproprietaire()) throw err("ERR_VITRINE_ACCES");
+    this.verifierEcriture(db);
+    apt.vitrine = false;
+    apt.vitrine_statut = "non_publie";
+    apt.vitrine_motif_refus = null;
+    apt.vitrine_valide_par = null;
+    apt.vitrine_valide_le = null;
+    saveDb(db);
+    return apt;
+  }
+
+  async listerVitrineAValider(): Promise<AnnonceAValider[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const parcs: ParcDemo[] = [this.parcPrincipal(db), db.parcCizaGroup];
+    const resultat: AnnonceAValider[] = [];
+    for (const parc of parcs) {
+      for (const apt of parc.appartements) {
+        if (apt.vitrine_statut !== "en_attente") continue;
+        const immeuble = parc.immeubles.find((i) => i.id === apt.immeuble_id);
+        if (!immeuble) continue;
+        const entree = db.plateforme.comptesClients.find(
+          (c) =>
+            c.id === parc.profil.id ||
+            c.email.toLowerCase() === parc.profil.email.toLowerCase()
+        );
+        const dossier = this.contactDossierAttendu(db, parc, immeuble);
+        resultat.push({
+          appartement: apt,
+          immeuble_id: immeuble.id,
+          immeuble_nom: immeuble.nom,
+          immeuble_adresse: immeuble.adresse,
+          immeuble_quartier: immeuble.quartier ?? null,
+          immeuble_ville: immeuble.ville,
+          proprietaire_id: parc.profil.id,
+          proprietaire_nom: parc.profil.nom,
+          proprietaire_display_id: entree?.display_id ?? parc.profil.display_id ?? null,
+          contact_annonce: {
+            nom: apt.contact_nom ?? "—",
+            email: apt.contact_email,
+            telephone: apt.contact_telephone,
+          },
+          contact_dossier: dossier.contact,
+          contact_dossier_role: dossier.role,
+          justification: apt.contact_justification,
+          divergent: this.contactsDivergent(apt, dossier.contact),
+        });
+      }
+    }
+    return resultat;
+  }
+
+  async validerPublicationVitrine(
+    appartementId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<Appartement> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const parcs: ParcDemo[] = [this.parcPrincipal(db), db.parcCizaGroup];
+    let trouve: { parc: ParcDemo; apt: Appartement } | null = null;
+    for (const parc of parcs) {
+      const apt = parc.appartements.find((a) => a.id === appartementId);
+      if (apt) {
+        trouve = { parc, apt };
+        break;
+      }
+    }
+    if (!trouve) throw err("ERR_NOT_FOUND");
+    const { parc, apt } = trouve;
+    if (apt.vitrine_statut !== "en_attente") throw err("ERR_VITRINE_PAS_EN_ATTENTE");
+    if (accepter) {
+      apt.vitrine_statut = "approuve";
+      apt.vitrine_valide_par = acteur.id;
+      apt.vitrine_valide_le = new Date().toISOString();
+      apt.vitrine_motif_refus = null;
+    } else {
+      if (!motif?.trim()) throw err("ERR_VITRINE_MOTIF_REQUIS");
+      apt.vitrine_statut = "refuse";
+      apt.vitrine_motif_refus = motif.trim();
+      apt.vitrine_valide_par = acteur.id;
+      apt.vitrine_valide_le = new Date().toISOString();
+    }
+    this.journaliserAudit(
+      db,
+      acteur,
+      accepter ? "vitrine_approuvee" : "vitrine_refusee",
+      "appartement",
+      apt.id,
+      parc.profil.email,
+      { motif: motif ?? null }
+    );
+    saveDb(db);
+    return apt;
   }
 
   async enregistrerTauxAuto(

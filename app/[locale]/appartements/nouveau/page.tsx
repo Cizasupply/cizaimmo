@@ -8,6 +8,7 @@ import AppShell from "@/components/AppShell";
 import AppartementForm from "@/components/AppartementForm";
 import EmptyState from "@/components/EmptyState";
 import { getDataProvider } from "@/lib/data";
+import { contactDossierPourImmeuble, type ContactDossier } from "@/lib/contactDossier";
 import type { AppartementInput, Immeuble } from "@/lib/data";
 
 function NouvelAppartementContenu() {
@@ -19,6 +20,7 @@ function NouvelAppartementContenu() {
   const lot = searchParams.get("lot") === "1";
 
   const [immeubles, setImmeubles] = useState<Immeuble[]>([]);
+  const [contactDossier, setContactDossier] = useState<ContactDossier | null>(null);
   const [chargement, setChargement] = useState(true);
   const [mode, setMode] = useState<"single" | "bulk">(lot ? "bulk" : "single");
 
@@ -31,6 +33,11 @@ function NouvelAppartementContenu() {
         return;
       }
       setImmeubles(await p.listerImmeubles());
+      // v1.6 : contact attendu du dossier — pour l'immeuble
+      // présélectionné s'il y en a un, sinon le contact du compte
+      // (le contrôle qui fait foi reste celui de la demande de
+      // publication, dans la base).
+      setContactDossier(await contactDossierPourImmeuble(p, preselectedImmeubleId ?? null));
       setChargement(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,6 +101,7 @@ function NouvelAppartementContenu() {
             onSubmitSingle={handleSingle}
             onSubmitBulk={handleBulk}
             submitLabel={t("common.create")}
+            contactDossier={contactDossier}
           />
         </div>
       )}

@@ -24,6 +24,7 @@ const LIENS = [
   { key: "managers", href: "/console/gestionnaires" },
   { key: "myFiles", href: "/console/mes-dossiers", adminSeul: true },
   { key: "supervisedMessages", href: "/console/messages-supervises" },
+  { key: "vitrine", href: "/console/vitrine" },
   { key: "journal", href: "/console/journal" },
   { key: "suppressions", href: "/console/suppressions", superSeul: true },
   { key: "admins", href: "/console/admins", superSeul: true },

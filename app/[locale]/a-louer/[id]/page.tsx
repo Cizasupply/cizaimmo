@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import type { AnnoncePublique } from "@/lib/data";
 import { lienWhatsApp } from "@/lib/loyers";
@@ -18,6 +18,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  */
 export default function AnnoncePubliquePage({ params }: { params: { id: string } }) {
   const t = useTranslations("public");
+  const t16 = useTranslations("v16");
   const tc = useTranslations("crud.common");
   const locale = useLocale();
 
@@ -80,16 +81,65 @@ export default function AnnoncePubliquePage({ params }: { params: { id: string }
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <h1 className="text-2xl font-bold text-navy">
                 {annonce.immeuble_nom} — {annonce.appartement.numero} · {annonce.appartement.type}
+                <span className="ml-2 inline-block rounded-full bg-gold px-2.5 py-1 align-middle text-xs font-bold text-navy-dark">
+                  {t16("verifiedBadge")}
+                </span>
               </h1>
               <p className="mt-1 text-base text-slate-600">
-                {annonce.ville} — {annonce.pays}
+                {[annonce.adresse, annonce.quartier, annonce.ville].filter(Boolean).join(", ")} — {annonce.pays}
               </p>
               <p className="mt-3 text-2xl font-bold text-navy">
                 {formatMoney(annonce.appartement.loyer_defaut, annonce.appartement.devise, locale)}
                 <span className="text-base font-normal text-slate-500"> / {t("rentPerMonth")}</span>
               </p>
-              {annonce.appartement.surface_m2 !== null ? (
-                <p className="mt-1 text-sm text-slate-600">{annonce.appartement.surface_m2} m²</p>
+              {annonce.appartement.charges > 0 ? (
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  {t16("publicCharges", { amount: formatMoney(annonce.appartement.charges, annonce.appartement.devise, locale) })}
+                </p>
+              ) : null}
+              <dl className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                <div>
+                  <dt className="inline font-semibold text-slate-500">{t16("typeLabel")} : </dt>
+                  <dd className="inline">{annonce.appartement.type}</dd>
+                </div>
+                {annonce.appartement.surface_m2 !== null ? (
+                  <div>
+                    <dt className="inline font-semibold text-slate-500">{t16("surfaceLabel")} : </dt>
+                    <dd className="inline">{annonce.appartement.surface_m2} m²</dd>
+                  </div>
+                ) : null}
+                {annonce.appartement.pieces != null ? (
+                  <div>
+                    <dt className="inline font-semibold text-slate-500">{t16("rooms")} : </dt>
+                    <dd className="inline">{annonce.appartement.pieces}</dd>
+                  </div>
+                ) : null}
+                {annonce.appartement.meuble ? (
+                  <div>
+                    <dt className="inline font-semibold text-slate-500">{t16("furnished")} : </dt>
+                    <dd className="inline">{tc("yes")}</dd>
+                  </div>
+                ) : null}
+                {annonce.appartement.etage != null ? (
+                  <div>
+                    <dt className="inline font-semibold text-slate-500">{t16("floorLabel")} : </dt>
+                    <dd className="inline">{annonce.appartement.etage}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              <p className="mt-3 text-sm font-semibold text-slate-700">
+                {annonce.appartement.disponible_le
+                  ? t16("availableFromLabel", { date: formatDate(annonce.appartement.disponible_le, locale) })
+                  : t16("availableNow")}
+              </p>
+              {annonce.appartement.visite_jours.length > 0 ? (
+                <p className="mt-1 text-sm text-slate-700">
+                  {t16("visitsLabel")} :{" "}
+                  {annonce.appartement.visite_jours
+                    .map((j) => t16(`day_${j}` as "day_lun"))
+                    .join(", ")}
+                  {annonce.appartement.visite_heures ? ` · ${annonce.appartement.visite_heures}` : ""}
+                </p>
               ) : null}
               {annonce.appartement.description ? (
                 <div className="mt-4">
@@ -102,10 +152,13 @@ export default function AnnoncePubliquePage({ params }: { params: { id: string }
                 {annonce.appartement.photos.length === 0 ? (
                   <p className="mt-1 text-sm text-slate-600">{t("noPhotos")}</p>
                 ) : (
-                  <ul className="mt-2 space-y-1">
+                  <ul className="mt-2 grid gap-3 sm:grid-cols-2">
                     {annonce.appartement.photos.map((url) => (
-                      <li key={url}>
-                        <a href={url} target="_blank" rel="noreferrer" className="break-all font-semibold text-navy underline">{url}</a>
+                      <li key={url} className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
+                        <a href={url} target="_blank" rel="noreferrer" className="block h-full w-full">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                        </a>
                       </li>
                     ))}
                   </ul>

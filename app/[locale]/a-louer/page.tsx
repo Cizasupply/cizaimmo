@@ -20,6 +20,7 @@ import { DEVISES } from "@/lib/data";
  */
 export default function ALouerPage() {
   const t = useTranslations("public");
+  const t16 = useTranslations("v16");
   const tc = useTranslations("crud.common");
   const locale = useLocale();
 
@@ -156,14 +157,36 @@ export default function ALouerPage() {
               <ul className="mt-4 grid gap-4 sm:grid-cols-2">
                 {filtrees.map((a) => (
                   <li key={a.appartement.id} className="rounded-2xl bg-white p-6 shadow-sm">
+                    <div className="mb-4 aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
+                      {a.appartement.photos.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={a.appartement.photos[0]} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">
+                          {t16("noPhoto")}
+                        </div>
+                      )}
+                    </div>
                     <Link href={`/${locale}/a-louer/${a.appartement.id}`} className="block">
                       <p className="text-lg font-bold text-navy underline">
                         {a.immeuble_nom} — {a.appartement.numero} · {a.appartement.type}
+                        <span className="ml-2 inline-block rounded-full bg-navy px-2.5 py-1 align-middle text-xs font-bold text-gold no-underline">
+                          {t16("verifiedBadge")}
+                        </span>
                       </p>
                     </Link>
                     <p className="mt-1 text-sm text-slate-600">
-                      {a.ville} — {a.pays}
+                      {[a.adresse, a.quartier, a.ville].filter(Boolean).join(", ")} — {a.pays}
                     </p>
+                    {a.appartement.pieces != null || a.appartement.meuble ? (
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        {a.appartement.pieces != null
+                          ? t16("roomsCount", { count: String(a.appartement.pieces) })
+                          : null}
+                        {a.appartement.pieces != null && a.appartement.meuble ? " · " : null}
+                        {a.appartement.meuble ? t16("furnished") : null}
+                      </p>
+                    ) : null}
                     <p className="mt-2 text-xl font-bold text-navy">
                       {formatMoney(a.appartement.loyer_defaut, a.appartement.devise, locale)}
                       <span className="text-sm font-normal text-slate-500"> / {t("rentPerMonth")}</span>

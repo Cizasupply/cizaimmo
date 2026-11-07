@@ -245,6 +245,8 @@ export const TYPES_APPARTEMENT: TypeAppartement[] = [
   "studio", "T1", "T2", "T3", "T4", "T5+", "autre",
 ];
 export type StatutAppartement = "occupe" | "vacant" | "travaux" | "reserve";
+/** v1.6 : statut de modération d'une annonce vitrine (décidé dans la base). */
+export type StatutVitrine = "non_publie" | "en_attente" | "approuve" | "refuse";
 export type StatutBail = "actif" | "termine";
 export type CautionStatut =
   | "en_attente" | "recue" | "restituee" | "retenue_partielle";
@@ -284,6 +286,8 @@ export interface ImmeubleInput {
   date_estimation: string | null;
   /** Mode d'acquisition si renseigné (achat, héritage, donation, autre). */
   mode_acquisition: string | null;
+  /** v1.6 : quartier (affiché sur les annonces publiques vérifiées). */
+  quartier?: string | null;
 }
 
 export type ImmeublePatch = Partial<ImmeubleInput> & {
@@ -305,6 +309,18 @@ export interface AppartementInput {
   vitrine: boolean;
   valeur_bien: number | null;
   devise_valeur: Devise | null;
+  // --- v1.6 « Vitrine vérifiée » : champs d'annonce publique (optionnels
+  // à la saisie ; le statut de modération n'est JAMAIS saisi ici — il est
+  // géré par les fonctions demander/valider/retirer la publication).
+  pieces?: number | null;
+  meuble?: boolean;
+  disponible_le?: string | null;
+  visite_jours?: string[];
+  visite_heures?: string | null;
+  contact_nom?: string | null;
+  contact_telephone?: string | null;
+  contact_email?: string | null;
+  contact_justification?: string | null;
 }
 
 export type AppartementPatch = Partial<
@@ -408,6 +424,8 @@ export interface Immeuble {
   date_estimation: string | null;
   /** Mode d'acquisition si renseigné (achat, héritage, donation, autre). */
   mode_acquisition: string | null;
+  /** v1.6 : quartier (annonces publiques vérifiées). */
+  quartier: string | null;
   statut: "actif" | "archive";
   created_at: string;
 }
@@ -431,6 +449,28 @@ export interface Appartement {
   /** Archivé après la fin du bail (un appartement occupé ne se supprime pas). */
   archive: boolean;
   created_at: string;
+  // --- v1.6 « Vitrine vérifiée » : modération des annonces publiques.
+  // Aucune annonce ne s'affiche sans approbation Admin (statut
+  // 'approuve', décidé dans la base) ; toute annonce affichée porte
+  // le badge « ✓ Vérifié ».
+  vitrine_statut: StatutVitrine;
+  vitrine_motif_refus: string | null;
+  vitrine_valide_par: string | null;
+  vitrine_valide_le: string | null;
+  /** Nombre de pièces (affichage public). */
+  pieces: number | null;
+  meuble: boolean;
+  /** Date de disponibilité (null = immédiate). */
+  disponible_le: string | null;
+  /** Jours de visite possibles ('lun'…'dim'). */
+  visite_jours: string[];
+  visite_heures: string | null;
+  /** Contact AFFICHÉ de l'annonce (repli : contact du dossier). */
+  contact_nom: string | null;
+  contact_telephone: string | null;
+  contact_email: string | null;
+  /** Obligatoire si le contact annoncé diffère du contact du dossier. */
+  contact_justification: string | null;
 }
 
 export interface Locataire {
@@ -787,7 +827,39 @@ export interface AnnoncePublique {
   immeuble_nom: string;
   ville: string;
   pays: string;
+  /** v1.6 : adresse + quartier de l'immeuble (affichage public). */
+  adresse: string;
+  quartier: string | null;
+  /**
+   * v1.6 : contact AFFICHÉ — celui de l'annonce s'il est renseigné,
+   * sinon le contact du dossier (gestionnaire rattaché actif de
+   * l'immeuble, sinon le propriétaire).
+   */
   contact: ContactPublic;
+}
+
+/**
+ * v1.6 : une annonce en attente de validation (file console). Le
+ * contact annoncé est comparé au contact ATTENDU du dossier : le
+ * gestionnaire rattaché actif de l'immeuble s'il existe, sinon le
+ * propriétaire. `divergent` = téléphone ou e-mail annoncé différent
+ * du dossier (la justification est alors obligatoire à la demande).
+ */
+export interface AnnonceAValider {
+  appartement: Appartement;
+  immeuble_id: string;
+  immeuble_nom: string;
+  immeuble_adresse: string;
+  immeuble_quartier: string | null;
+  immeuble_ville: string;
+  proprietaire_id: string;
+  proprietaire_nom: string;
+  proprietaire_display_id: string | null;
+  contact_annonce: ContactPublic;
+  contact_dossier: ContactPublic;
+  contact_dossier_role: "gestionnaire" | "proprietaire";
+  justification: string | null;
+  divergent: boolean;
 }
 
 // =============================================================================
@@ -835,7 +907,8 @@ export type CibleAudit =
   | "tarif"
   | "parametre"
   | "gestionnaire"
-  | "plateforme";
+  | "plateforme"
+  | "appartement";
 
 export interface EntreeAudit {
   id: string;

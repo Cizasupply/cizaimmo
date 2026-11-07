@@ -4,6 +4,7 @@ import type {
   AccesLocataire,
   Activite,
   Alerte,
+  AnnonceAValider,
   AnnoncePublique,
   Appartement,
   AppartementInput,
@@ -15,6 +16,7 @@ import type {
   CibleAudit,
   CompteAdmin,
   ComptePlateforme,
+  ContactPublic,
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
@@ -1979,14 +1981,85 @@ export class RealProvider implements DataProvider {
     return { ...(maj as Coproprietaire), part: Number((maj as Coproprietaire).part) };
   }
 
+  /**
+   * v1.6 : contact ATTENDU du dossier pour un immeuble — le gestionnaire
+   * rattaché ACTIF de l'immeuble (contexte « proprietaire ») s'il
+   * existe, sinon le propriétaire. Partagé par la vitrine publique
+   * (repli du contact affiché) et la file de validation Admin
+   * (comparaison de divergence). Les rattachements du propriétaire sont
+   * récupérés puis filtrés en JS sur immeuble_ids : pas de dépendance
+   * à l'opérateur tableau PostgREST.
+   */
+  private async contactDossierAttendu(
+    ownerId: string,
+    immeubleId: string
+  ): Promise<{ contact: ContactPublic; role: "gestionnaire" | "proprietaire" }> {
+    const client = this.client();
+    const { data: rattachements } = await client
+      .from("rattachements_gestionnaires")
+      .select("gestionnaire_id, immeuble_ids")
+      .eq("contexte", "proprietaire")
+      .eq("proprietaire_id", ownerId)
+      .eq("statut", "actif");
+    const rattachement = (
+      (rattachements as
+        | { gestionnaire_id: string; immeuble_ids: string[] | null }[]
+        | null) ?? []
+    ).find((r) => (r.immeuble_ids ?? []).includes(immeubleId));
+    if (rattachement) {
+      const { data: profilGestionnaire } = await client
+        .from("profils")
+        .select("nom, email, telephone")
+        .eq("id", rattachement.gestionnaire_id)
+        .maybeSingle();
+      if (profilGestionnaire) {
+        const p = profilGestionnaire as {
+          nom: string;
+          email: string | null;
+          telephone: string | null;
+        };
+        return {
+          contact: {
+            nom: p.nom,
+            email: p.email ?? null,
+            telephone: p.telephone ?? null,
+          },
+          role: "gestionnaire",
+        };
+      }
+    }
+    const { data: profilProprietaire } = await client
+      .from("profils")
+      .select("nom, email, telephone")
+      .eq("id", ownerId)
+      .maybeSingle();
+    const p = (profilProprietaire as {
+      nom: string;
+      email: string | null;
+      telephone: string | null;
+    } | null) ?? { nom: "—", email: null, telephone: null };
+    return {
+      contact: {
+        nom: p.nom,
+        email: p.email ?? null,
+        telephone: p.telephone ?? null,
+      },
+      role: "proprietaire",
+    };
+  }
+
   async listerAnnoncesPubliques(): Promise<AnnoncePublique[]> {
     // Page publique : aucune session requise — la RLS (politiques « anon »,
     // supabase/schema.sql) ne retourne que les appartements publiés,
     // vacants ou réservés. Jamais de coordonnée de locataire.
+    // v1.6 : seules les annonces APPROUVÉES par un Admin s'affichent
+    // (vitrine_statut = « approuve », décidé dans la base) — badge
+    // « ✓ Vérifié » sur chaque annonce affichée.
     const { data, error } = await this.client()
       .from("appartements")
-      .select("*, immeubles!inner(id, nom, ville, pays, owner_id)")
+      .select("*, immeubles!inner(id, nom, adresse, quartier, ville, pays, owner_id)")
       .eq("vitrine", true)
+      .eq("vitrine_statut", "approuve")
       .eq("archive", false)
       .in("statut", ["vacant", "reserve"])
       .order("numero", { ascending: true });
@@ -1994,28 +2067,35 @@ export class RealProvider implements DataProvider {
     const annonces: AnnoncePublique[] = [];
     for (const ligne of (data ?? []) as unknown as Record<string, unknown>[]) {
       const apt = mapAppartement(ligne as unknown as Appartement);
-      const imm = ligne.immeubles as { id: string; nom: string; ville: string; pays: string; owner_id: string };
-      const { data: profil } = await this.client()
-        .from("profils")
-        .select("nom, email, telephone")
-        .eq("id", imm.owner_id)
-        .maybeSingle();
-      const contact = (profil as { nom: string; email: string | null; telephone: string | null } | null) ?? {
-        nom: "—",
-        email: null,
-        telephone: null,
+      const imm = ligne.immeubles as {
+        id: string;
+        nom: string;
+        adresse: string;
+        quartier: string | null;
+        ville: string;
+        pays: string;
+        owner_id: string;
       };
+      const dossier = await this.contactDossierAttendu(imm.owner_id, imm.id);
+      // Contact AFFICHÉ : celui de l'annonce s'il est renseigné (son
+      // nom retombe sur celui du dossier), sinon le contact du dossier.
+      const contact: ContactPublic =
+        apt.contact_telephone !== null || apt.contact_email !== null
+          ? {
+              nom: apt.contact_nom ?? dossier.contact.nom,
+              email: apt.contact_email ?? null,
+              telephone: apt.contact_telephone ?? null,
+            }
+          : dossier.contact;
       annonces.push({
         appartement: apt,
         immeuble_id: imm.id,
         immeuble_nom: imm.nom,
         ville: imm.ville,
         pays: imm.pays,
-        contact: {
-          nom: contact.nom,
-          email: contact.email ?? null,
-          telephone: contact.telephone ?? null,
-        },
+        adresse: imm.adresse,
+        quartier: imm.quartier ?? null,
+        contact,
       });
     }
     return annonces.sort((a, b) => a.ville.localeCompare(b.ville));
@@ -2024,6 +2104,111 @@ export class RealProvider implements DataProvider {
   async getAnnoncePublique(appartementId: string): Promise<AnnoncePublique | null> {
     const annonces = await this.listerAnnoncesPubliques();
     return annonces.find((a) => a.appartement.id === appartementId) ?? null;
+  }
+
+  // --- v1.6 « Vitrine vérifiée » : modération (la base décide, via RPC) ---
+
+  /** Relecture d'un appartement après un appel RPC vitrine. */
+  private async relireAppartementVitrine(appartementId: string): Promise<Appartement> {
+    const apt = await this.getAppartement(appartementId);
+    if (!apt) throw err("ERR_NOT_FOUND");
+    return apt;
+  }
+
+  async demanderPublicationVitrine(appartementId: string): Promise<Appartement> {
+    // RPC base : passe l'annonce en « en_attente » ; la justification
+    // est exigée par la base si le contact annoncé diverge du dossier.
+    const { error } = await this.client().rpc("demander_publication_vitrine", {
+      p_appartement: appartementId,
+    });
+    if (error) throw new Error(error.message);
+    return this.relireAppartementVitrine(appartementId);
+  }
+
+  async retirerPublicationVitrine(appartementId: string): Promise<Appartement> {
+    const { error } = await this.client().rpc("retirer_publication_vitrine", {
+      p_appartement: appartementId,
+    });
+    if (error) throw new Error(error.message);
+    return this.relireAppartementVitrine(appartementId);
+  }
+
+  async validerPublicationVitrine(
+    appartementId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<Appartement> {
+    // Décision Admin journalisée par la RPC base (approuve / refuse).
+    const { error } = await this.client().rpc("valider_publication_vitrine", {
+      p_appartement: appartementId,
+      p_accepter: accepter,
+      p_motif: motif ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return this.relireAppartementVitrine(appartementId);
+  }
+
+  async listerVitrineAValider(): Promise<AnnonceAValider[]> {
+    // File console : le client de la session Admin lit via les
+    // politiques plateforme existantes (patron listerDossier).
+    await this.acteurPlateforme();
+    const client = this.client();
+    const { data, error } = await client
+      .from("appartements")
+      .select("*")
+      .eq("vitrine_statut", "en_attente")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const resultats: AnnonceAValider[] = [];
+    for (const ligne of (data as Appartement[] | null) ?? []) {
+      const apt = mapAppartement(ligne);
+      const { data: immData } = await client
+        .from("immeubles")
+        .select("id, nom, adresse, quartier, ville, owner_id")
+        .eq("id", apt.immeuble_id)
+        .maybeSingle();
+      if (!immData) continue;
+      const imm = immData as {
+        id: string;
+        nom: string;
+        adresse: string;
+        quartier: string | null;
+        ville: string;
+        owner_id: string;
+      };
+      const { data: profilProprietaire } = await client
+        .from("profils")
+        .select("nom, display_id")
+        .eq("id", imm.owner_id)
+        .maybeSingle();
+      const proprietaire = (profilProprietaire as {
+        nom: string;
+        display_id: string | null;
+      } | null) ?? { nom: "—", display_id: null };
+      const dossier = await this.contactDossierAttendu(imm.owner_id, imm.id);
+      const contactAnnonce: ContactPublic = {
+        nom: apt.contact_nom ?? "—",
+        email: apt.contact_email,
+        telephone: apt.contact_telephone,
+      };
+      resultats.push({
+        appartement: apt,
+        immeuble_id: imm.id,
+        immeuble_nom: imm.nom,
+        immeuble_adresse: imm.adresse,
+        immeuble_quartier: imm.quartier ?? null,
+        immeuble_ville: imm.ville,
+        proprietaire_id: imm.owner_id,
+        proprietaire_nom: proprietaire.nom,
+        proprietaire_display_id: proprietaire.display_id ?? null,
+        contact_annonce: contactAnnonce,
+        contact_dossier: dossier.contact,
+        contact_dossier_role: dossier.role,
+        justification: apt.contact_justification,
+        divergent: contactVitrineDivergent(contactAnnonce, dossier.contact),
+      });
+    }
+    return resultats;
   }
 
   async enregistrerTauxAuto(
@@ -4363,10 +4548,18 @@ function num(v: unknown): number | null {
 }
 
 function mapImmeuble(r: Immeuble): Immeuble {
-  return { ...r, valeur_bien: num(r.valeur_bien), prix_acquisition: num(r.prix_acquisition) };
+  const brut = r as Immeuble & Record<string, unknown>;
+  return {
+    ...r,
+    valeur_bien: num(r.valeur_bien),
+    prix_acquisition: num(r.prix_acquisition),
+    // v1.6 : quartier — défaut sûr si la ligne est antérieure à la migration.
+    quartier: (brut.quartier as string | null | undefined) ?? null,
+  };
 }
 
 function mapAppartement(r: Appartement): Appartement {
+  const brut = r as Appartement & Record<string, unknown>;
   return {
     ...r,
     loyer_defaut: Number(r.loyer_defaut),
@@ -4374,7 +4567,66 @@ function mapAppartement(r: Appartement): Appartement {
     surface_m2: num(r.surface_m2),
     valeur_bien: num(r.valeur_bien),
     archive: Boolean((r as unknown as { archive?: boolean }).archive),
+    // v1.6 « Vitrine vérifiée » : défauts sûrs si la ligne est
+    // antérieure à la migration (façon mapProfil) — jamais publiée
+    // par défaut, aucun contact annoncé, aucune visite renseignée.
+    vitrine_statut:
+      (brut.vitrine_statut as Appartement["vitrine_statut"] | undefined) ??
+      "non_publie",
+    vitrine_motif_refus:
+      (brut.vitrine_motif_refus as string | null | undefined) ?? null,
+    vitrine_valide_par:
+      (brut.vitrine_valide_par as string | null | undefined) ?? null,
+    vitrine_valide_le:
+      (brut.vitrine_valide_le as string | null | undefined) ?? null,
+    pieces: num(brut.pieces),
+    meuble: typeof brut.meuble === "boolean" ? brut.meuble : false,
+    disponible_le: (brut.disponible_le as string | null | undefined) ?? null,
+    visite_jours: Array.isArray(brut.visite_jours)
+      ? (brut.visite_jours as string[])
+      : [],
+    visite_heures: (brut.visite_heures as string | null | undefined) ?? null,
+    contact_nom: (brut.contact_nom as string | null | undefined) ?? null,
+    contact_telephone:
+      (brut.contact_telephone as string | null | undefined) ?? null,
+    contact_email: (brut.contact_email as string | null | undefined) ?? null,
+    contact_justification:
+      (brut.contact_justification as string | null | undefined) ?? null,
   };
+}
+
+/** v1.6 : normalisation e-mail pour la comparaison annonce ↔ dossier. */
+function normaliserEmailVitrine(valeur: string): string {
+  return valeur.trim().toLowerCase();
+}
+
+/** v1.6 : normalisation téléphone — seuls chiffres et « + » comptent. */
+function normaliserTelephoneVitrine(valeur: string): string {
+  return valeur.replace(/[^0-9+]/g, "");
+}
+
+/**
+ * v1.6 : le contact ANNONCÉ diverge-t-il du contact du DOSSIER ?
+ * Seuls les champs annoncés non null sont comparés (un champ non
+ * renseigné retombe sur le dossier : pas de divergence).
+ */
+function contactVitrineDivergent(
+  annonce: ContactPublic,
+  dossier: ContactPublic
+): boolean {
+  if (annonce.email !== null) {
+    const attendu =
+      dossier.email !== null ? normaliserEmailVitrine(dossier.email) : "";
+    if (normaliserEmailVitrine(annonce.email) !== attendu) return true;
+  }
+  if (annonce.telephone !== null) {
+    const attendu =
+      dossier.telephone !== null
+        ? normaliserTelephoneVitrine(dossier.telephone)
+        : "";
+    if (normaliserTelephoneVitrine(annonce.telephone) !== attendu) return true;
+  }
+  return false;
 }
 
 function mapBail(r: Bail): Bail {

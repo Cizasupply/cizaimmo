@@ -31,6 +31,15 @@ function nouvelleLigne(): LigneLot {
  * Formulaire appartement (spec §8) : un par un OU en lot (depuis la fiche
  * immeuble). Numéro unique dans l'immeuble, loyer strictement positif.
  */
+const JOURS_VISITE = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"] as const;
+
+function normaliserTelephone(v: string | null | undefined): string {
+  return (v ?? "").replace(/[^0-9+]/g, "");
+}
+function normaliserEmail(v: string | null | undefined): string {
+  return (v ?? "").trim().toLowerCase();
+}
+
 export default function AppartementForm({
   immeubles,
   preselectedImmeubleId,
@@ -39,6 +48,7 @@ export default function AppartementForm({
   onSubmitSingle,
   onSubmitBulk,
   submitLabel,
+  contactDossier,
 }: {
   immeubles: Immeuble[];
   preselectedImmeubleId?: string;
@@ -50,11 +60,18 @@ export default function AppartementForm({
     items: Omit<AppartementInput, "immeuble_id">[]
   ) => Promise<void>;
   submitLabel: string;
+  /**
+   * v1.6 (optionnel) : contact ATTENDU du dossier (gestionnaire rattaché
+   * ou propriétaire). Si le contact d'annonce saisi en diffère, la
+   * justification devient obligatoire. Absent = aucun contrôle.
+   */
+  contactDossier?: { telephone: string | null; email: string | null } | null;
 }) {
   const t = useTranslations("crud");
   const tf = useTranslations("crud.apartments.fields");
   const tv = useTranslations("crud.validation");
   const tc = useTranslations("crud.common");
+  const t16 = useTranslations("v16");
 
   const [immeubleId, setImmeubleId] = useState(
     preselectedImmeubleId ?? initial?.immeuble_id ?? immeubles[0]?.id ?? ""
@@ -74,6 +91,38 @@ export default function AppartementForm({
   const [vitrine, setVitrine] = useState(initial?.vitrine ?? false);
   const [valeur, setValeur] = useState(initial?.valeur_bien != null ? String(initial.valeur_bien) : "");
   const [deviseValeur, setDeviseValeur] = useState<Devise>(initial?.devise_valeur ?? initial?.devise ?? "USD");
+  // --- v1.6 « Vitrine vérifiée » : champs d'annonce publique.
+  const [pieces, setPieces] = useState(initial?.pieces != null ? String(initial.pieces) : "");
+  const [meuble, setMeuble] = useState(initial?.meuble ?? false);
+  const [disponibleLe, setDisponibleLe] = useState(initial?.disponible_le ?? "");
+  const [visiteJours, setVisiteJours] = useState<string[]>(initial?.visite_jours ?? []);
+  const [visiteHeures, setVisiteHeures] = useState(initial?.visite_heures ?? "");
+  const [contactNom, setContactNom] = useState(initial?.contact_nom ?? "");
+  // Pré-remplissage depuis le dossier (v1.6) : sans contact d'annonce
+  // déjà saisi, les champs partent du contact attendu — l'utilisateur
+  // ne saisit un autre contact que délibérément (justification alors
+  // demandée).
+  const [contactTelephone, setContactTelephone] = useState(
+    initial?.contact_telephone ?? contactDossier?.telephone ?? ""
+  );
+  const [contactEmail, setContactEmail] = useState(
+    initial?.contact_email ?? contactDossier?.email ?? ""
+  );
+  const [contactJustification, setContactJustification] = useState(initial?.contact_justification ?? "");
+
+  // Divergence jugée champ par champ : seulement si le contact
+  // ANNONCÉ est renseigné ET que le contact du dossier est connu
+  // (le téléphone d'un gestionnaire invité peut être inconnu côté
+  // client — la base comparera les deux champs à la demande).
+  const contactDivergent =
+    contactDossier != null &&
+    ((contactTelephone.trim() !== "" &&
+      (contactDossier.telephone ?? "").trim() !== "" &&
+      normaliserTelephone(contactTelephone) !== normaliserTelephone(contactDossier.telephone)) ||
+      (contactEmail.trim() !== "" &&
+        (contactDossier.email ?? "").trim() !== "" &&
+        normaliserEmail(contactEmail) !== normaliserEmail(contactDossier.email)));
+  const nombrePhotos = photos.split(",").map((p) => p.trim()).filter(Boolean).length;
 
   const [lignes, setLignes] = useState<LigneLot[]>([nouvelleLigne(), nouvelleLigne(), nouvelleLigne()]);
   const [errors, setErrors] = useState<Errors>({});
@@ -91,6 +140,11 @@ export default function AppartementForm({
     if (surface.trim() !== "" && !(Number(surface) > 0)) next.surface = tv("positiveStrict");
     if (charges.trim() !== "" && !(Number(charges) >= 0)) next.charges = tv("positive");
     if (valeur.trim() !== "" && !(Number(valeur) > 0)) next.valeur = tv("positiveStrict");
+    if (pieces.trim() !== "" && !(Number(pieces) > 0)) next.pieces = tv("positiveStrict");
+    if (nombrePhotos > 10) next.photos = t16("photosTooMany");
+    if (contactDivergent && !contactJustification.trim()) {
+      next.justification = t16("justificationRequired");
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -163,6 +217,15 @@ export default function AppartementForm({
         vitrine,
         valeur_bien: valeur.trim() === "" ? null : Number(valeur),
         devise_valeur: valeur.trim() === "" ? null : deviseValeur,
+        pieces: pieces.trim() === "" ? null : Number(pieces),
+        meuble,
+        disponible_le: disponibleLe || null,
+        visite_jours: visiteJours,
+        visite_heures: visiteHeures.trim() || null,
+        contact_nom: contactNom.trim() || null,
+        contact_telephone: contactTelephone.trim() || null,
+        contact_email: contactEmail.trim() || null,
+        contact_justification: contactJustification.trim() || null,
       });
     } catch (err) {
       setErrors({ form: messageErreur(t as unknown as (k: string) => string, err) });
@@ -307,7 +370,12 @@ export default function AppartementForm({
             onCurrencyChange={setDeviseValeur}
             error={errors.valeur}
           />
-          <Field id="photos" label={tf("photos")} value={photos} onChange={setPhotos} placeholder="https://…, https://…" />
+          <div>
+            <Field id="photos" label={tf("photos")} value={photos} onChange={setPhotos} placeholder="https://…, https://…" error={errors.photos} />
+            <p className={`mt-1 text-sm ${nombrePhotos > 10 ? "font-bold text-red-600" : "text-slate-500"}`}>
+              {t16("photosCounter", { count: String(nombrePhotos) })}
+            </p>
+          </div>
           <div>
             <label htmlFor="description" className="block text-sm font-semibold text-slate-900">{tf("description")}</label>
             <textarea
@@ -327,6 +395,63 @@ export default function AppartementForm({
             />
             {tf("vitrine")}
           </label>
+
+          <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
+            <legend className="px-1 text-sm font-bold text-navy">{t16("listingSection")}</legend>
+            <p className="text-sm text-slate-600">{t16("listingSectionHint")}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="pieces" label={t16("rooms")} type="number" value={pieces} onChange={setPieces} error={errors.pieces} />
+              <Field id="disponible-le" label={t16("availableOn")} type="date" value={disponibleLe} onChange={setDisponibleLe} />
+            </div>
+            <label className="flex items-center gap-2 text-base text-slate-900">
+              <input
+                type="checkbox"
+                checked={meuble}
+                onChange={(e) => setMeuble(e.target.checked)}
+                className="h-5 w-5 accent-[#1B2A4A]"
+              />
+              {t16("furnished")}
+            </label>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">{t16("visitDays")}</p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {JOURS_VISITE.map((jour) => (
+                  <label key={jour} className="flex items-center gap-1.5 text-sm text-slate-900">
+                    <input
+                      type="checkbox"
+                      checked={visiteJours.includes(jour)}
+                      onChange={(e) =>
+                        setVisiteJours((prev) =>
+                          e.target.checked ? [...prev, jour] : prev.filter((j) => j !== jour)
+                        )
+                      }
+                      className="h-4 w-4 accent-[#1B2A4A]"
+                    />
+                    {t16(`day_${jour}` as "day_lun")}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Field id="visite-heures" label={t16("visitHours")} value={visiteHeures} onChange={setVisiteHeures} placeholder={t16("visitHoursPlaceholder")} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="contact-nom" label={t16("contactName")} value={contactNom} onChange={setContactNom} />
+              <Field id="contact-telephone" label={t16("contactPhone")} value={contactTelephone} onChange={setContactTelephone} />
+            </div>
+            <Field id="contact-email" label={t16("contactEmail")} type="email" value={contactEmail} onChange={setContactEmail} />
+            {contactDivergent ? (
+              <div>
+                <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{t16("justificationHint")}</p>
+                <Field
+                  id="contact-justification"
+                  label={t16("justificationLabel")}
+                  value={contactJustification}
+                  onChange={setContactJustification}
+                  error={errors.justification}
+                  required
+                />
+              </div>
+            ) : null}
+          </fieldset>
         </>
       )}
 

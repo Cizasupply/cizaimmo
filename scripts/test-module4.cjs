@@ -77,8 +77,12 @@ function approx(a, b, eps = 1e-6) { return Math.abs(a - b) < eps; }
     echeances: db.echeances, paiements: db.paiements, depenses: db.depenses,
     moisIso: "2026-11-01", aujourdHui: auJour("2026-11-06"),
   });
-  check("occupation 5/6 = 83,3 % (A4 vacant)", approx(ind.occupation, 5 / 6), String(ind.occupation));
-  check("vacants = 1 (A4)", ind.nbVacants === 1, String(ind.nbVacants));
+  // v1.6 : le seed a gagné un 7e appartement vacant (n° 201, Bloc
+  // Saint-Laurent — l'annonce en attente de validation de la vitrine
+  // vérifiée). Les indicateurs suivent la fixture : 5 occupés / 7,
+  // 2 vacants (A4 + 201). Le calcul lui-même est inchangé.
+  check("occupation 5/7 (A4 + 201 vacants)", approx(ind.occupation, 5 / 7), String(ind.occupation));
+  check("vacants = 2 (A4 + 201)", ind.nbVacants === 2, String(ind.nbVacants));
   const colBif = ind.collectes.find((c) => c.devise === "BIF");
   const colCad = ind.collectes.find((c) => c.devise === "CAD");
   check("collectés nov. BIF 850 000", colBif && colBif.total === 850000, JSON.stringify(ind.collectes));

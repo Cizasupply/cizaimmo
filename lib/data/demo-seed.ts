@@ -278,6 +278,7 @@ export function buildDemoDb(): DemoDb {
       prix_acquisition: 150000000,
       date_estimation: "2026-10-01",
       mode_acquisition: "achat",
+      quartier: "Buhomba",
       statut: "actif",
       created_at: now,
     },
@@ -299,6 +300,7 @@ export function buildDemoDb(): DemoDb {
       prix_acquisition: 790000,
       date_estimation: null,
       mode_acquisition: "achat",
+      quartier: "Le Plateau-Mont-Royal",
       statut: "actif",
       created_at: now,
     },
@@ -320,20 +322,26 @@ export function buildDemoDb(): DemoDb {
       prix_acquisition: 80000000,
       date_estimation: null,
       mode_acquisition: "heritage",
+      quartier: "Kigobe",
       statut: "archive",
       created_at: now,
     },
   ];
 
   const appartements: Appartement[] = [
-    { id: "00000000-0000-4000-8000-000000000301", immeuble_id: immeubles[0].id, numero: "A1", type: "T2", surface_m2: 58, loyer_defaut: 450000, devise: "BIF", charges: 50000, etage: 0, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000302", immeuble_id: immeubles[0].id, numero: "A2", type: "T3", surface_m2: 82, loyer_defaut: 650000, devise: "BIF", charges: 50000, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000303", immeuble_id: immeubles[0].id, numero: "A3", type: "studio", surface_m2: 32, loyer_defaut: 280000, devise: "BIF", charges: 30000, etage: 2, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000304", immeuble_id: immeubles[1].id, numero: "101", type: "T2", surface_m2: 64, loyer_defaut: 1250, devise: "CAD", charges: 0, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000305", immeuble_id: immeubles[1].id, numero: "102", type: "T1", surface_m2: 45, loyer_defaut: 980, devise: "CAD", charges: 0, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000306", immeuble_id: immeubles[2].id, numero: "RDC", type: "T3", surface_m2: 75, loyer_defaut: 500000, devise: "BIF", charges: 0, etage: 0, description: null, photos: [], statut: "vacant", vitrine: false, archive: true, valeur_bien: null, devise_valeur: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000301", immeuble_id: immeubles[0].id, numero: "A1", type: "T2", surface_m2: 58, loyer_defaut: 450000, devise: "BIF", charges: 50000, etage: 0, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000302", immeuble_id: immeubles[0].id, numero: "A2", type: "T3", surface_m2: 82, loyer_defaut: 650000, devise: "BIF", charges: 50000, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000303", immeuble_id: immeubles[0].id, numero: "A3", type: "studio", surface_m2: 32, loyer_defaut: 280000, devise: "BIF", charges: 30000, etage: 2, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000304", immeuble_id: immeubles[1].id, numero: "101", type: "T2", surface_m2: 64, loyer_defaut: 1250, devise: "CAD", charges: 0, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000305", immeuble_id: immeubles[1].id, numero: "102", type: "T1", surface_m2: 45, loyer_defaut: 980, devise: "CAD", charges: 0, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000306", immeuble_id: immeubles[2].id, numero: "RDC", type: "T3", surface_m2: 75, loyer_defaut: 500000, devise: "BIF", charges: 0, etage: 0, description: null, photos: [], statut: "vacant", vitrine: false, archive: true, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
     // Vacant depuis le 20 sept. 2026 : vacance prolongée (> 30 jours) au 6 nov.
-    { id: "00000000-0000-4000-8000-000000000307", immeuble_id: immeubles[0].id, numero: "A4", type: "T1", surface_m2: 41, loyer_defaut: 350000, devise: "BIF", charges: 30000, etage: 2, description: null, photos: [], statut: "vacant", vitrine: true, archive: false, valeur_bien: null, devise_valeur: null, created_at: "2026-09-20T00:00:00.000Z" },
+    { id: "00000000-0000-4000-8000-000000000307", immeuble_id: immeubles[0].id, numero: "A4", type: "T1", surface_m2: 41, loyer_defaut: 350000, devise: "BIF", charges: 30000, etage: 2, description: "Appartement lumineux avec balcon, proche de toutes commodités, disponible immédiatement.", photos: ["https://exemple.cizaimmo.com/photos/a4-1.jpg", "https://exemple.cizaimmo.com/photos/a4-2.jpg"], statut: "vacant", vitrine: true, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "approuve", vitrine_motif_refus: null, vitrine_valide_par: "plateforme-super-admin", vitrine_valide_le: "2026-11-05T10:00:00.000Z", pieces: 2, meuble: true, disponible_le: null, visite_jours: ["sam"], visite_heures: "10h - 16h", contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: "2026-09-20T00:00:00.000Z" },
+    // v1.6 : annonce EN ATTENTE de validation Admin — le contact annoncé
+    // (une agence locale) diverge du contact du dossier (Marc Dubois,
+    // gestionnaire rattaché actif du Bloc Saint-Laurent), AVEC
+    // justification : la file console démo montre divergent = true.
+    { id: "00000000-0000-4000-8000-000000000308", immeuble_id: immeubles[1].id, numero: "201", type: "T2", surface_m2: 55, loyer_defaut: 1100, devise: "CAD", charges: 0, etage: 2, description: "Bel appartement ensoleillé au 2e étage, cuisine ouverte et rangement intégré.", photos: ["https://exemple.cizaimmo.com/photos/201-1.jpg", "https://exemple.cizaimmo.com/photos/201-2.jpg"], statut: "vacant", vitrine: true, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "en_attente", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: 3, meuble: false, disponible_le: "2026-12-01", visite_jours: ["mer", "sam"], visite_heures: "17h - 19h", contact_nom: "Agence Relais Montréal", contact_telephone: "+1 514 555 0199", contact_email: "relais@exemple.ca", contact_justification: "Le gestionnaire a confié les visites à une agence locale pendant son absence.", created_at: now },
   ];
 
   const locataires: Locataire[] = [
@@ -526,14 +534,15 @@ export function buildDemoDb(): DemoDb {
       prix_acquisition: 320000000,
       date_estimation: "2026-09-15",
       mode_acquisition: "achat",
+      quartier: "Rohero",
       statut: "actif",
       created_at: now,
     },
   ];
   const cgAppartements: Appartement[] = [
-    { id: "00000000-0000-4000-8000-000000000e11", immeuble_id: cgImmeubles[0].id, numero: "R1", type: "T2", surface_m2: 62, loyer_defaut: 520000, devise: "BIF", charges: 40000, etage: 0, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000e12", immeuble_id: cgImmeubles[0].id, numero: "R2", type: "T3", surface_m2: 88, loyer_defaut: 740000, devise: "BIF", charges: 40000, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
-    { id: "00000000-0000-4000-8000-000000000e13", immeuble_id: cgImmeubles[0].id, numero: "R3", type: "T1", surface_m2: 44, loyer_defaut: 390000, devise: "BIF", charges: 30000, etage: 1, description: null, photos: [], statut: "vacant", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e11", immeuble_id: cgImmeubles[0].id, numero: "R1", type: "T2", surface_m2: 62, loyer_defaut: 520000, devise: "BIF", charges: 40000, etage: 0, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e12", immeuble_id: cgImmeubles[0].id, numero: "R2", type: "T3", surface_m2: 88, loyer_defaut: 740000, devise: "BIF", charges: 40000, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e13", immeuble_id: cgImmeubles[0].id, numero: "R3", type: "T1", surface_m2: 44, loyer_defaut: 390000, devise: "BIF", charges: 30000, etage: 1, description: null, photos: [], statut: "vacant", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, vitrine_statut: "non_publie", vitrine_motif_refus: null, vitrine_valide_par: null, vitrine_valide_le: null, pieces: null, meuble: false, disponible_le: null, visite_jours: [], visite_heures: null, contact_nom: null, contact_telephone: null, contact_email: null, contact_justification: null, created_at: now },
   ];
   const cgLocataires: Locataire[] = [
     { id: "00000000-0000-4000-8000-000000000e21", owner_id: CIZAGROUP_OWNER_ID, nom: "Espoir Manirakiza", telephone: "+25779001122", email: "espoir.m@exemple.bi", piece_type: "cni", piece_numero: "1234567890999", adresse_precedente: "Ngagara, Bujumbura", contact_urgence: "+25779001123", notes: null, lien_token: null, lien_expire_le: null, created_at: now },
