@@ -4096,6 +4096,7 @@ export class DemoProvider implements DataProvider {
     return {
       compte,
       photo_profil_path: photoPath,
+      photo_profil_url: null,
       documents_compte: documentsCompte,
       preuves_propriete: preuvesPropriete,
       rattachements_comme_proprietaire: commeProprietaire,

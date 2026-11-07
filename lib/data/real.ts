@@ -3403,9 +3403,23 @@ export class RealProvider implements DataProvider {
       .order("created_at", { ascending: false })
       .limit(50);
 
+    // Photo de profil : lien signé (1 h) pour l'afficher dans le
+    // dossier — la politique Storage « select plateforme » autorise
+    // l'Admin à lire les fichiers clients du bucket privé. Un échec
+    // de signature ne bloque jamais le dossier (url null).
+    const photoPath = profilRow?.photo_profil_path ?? null;
+    let photoProfilUrl: string | null = null;
+    if (photoPath) {
+      const { data: signePhoto } = await client.storage
+        .from("documents-prives")
+        .createSignedUrl(photoPath, 3600);
+      photoProfilUrl = signePhoto?.signedUrl ?? null;
+    }
+
     return {
       compte,
-      photo_profil_path: profilRow?.photo_profil_path ?? null,
+      photo_profil_path: photoPath,
+      photo_profil_url: photoProfilUrl,
       documents_compte: (docsCompte as Document[] | null) ?? [],
       preuves_propriete: preuvesPropriete,
       rattachements_comme_proprietaire: commeProprietaire,

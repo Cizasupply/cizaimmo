@@ -295,6 +295,20 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
     !!rattachement && rattachement.contexte === "proprietaire" && rattachement.immeuble_ids.length === 0,
     JSON.stringify(rattachement));
 
+  // Photo de profil AFFICHÉE dans le dossier (correctif 2026-11-07) :
+  // le champ photo_profil_url fait partie du contrat du dossier
+  // (null en démo ; lien signé en réel), et la page le rend.
+  check("dossier : photo_profil_url présent au contrat (null en démo)",
+    "photo_profil_url" in dossierProprio && dossierProprio.photo_profil_url === null,
+    JSON.stringify(dossierProprio.photo_profil_url));
+  const fsV13 = require("node:fs");
+  const srcRealV13 = fsV13.readFileSync(__dirname + "/../lib/data/real.ts", "utf8");
+  check("réel : listerDossier signe l'URL de la photo de profil",
+    srcRealV13.includes("createSignedUrl(photoPath, 3600)") && srcRealV13.includes("photo_profil_url: photoProfilUrl"));
+  const srcPageDossierV13 = fsV13.readFileSync(__dirname + "/../app/[locale]/console/comptes/[id]/page.tsx", "utf8");
+  check("console : la page Dossier affiche la photo (vignette cliquable)",
+    srcPageDossierV13.includes("dossier.photo_profil_url") && srcPageDossierV13.includes("<img"));
+
   // Toujours aucun accès tant que rien n'est assigné.
   await connecter(GESTIONNAIRE_DEMO_EMAIL);
   await p.definirContexteActif(validee.rattachement_id);

@@ -1012,6 +1012,12 @@ export interface DossierCompte {
   compte: ComptePlateforme;
   /** Chemin Storage de la photo de profil (bucket privé), si reçue. */
   photo_profil_path: string | null;
+  /**
+   * Lien signé temporaire (1 h) vers la photo de profil, pour
+   * l'afficher dans le dossier (réel uniquement ; null en démo
+   * et si la signature échoue — le dossier reste lisible).
+   */
+  photo_profil_url: string | null;
   /** Documents du dossier (entite_type « compte » : pièce d'identité, contrat). */
   documents_compte: Document[];
   /** Preuves de propriété : documents « justificatif » des immeubles possédés. */

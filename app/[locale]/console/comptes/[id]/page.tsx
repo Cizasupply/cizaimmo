@@ -254,6 +254,17 @@ export default function ConsoleDossierPage({
               <dt className="font-semibold">{t("filePhoto")}</dt>
               <dd>{dossier.photo_profil_path ? `✓ ${t("received")}` : t("missing")}</dd>
             </div>
+            {dossier.photo_profil_url ? (
+              <div className="pt-2">
+                <a href={dossier.photo_profil_url} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={dossier.photo_profil_url}
+                    alt={t("filePhoto")}
+                    className="h-28 w-28 rounded-xl object-cover ring-1 ring-slate-200"
+                  />
+                </a>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-3">
               <dt className="font-semibold">{t("phoneLabel")}</dt>
               <dd>{compte.telephone ?? "—"}</dd>
