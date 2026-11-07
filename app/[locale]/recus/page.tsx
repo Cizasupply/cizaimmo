@@ -23,6 +23,11 @@ function moisAffiche(moisIso: string, locale: string): string {
   }).format(new Date(a, m - 1, 1));
 }
 
+/** Montant du reçu : vert si valide (encaissé), gris barré si annulé. */
+function couleurMontantRecu(statut: Recu["statut"]): string {
+  return statut === "valide" ? "text-green-700" : "text-slate-400 line-through";
+}
+
 export default function RecusPage() {
   const t = useTranslations("crud");
   const tp = useTranslations("pages");
@@ -226,7 +231,7 @@ export default function RecusPage() {
                       <p className="break-words text-sm text-slate-600">
                         {moisAffiche(r.mois, locale)} · {r.immeuble_nom} — {r.appartement_numero}
                       </p>
-                      <p className="mt-1 break-all text-base font-bold text-navy">{formatMoney(r.montant, r.devise, locale)}</p>
+                      <p className={`mt-1 break-all text-base font-bold ${couleurMontantRecu(r.statut)}`}>{formatMoney(r.montant, r.devise, locale)}</p>
                       <p className="text-xs text-slate-500">{formatDate(r.date_paiement, locale)}</p>
                       {r.statut === "annule" ? (
                         <p className="mt-1 text-xs font-medium text-red-700">{t("receipts.cancelledNote")}</p>
@@ -282,7 +287,7 @@ export default function RecusPage() {
                             <p className="text-xs text-slate-500">{r.immeuble_nom} — {r.appartement_numero}</p>
                           </td>
                           <td className="px-4 py-3">{moisAffiche(r.mois, locale)}</td>
-                          <td className="px-4 py-3 font-semibold text-navy">{formatMoney(r.montant, r.devise, locale)}</td>
+                          <td className={`px-4 py-3 font-semibold ${couleurMontantRecu(r.statut)}`}>{formatMoney(r.montant, r.devise, locale)}</td>
                           <td className="px-4 py-3">
                             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${r.statut === "valide" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                               {r.statut === "valide" ? t("receipts.statusValid") : t("receipts.statusCancelled")}

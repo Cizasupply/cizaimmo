@@ -42,6 +42,22 @@ export default function DocumentList({
     return t(`types.${type}`);
   }
 
+  /** Pastille discrète par type de document (palette de l'app, sans arc-en-ciel). */
+  function couleurTypeDocument(type: TypeDocument): string {
+    switch (type) {
+      case "bail":
+        return "bg-green-100 text-green-800";
+      case "justificatif":
+        return "bg-amber-100 text-amber-800";
+      case "facture":
+        return "bg-orange-100 text-orange-800";
+      case "piece_identite":
+      case "autre":
+      default:
+        return "bg-slate-100 text-slate-700";
+    }
+  }
+
   async function telecharger(doc: Document) {
     setErreur(null);
     setAction(doc.id);
@@ -103,7 +119,9 @@ export default function DocumentList({
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-navy" title={doc.nom_fichier}>{doc.nom_fichier}</p>
               <p className="break-words text-sm text-slate-600">
-                {typeLabel(doc.type)}
+                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${couleurTypeDocument(doc.type)}`}>
+                  {typeLabel(doc.type)}
+                </span>
                 {showEntity && nomEntite ? ` · ${nomEntite(doc)}` : ""}
                 {` · ${formatDate(doc.created_at.slice(0, 10), locale)}`}
                 {doc.taille_octets !== null && doc.taille_octets !== undefined ? ` · ${tailleMo(doc.taille_octets)}` : ""}

@@ -202,6 +202,21 @@ export default function DashboardPage() {
     return type === "paiement" ? "💰" : type === "depense" ? "🧾" : type === "bail" ? "📄" : type === "document" ? "📎" : type === "alerte" ? "🔔" : "🏠";
   }
 
+  /** Pastille couleur du fil d'actualité, même code que le reste du tableau de bord :
+      paiement reçu = vert, dépense = rouge, alerte (attention : fin de bail, vacance…)
+      = ambre, bail = marine (pastille marine claire), autre = slate. */
+  function pastilleActivite(type: Activite["type"]): string {
+    return type === "paiement"
+      ? "bg-green-100 text-green-800"
+      : type === "depense"
+        ? "bg-red-100 text-red-800"
+        : type === "alerte"
+          ? "bg-amber-100 text-amber-800"
+          : type === "bail"
+            ? "bg-navy/10 text-navy"
+            : "bg-slate-100 text-slate-700";
+  }
+
   return (
     <AppShell title={tp("dashboard.title")}>
       {erreur ? (
@@ -272,42 +287,43 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-600">{td("converterNote")}</p>
           </div>
 
-          {/* 4 chiffres clés */}
+          {/* 4 chiffres clés — code couleur : vert = ok / collecté, rouge = en retard,
+              marine = attendu (à venir), ambre = vacant / attention. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
+            <div className={`min-w-0 rounded-2xl p-4 shadow-sm ${indicateurs.occupation === null ? "bg-white" : indicateurs.occupation >= 0.8 ? "bg-green-50" : "bg-amber-50"}`}>
               <p className="text-sm font-semibold text-slate-600">{td("occupancy")}</p>
-              <p className="mt-1 text-2xl font-bold text-navy">
+              <p className={`mt-1 text-2xl font-bold ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
                 {indicateurs.occupation === null ? "—" : formatPct(indicateurs.occupation, locale)}
               </p>
               <p className="break-words text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-green-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("collectedMonth")}</p>
               {collectesConv.lignes.map((l) => (
-                <p key={l.devise} className="mt-1 break-all text-lg font-bold text-navy">
+                <p key={l.devise} className="mt-1 break-all text-lg font-bold text-green-700">
                   {formatMoney(l.total, l.devise, locale)}
                   {l.converti !== null && l.devise !== deviseAffichage ? (
-                    <span className="block text-sm font-normal text-slate-600">
+                    <span className="block text-sm font-normal text-green-700">
                       ≈ {formatMoney(l.converti, deviseAffichage, locale)}
                       {l.dateTaux ? ` · ${td("rateDate", { date: formatDate(l.dateTaux.slice(0, 10), locale) })}${l.source === "manuel" ? ` · ${td("manualRate")}` : ""}` : ""}
                     </span>
                   ) : null}
                 </p>
               ))}
-              <p className="break-words text-sm text-slate-600">
+              <p className="break-words text-sm font-semibold text-navy">
                 {td("expectedMonth")}: {attendusConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
               </p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-red-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("lateAmount")}</p>
               {retardsConv.lignes.length === 0 ? (
-                <p className="mt-1 text-2xl font-bold text-navy">0</p>
+                <p className="mt-1 text-2xl font-bold text-green-700">0</p>
               ) : (
                 retardsConv.lignes.map((l) => (
                   <p key={l.devise} className="mt-1 break-all text-lg font-bold text-red-700">
                     {formatMoney(l.total, l.devise, locale)}
                     {l.converti !== null && l.devise !== deviseAffichage ? (
-                      <span className="block text-sm font-normal text-slate-600">
+                      <span className="block text-sm font-normal text-red-700">
                         ≈ {formatMoney(l.converti, deviseAffichage, locale)}
                         {l.dateTaux ? ` · ${td("rateDate", { date: formatDate(l.dateTaux.slice(0, 10), locale) })}` : ""}
                       </span>
@@ -317,9 +333,9 @@ export default function DashboardPage() {
               )}
               <p className="break-words text-sm text-slate-600">{td("lateCount", { count: indicateurs.retards.length })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl bg-amber-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("vacant")}</p>
-              <p className="mt-1 text-2xl font-bold text-navy">{indicateurs.nbVacants}</p>
+              <p className="mt-1 text-2xl font-bold text-amber-700">{indicateurs.nbVacants}</p>
               <p className="text-sm text-slate-600">{td("vacantHint")}</p>
             </div>
           </div>
@@ -355,7 +371,7 @@ export default function DashboardPage() {
                     <li key={e.id} className="flex items-center justify-between gap-2 py-2">
                       <div className="min-w-0">
                         <p className="break-words font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"} ({imm?.nom ?? "—"})</p>
-                        <p className="break-words text-sm text-slate-600">{e.mois.slice(0, 7)} · {td("remaining")}: {formatMoney(e.montant_du - paye, e.devise, locale)}</p>
+                        <p className="break-words text-sm text-slate-600">{e.mois.slice(0, 7)} · {td("remaining")}: <span className="font-semibold text-red-700">{formatMoney(e.montant_du - paye, e.devise, locale)}</span></p>
                       </div>
                       <Link href="/loyers" className="shrink-0 text-sm font-semibold text-navy underline">{td("open")}</Link>
                     </li>
@@ -379,7 +395,7 @@ export default function DashboardPage() {
                     return (
                       <li key={b.id} className="py-2">
                         <p className="break-words font-semibold text-navy">{loc?.nom ?? "—"} — {apt?.numero ?? "—"}</p>
-                        <p className="text-sm text-slate-600">{td("leaseEndsOn", { date: formatDate(b.fin, locale) })}</p>
+                        <p className="text-sm font-medium text-amber-700">{td("leaseEndsOn", { date: formatDate(b.fin, locale) })}</p>
                       </li>
                     );
                   })}
@@ -395,7 +411,7 @@ export default function DashboardPage() {
                   {indicateurs.depensesMois.slice(0, 5).map((d) => (
                     <li key={d.id} className="flex items-center justify-between gap-2 py-2">
                       <p className="min-w-0 break-words font-semibold text-navy">{d.libelle}</p>
-                      <p className="shrink-0 break-all text-sm font-semibold">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="shrink-0 break-all text-sm font-semibold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
                     </li>
                   ))}
                 </ul>
@@ -419,7 +435,7 @@ export default function DashboardPage() {
                   const hCollecte = Math.round((s.collecte / maxGraphique) * 110);
                   return (
                     <g key={s.mois}>
-                      <rect x={x} y={140 - hAttendu} width="20" height={hAttendu} fill="#cbd5e1" rx="2" />
+                      <rect x={x} y={140 - hAttendu} width="20" height={hAttendu} fill="#D4AF37" rx="2" />
                       <rect x={x + 22} y={140 - hCollecte} width="20" height={hCollecte} fill="#1B2A4A" rx="2" />
                       <text x={x + 21} y="158" textAnchor="middle" fontSize="10" fill="#475569">{moisAffiche(s.mois, locale)}</text>
                     </g>
@@ -429,7 +445,7 @@ export default function DashboardPage() {
             </div>
             <p className="mt-1 text-sm text-slate-600">
               <span className="mr-4"><span className="inline-block h-3 w-3 rounded-sm bg-navy align-middle" /> {td("chartCollected")}</span>
-              <span><span className="inline-block h-3 w-3 rounded-sm bg-slate-300 align-middle" /> {td("chartExpected")}</span>
+              <span><span className="inline-block h-3 w-3 rounded-sm bg-gold align-middle" /> {td("chartExpected")}</span>
             </p>
           </section>
 
@@ -459,7 +475,7 @@ export default function DashboardPage() {
                   const url = urlActivite(a);
                   const contenu = (
                     <>
-                      <span aria-hidden="true" className="mr-2">{iconeActivite(a.type)}</span>
+                      <span aria-hidden="true" className={`mr-2 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${pastilleActivite(a.type)}`}>{iconeActivite(a.type)}</span>
                       <span className="break-words font-medium text-navy">{a.description}</span>
                       <span className="block text-sm text-slate-500 sm:inline sm:ml-2">{formatDate(a.created_at.slice(0, 10), locale)}</span>
                     </>

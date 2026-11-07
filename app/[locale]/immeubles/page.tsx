@@ -24,6 +24,20 @@ import { messageErreur } from "@/lib/translateError";
 
 type Tri = "nom" | "ville" | "loyer" | "nouveau";
 
+/** Couleur du taux d'occupation : vert ≥ 80 %, ambre 50–79 %, rouge < 50 %. */
+function couleurOccupation(occupation: number | null | undefined): string {
+  if (occupation === null || occupation === undefined) return "text-slate-500";
+  if (occupation >= 0.8) return "text-green-700";
+  if (occupation >= 0.5) return "text-amber-700";
+  return "text-red-700";
+}
+
+/** ROI : vert si ≥ 0, rouge si négatif. */
+function couleurRoi(roi: number | null | undefined): string {
+  if (roi === null || roi === undefined) return "text-navy";
+  return roi >= 0 ? "text-green-700" : "text-red-700";
+}
+
 export default function ImmeublesPage() {
   const t = useTranslations("crud");
   const tp = useTranslations("pages");
@@ -278,10 +292,10 @@ export default function ImmeublesPage() {
                         ) : null}
                       </div>
                       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsApartments")}</dt><dd className="font-bold text-navy">{s?.nbAppartements ?? 0} ({s?.nbOccupes ?? 0} {t("buildings.statsOccupied").toLowerCase()})</dd></div>
-                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsOccupancy")}</dt><dd className="font-bold text-navy">{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsApartments")}</dt><dd className="font-bold text-navy">{s?.nbAppartements ?? 0} (<span className="font-bold text-green-700">{s?.nbOccupes ?? 0}</span> {t("buildings.statsOccupied").toLowerCase()})</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsOccupancy")}</dt><dd className={`font-bold ${couleurOccupation(s?.occupation)}`}>{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</dd></div>
                         <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsMonthlyRent")}</dt><dd className="break-all font-bold text-navy">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</dd></div>
-                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsRoi")}</dt><dd className="font-bold text-navy">{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsRoi")}</dt><dd className={`font-bold ${couleurRoi(s?.roi)}`}>{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</dd></div>
                       </dl>
                       <div className="mt-3 flex gap-2">
                         <Link href={`/${locale}/immeubles/${im.id}/modifier`} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy">
@@ -334,11 +348,11 @@ export default function ImmeublesPage() {
                             ) : null}
                           </td>
                           <td className="px-4 py-3">{im.ville}, {im.pays}</td>
-                          <td className="px-4 py-3">{s?.nbAppartements ?? 0} ({s?.nbOccupes ?? 0} {t("buildings.statsOccupied").toLowerCase()})</td>
-                          <td className="px-4 py-3">{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</td>
+                          <td className="px-4 py-3">{s?.nbAppartements ?? 0} (<span className="font-bold text-green-700">{s?.nbOccupes ?? 0}</span> {t("buildings.statsOccupied").toLowerCase()})</td>
+                          <td className={`px-4 py-3 font-bold ${couleurOccupation(s?.occupation)}`}>{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</td>
                           <td className="px-4 py-3">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</td>
                           <td className="px-4 py-3">{im.valeur_bien ? formatMoney(im.valeur_bien, im.devise_valeur ?? im.devise, locale) : t("common.notProvided")}</td>
-                          <td className="px-4 py-3">{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</td>
+                          <td className={`px-4 py-3 font-bold ${couleurRoi(s?.roi)}`}>{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <Link href={`/${locale}/immeubles/${im.id}/modifier`} className="font-semibold text-navy underline">

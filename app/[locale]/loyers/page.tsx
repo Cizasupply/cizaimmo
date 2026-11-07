@@ -76,6 +76,17 @@ function couleurStatut(s: StatutLoyer): string {
           : "bg-slate-100 text-slate-700";
 }
 
+/** Montant collecté : vert quand > 0, gris sinon (rien encaissé). */
+function couleurPaye(paye: number): string {
+  return paye > 0 ? "text-green-700" : "text-slate-500";
+}
+
+/** Restant dû : rouge si en retard, ambre si dû, vert si soldé. */
+function couleurRestant(x: EcheanceEnrichie): string {
+  if (x.restant <= 0) return "text-green-700";
+  return x.echeance.statut === "en_retard" ? "text-red-700" : "text-amber-700";
+}
+
 function moisAffiche(moisIso: string, locale: string): string {
   const [a, m] = isoVersMois(moisIso).split("-").map(Number);
   return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
@@ -650,9 +661,9 @@ export default function LoyersPage() {
                 <div key={deviseTot} className="rounded-xl border border-slate-200 p-3">
                   <p className="text-sm font-bold text-navy">{deviseTot}</p>
                   <dl className="mt-1 space-y-1 text-sm text-slate-700">
-                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsExpected")}</dt><dd className="font-semibold break-all">{formatMoney(tot.attendu, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsExpected")}</dt><dd className="font-semibold break-all text-navy">{formatMoney(tot.attendu, deviseTot, locale)}</dd></div>
                     <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsCollected")}</dt><dd className="font-semibold break-all text-green-700">{formatMoney(tot.collecte, deviseTot, locale)}</dd></div>
-                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsRemaining")}</dt><dd className="font-semibold break-all">{formatMoney(tot.restant, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsRemaining")}</dt><dd className={`font-semibold break-all ${tot.retard > 0 ? "text-red-700" : tot.restant > 0 ? "text-amber-700" : "text-green-700"}`}>{formatMoney(tot.restant, deviseTot, locale)}</dd></div>
                     <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsLate")}</dt><dd className="font-semibold break-all text-red-700">{formatMoney(tot.retard, deviseTot, locale)}</dd></div>
                   </dl>
                 </div>
@@ -686,7 +697,7 @@ export default function LoyersPage() {
                       </p>
                       {prorata ? <p className="text-xs text-slate-500">{prorata}</p> : null}
                       <p className="text-sm text-slate-700 break-words">
-                        {t("rents.paidLabel")} : {formatMoney(x.paye, x.echeance.devise, locale)} · {t("rents.remainingLabel")} : {formatMoney(x.restant, x.echeance.devise, locale)}
+                        {t("rents.paidLabel")} : <span className={`font-semibold ${couleurPaye(x.paye)}`}>{formatMoney(x.paye, x.echeance.devise, locale)}</span> · {t("rents.remainingLabel")} : <span className={`font-semibold ${couleurRestant(x)}`}>{formatMoney(x.restant, x.echeance.devise, locale)}</span>
                       </p>
                       {x.tropPercu > 0 ? <p className="text-sm font-semibold text-amber-700">{t("rents.overpaid", { amount: formatMoney(x.tropPercu, x.echeance.devise, locale) })}</p> : null}
                       <p className="text-xs text-slate-500">
@@ -751,7 +762,7 @@ export default function LoyersPage() {
                           </td>
                           <td className="px-4 py-3 font-semibold text-navy">{formatMoney(x.echeance.montant_du, x.echeance.devise, locale)}</td>
                           <td className="px-4 py-3">
-                            {formatMoney(x.paye, x.echeance.devise, locale)} / {formatMoney(x.restant, x.echeance.devise, locale)}
+                            <span className={`font-semibold ${couleurPaye(x.paye)}`}>{formatMoney(x.paye, x.echeance.devise, locale)}</span> / <span className={`font-semibold ${couleurRestant(x)}`}>{formatMoney(x.restant, x.echeance.devise, locale)}</span>
                             {x.tropPercu > 0 ? <p className="text-xs font-semibold text-amber-700">{t("rents.overpaid", { amount: formatMoney(x.tropPercu, x.echeance.devise, locale) })}</p> : null}
                           </td>
                           <td className="px-4 py-3">
@@ -808,7 +819,7 @@ export default function LoyersPage() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-navy">{aCorriger ? t("rents.declareTitleCorrect") : t("rents.declareTitle")}</h2>
             <p className="mt-1 text-sm text-slate-600">
-              {t("rents.declareFor", { name: echCible.locataire?.nom ?? "—", month: moisAffiche(echCible.echeance.mois, locale) })} — {t("rents.remainingLabel")} : {formatMoney(echCible.restant, echCible.echeance.devise, locale)}
+              {t("rents.declareFor", { name: echCible.locataire?.nom ?? "—", month: moisAffiche(echCible.echeance.mois, locale) })} — {t("rents.remainingLabel")} : <span className={`font-semibold ${couleurRestant(echCible)}`}>{formatMoney(echCible.restant, echCible.echeance.devise, locale)}</span>
             </p>
             <div className="mt-4 space-y-4">
               <MoneyField
@@ -906,7 +917,7 @@ export default function LoyersPage() {
             {x.paiements.map((p) => (
               <li key={p.id} className="rounded-lg border border-slate-200 bg-white p-2.5 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-navy min-w-0 break-words">
+                  <span className={`font-semibold min-w-0 break-words ${p.statut === "annule" ? "text-slate-400 line-through" : "text-green-700"}`}>
                     {formatMoney(p.montant, p.devise, locale)} · {formatDate(p.date_paiement, locale)}
                   </span>
                   {p.statut === "annule" ? (

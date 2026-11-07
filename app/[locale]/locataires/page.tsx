@@ -17,6 +17,7 @@ import type {
   EcheanceLoyer,
   Immeuble,
   Locataire,
+  StatutLoyer,
 } from "@/lib/data";
 import { messageErreur } from "@/lib/translateError";
 import { buildLocatairesWorkbook, telechargerWorkbook } from "@/lib/exports";
@@ -98,6 +99,55 @@ export default function LocatairesPage() {
   };
   const cleStatutMois = (s: StatutMois) =>
     s === "paye" ? "statusPaid" : s === "du" ? "statusDue" : "statusNoLease";
+
+  /** Statut affiché du mois : reprend le vrai statut de l'échéance (payé / en retard / partiel / dû). */
+  const statutAffiche = (locataireId: string): StatutLoyer | "sans_bail" => {
+    const bail = bailActifDe(locataireId);
+    if (!bail) return "sans_bail";
+    const ech = echeances.find((e) => e.bail_id === bail.id && e.mois === moisCourant());
+    if (!ech) return "du";
+    return ech.statut;
+  };
+  /** Pastille statut du mois, même code couleur que la page Loyers. */
+  function couleurStatutMois(s: StatutLoyer | "sans_bail"): string {
+    return s === "paye"
+      ? "bg-green-100 text-green-800"
+      : s === "en_retard"
+        ? "bg-red-100 text-red-800"
+        : s === "partiel"
+          ? "bg-orange-100 text-orange-800"
+          : s === "du"
+            ? "bg-amber-100 text-amber-800"
+            : "bg-slate-100 text-slate-700";
+  }
+  const cleStatutAffiche = (s: StatutLoyer | "sans_bail") =>
+    s === "paye"
+      ? "tenants.statusPaid"
+      : s === "en_retard"
+        ? "rents.statusLate"
+        : s === "partiel"
+          ? "rents.statusPartial"
+          : s === "du"
+            ? "tenants.statusDue"
+            : s === "a_venir"
+              ? "rents.statusUpcoming"
+              : "tenants.statusNoLease";
+  /** Loyer du mois : rouge si en retard, ambre si dû/partiel, marine si payé. */
+  function couleurMontantDu(s: StatutLoyer | "sans_bail"): string {
+    return s === "en_retard" ? "text-red-700" : s === "du" || s === "partiel" ? "text-amber-700" : "text-navy";
+  }
+  /** Fin de bail : rouge si dépassée, ambre si dans les 60 jours. */
+  function couleurFinBail(fin: string | null | undefined): string {
+    if (!fin) return "";
+    const finDate = new Date(`${fin.slice(0, 10)}T00:00:00`);
+    const auj = new Date();
+    auj.setHours(0, 0, 0, 0);
+    const dans60j = new Date(auj);
+    dans60j.setDate(auj.getDate() + 60);
+    if (finDate < auj) return "font-bold text-red-700";
+    if (finDate <= dans60j) return "font-bold text-amber-700";
+    return "";
+  }
 
   const filtres = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -240,7 +290,7 @@ export default function LocatairesPage() {
                 {visibles.map((l) => {
                   const bail = bailActifDe(l.id);
                   const apt = appartementDe(bail);
-                  const s = statutDuMois(l.id);
+                  const sa = statutAffiche(l.id);
                   return (
                     <article key={l.id} className="rounded-2xl bg-white p-4 shadow-sm">
                       <Link href={`/${locale}/locataires/${l.id}`} className="break-words text-lg font-bold text-navy underline">
@@ -251,9 +301,17 @@ export default function LocatairesPage() {
                         {apt ? `${apt.numero} — ${immeubleDe(apt)?.nom ?? ""}` : t("tenants.noActiveLease")}
                       </p>
                       <p className="break-words text-sm text-slate-700">
-                        {bail ? `${formatMoney(bail.loyer_mensuel, bail.devise, locale)} · ${t("tenants.leaseEnds", { date: bail.fin ? formatDate(bail.fin, locale) : "—" })}` : ""}
+                        {bail ? (
+                          <>
+                            <span className={`font-bold ${couleurMontantDu(sa)}`}>{formatMoney(bail.loyer_mensuel, bail.devise, locale)}</span>
+                            {" · "}
+                            <span className={couleurFinBail(bail.fin)}>{t("tenants.leaseEnds", { date: bail.fin ? formatDate(bail.fin, locale) : "—" })}</span>
+                          </>
+                        ) : ""}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-navy">{t(`tenants.${cleStatutMois(s)}`)}</p>
+                      <p className="mt-1">
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurStatutMois(sa)}`}>{t(cleStatutAffiche(sa))}</span>
+                      </p>
                       <div className="mt-3 flex gap-2">
                         <Link href={`/${locale}/locataires/${l.id}/modifier`} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy">
                           {t("common.edit")}
@@ -285,7 +343,7 @@ export default function LocatairesPage() {
                     {visibles.map((l) => {
                       const bail = bailActifDe(l.id);
                       const apt = appartementDe(bail);
-                      const s = statutDuMois(l.id);
+                      const sa = statutAffiche(l.id);
                       return (
                         <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="px-4 py-3">
@@ -298,8 +356,10 @@ export default function LocatairesPage() {
                           <td className="px-4 py-3">
                             {apt ? `${apt.numero} — ${immeubleDe(apt)?.nom ?? ""}` : "—"}
                           </td>
-                          <td className="px-4 py-3">{bail?.fin ? formatDate(bail.fin, locale) : "—"}</td>
-                          <td className="px-4 py-3 font-semibold text-navy">{t(`tenants.${cleStatutMois(s)}`)}</td>
+                          <td className="px-4 py-3"><span className={couleurFinBail(bail?.fin)}>{bail?.fin ? formatDate(bail.fin, locale) : "—"}</span></td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurStatutMois(sa)}`}>{t(cleStatutAffiche(sa))}</span>
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <Link href={`/${locale}/locataires/${l.id}/modifier`} className="font-semibold text-navy underline">

@@ -24,6 +24,18 @@ type Tri = "numero" | "loyer" | "nouveau";
 
 const STATUTS: StatutAppartement[] = ["occupe", "vacant", "travaux", "reserve"];
 
+/** Pastille statut appartement : occupé = vert, vacant / travaux / réservé = ambre (non loué, attention). */
+function couleurStatutAppartement(s: StatutAppartement): string {
+  return s === "occupe" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800";
+}
+
+/** Fond du sélecteur de statut, même code couleur que la pastille. */
+function couleurSelectStatut(s: StatutAppartement): string {
+  return s === "occupe"
+    ? "border-green-300 bg-green-50 text-green-800"
+    : "border-amber-300 bg-amber-50 text-amber-800";
+}
+
 export default function AppartementsPage() {
   const t = useTranslations("crud");
   const tp = useTranslations("pages");
@@ -223,8 +235,10 @@ export default function AppartementsPage() {
                     </Link>
                     <p className="break-words text-sm text-slate-600">{nomImmeuble(a.immeuble_id)}</p>
                     <p className="mt-1 break-all text-base font-bold text-navy">{formatMoney(a.loyer_defaut, a.devise, locale)}</p>
-                    <p className="break-words text-sm text-slate-600">
-                      {t(`apartments.${cleStatut(a.statut)}`)}
+                    <p className="mt-1 break-words text-sm text-slate-600">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${couleurStatutAppartement(a.statut)}`}>
+                        {t(`apartments.${cleStatut(a.statut)}`)}
+                      </span>
                       {nomLocataire(a.id) ? ` · ${nomLocataire(a.id)}` : ` · ${t("apartments.noTenant")}`}
                       {a.vitrine ? ` · ${t("apartments.vitrinePublished")}` : ""}
                     </p>
@@ -233,7 +247,7 @@ export default function AppartementsPage() {
                         value={a.statut}
                         onChange={(e) => changerStatut(a, e.target.value as StatutAppartement)}
                         aria-label={t("apartments.changeStatus")}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-navy"
+                        className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${couleurSelectStatut(a.statut)}`}
                       >
                         {STATUTS.map((s) => (
                           <option key={s} value={s}>{t(`apartments.${cleStatut(s)}`)}</option>
@@ -289,7 +303,7 @@ export default function AppartementsPage() {
                             value={a.statut}
                             onChange={(e) => changerStatut(a, e.target.value as StatutAppartement)}
                             aria-label={t("apartments.changeStatus")}
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-navy"
+                            className={`rounded-lg border px-2 py-1.5 text-sm font-semibold ${couleurSelectStatut(a.statut)}`}
                           >
                             {STATUTS.map((s) => (
                               <option key={s} value={s}>{t(`apartments.${cleStatut(s)}`)}</option>

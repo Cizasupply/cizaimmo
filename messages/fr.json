@@ -26,6 +26,7 @@
   "treatedDone": "Alerte traitée.",
   "treatedOn": "Traitée le {date}",
   "treatedTitle": "Historique des alertes traitées ({count})",
+  "untreated": "Non traitée",
   "types": {
    "autre": "Autre",
    "bail_demarrant": "Bail démarrant",

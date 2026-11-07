@@ -36,6 +36,20 @@ async function fichierVersDataUrl(fichier: File): Promise<string> {
   });
 }
 
+/**
+ * Pastille discrète par catégorie de dépense (palette de l'app uniquement,
+ * texte foncé sur fond clair). Le rouge est réservé aux montants (sorties
+ * d'argent) : aucune catégorie n'utilise le rouge.
+ */
+const COULEURS_CATEGORIES: Record<CategorieDepense, string> = {
+  entretien: "bg-green-100 text-green-800",
+  reparation: "bg-orange-100 text-orange-800",
+  taxe: "bg-amber-100 text-amber-800",
+  assurance: "bg-navy/10 text-navy",
+  salaire: "bg-slate-100 text-slate-700",
+  autre: "bg-gold/20 text-navy",
+};
+
 export default function DepensesPage() {
   const t = useTranslations("crud");
   const te = useTranslations("crud.expenses");
@@ -353,9 +367,9 @@ export default function DepensesPage() {
                 <h2 className="text-sm font-bold text-navy">{te("totalsByCategory")}</h2>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParCategorie.map((x) => (
-                    <li key={`${x.categorie}-${x.devise}`} className="flex justify-between gap-2">
-                      <span className="min-w-0 break-words">{te(`categories.${x.categorie}`)}</span>
-                      <span className="shrink-0 break-all font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
+                    <li key={`${x.categorie}-${x.devise}`} className="flex items-center justify-between gap-2">
+                      <span className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${COULEURS_CATEGORIES[x.categorie]}`}>{te(`categories.${x.categorie}`)}</span>
+                      <span className="shrink-0 break-all font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -366,7 +380,7 @@ export default function DepensesPage() {
                   {totauxParImmeuble.map((x) => (
                     <li key={`${x.immeubleId}-${x.devise}`} className="flex justify-between gap-2">
                       <span className="min-w-0 break-words">{nomImmeuble(x.immeubleId)}</span>
-                      <span className="shrink-0 break-all font-semibold">{formatMoney(x.total, x.devise, locale)}</span>
+                      <span className="shrink-0 break-all font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -398,13 +412,13 @@ export default function DepensesPage() {
                         <td className="px-4 py-3">{formatDate(d.date, locale)}</td>
                         <td className="px-4 py-3">{nomImmeuble(d.immeuble_id)}</td>
                         <td className="px-4 py-3">{nomAppartement(d.appartement_id)}</td>
-                        <td className="px-4 py-3">{te(`categories.${d.categorie}`)}</td>
+                        <td className="px-4 py-3"><span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${COULEURS_CATEGORIES[d.categorie]}`}>{te(`categories.${d.categorie}`)}</span></td>
                         <td className="px-4 py-3 font-medium text-navy">
                           {d.libelle}
                           {d.fournisseur ? <span className="block text-xs font-normal text-slate-500">{d.fournisseur}</span> : null}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold">{formatMoney(d.montant, d.devise, locale)}</td>
-                        <td className="px-4 py-3">{d.justificatif_url ? te("receiptYes") : "—"}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-red-700">{formatMoney(d.montant, d.devise, locale)}</td>
+                        <td className="px-4 py-3">{d.justificatif_url ? <span className="font-semibold text-green-700">{te("receiptYes")}</span> : <span className="text-slate-400">—</span>}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button type="button" onClick={() => setAModifier(d)} className="font-semibold text-navy underline">{tc("edit")}</button>
@@ -427,9 +441,9 @@ export default function DepensesPage() {
                           {formatDate(d.date, locale)} · {nomImmeuble(d.immeuble_id)}
                           {d.appartement_id ? ` · ${nomAppartement(d.appartement_id)}` : ""}
                         </p>
-                        <p className="break-words text-sm text-slate-600">{te(`categories.${d.categorie}`)}</p>
+                        <p className="break-words text-sm text-slate-600"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${COULEURS_CATEGORIES[d.categorie]}`}>{te(`categories.${d.categorie}`)}</span></p>
                       </div>
-                      <p className="shrink-0 break-all text-right font-bold text-navy">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="shrink-0 break-all text-right font-bold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
                     </div>
                     <div className="mt-3 flex gap-4">
                       <button type="button" onClick={() => setAModifier(d)} className="text-sm font-semibold text-navy underline">{tc("edit")}</button>

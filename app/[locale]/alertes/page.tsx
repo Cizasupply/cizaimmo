@@ -21,6 +21,38 @@ function couleurUrgence(urgence: Alerte["urgence"]): string {
       : "bg-slate-100 text-slate-700";
 }
 
+/** Bordure gauche de la carte, même code couleur que l'urgence. */
+function bordureUrgence(urgence: Alerte["urgence"]): string {
+  return urgence === "haute"
+    ? "border-l-4 border-l-red-400"
+    : urgence === "moyenne"
+      ? "border-l-4 border-l-amber-400"
+      : "border-l-4 border-l-slate-300";
+}
+
+/** Pastille type d'alerte : retard = rouge, fin de bail / vacance / bail démarrant = ambre, info = neutre. */
+function couleurType(type: TypeAlerte): string {
+  return type === "loyer_en_retard"
+    ? "bg-red-100 text-red-800"
+    : type === "fin_de_bail" || type === "vacance_prolongee" || type === "bail_demarrant"
+      ? "bg-amber-100 text-amber-800"
+      : "bg-slate-100 text-slate-700";
+}
+
+/** Pastille « Non traitée » : rouge si urgence haute, ambre sinon. */
+function couleurNonTraitee(urgence: Alerte["urgence"]): string {
+  return urgence === "haute" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800";
+}
+
+/** Statut d'envoi (e-mail / WhatsApp) : envoyé = vert, échec = rouge, sinon neutre. */
+function couleurStatutEnvoi(statut: string): string {
+  return statut === "envoye"
+    ? "font-semibold text-green-700"
+    : statut === "echec"
+      ? "font-semibold text-red-700"
+      : "text-slate-600";
+}
+
 export default function AlertesPage() {
   const t = useTranslations("crud");
   const ta = useTranslations("alerts");
@@ -99,34 +131,43 @@ export default function AlertesPage() {
   function carte(alerte: Alerte) {
     const url = urlAlerte(alerte);
     return (
-      <article key={alerte.id} className="rounded-2xl bg-white p-4 shadow-sm">
+      <article key={alerte.id} className={`rounded-2xl bg-white p-4 shadow-sm ${bordureUrgence(alerte.urgence)}`}>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurUrgence(alerte.urgence)}`}>
             {ta(`urgency.${alerte.urgence}`)}
           </span>
-          <span className="text-sm font-semibold text-slate-700">{libelleType(alerte.type)}</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurType(alerte.type)}`}>{libelleType(alerte.type)}</span>
+          {alerte.statut === "active" ? (
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurNonTraitee(alerte.urgence)}`}>
+              {ta("untreated")}
+            </span>
+          ) : null}
           <span className="text-sm text-slate-500">{formatDate(alerte.created_at.slice(0, 10), locale)}</span>
         </div>
         <p className="mt-2 break-words text-base font-medium text-navy">{alerte.message}</p>
         <p className="mt-1 text-sm text-slate-600">
           {ta("emailStatus")}:{" "}
-          {alerte.email_statut === "envoye"
-            ? ta("emailSent")
-            : alerte.email_statut === "echec"
-              ? ta("emailFailed")
-              : alerte.email_statut === "desactive"
-                ? ta("emailDisabled")
-                : ta("emailNotConfigured")}
+          <span className={couleurStatutEnvoi(alerte.email_statut)}>
+            {alerte.email_statut === "envoye"
+              ? ta("emailSent")
+              : alerte.email_statut === "echec"
+                ? ta("emailFailed")
+                : alerte.email_statut === "desactive"
+                  ? ta("emailDisabled")
+                  : ta("emailNotConfigured")}
+          </span>
         </p>
         <p className="mt-1 text-sm text-slate-600">
           {ta("whatsappStatus")}:{" "}
-          {alerte.whatsapp_statut === "envoye"
-            ? ta("whatsappSent")
-            : alerte.whatsapp_statut === "echec"
-              ? ta("whatsappFailed")
-              : alerte.whatsapp_statut === "desactive"
-                ? ta("whatsappDisabled")
-                : ta("whatsappNotConfigured")}
+          <span className={couleurStatutEnvoi(alerte.whatsapp_statut)}>
+            {alerte.whatsapp_statut === "envoye"
+              ? ta("whatsappSent")
+              : alerte.whatsapp_statut === "echec"
+                ? ta("whatsappFailed")
+                : alerte.whatsapp_statut === "desactive"
+                  ? ta("whatsappDisabled")
+                  : ta("whatsappNotConfigured")}
+          </span>
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           {url ? (
@@ -150,7 +191,7 @@ export default function AlertesPage() {
               {ta("markTreated")}
             </button>
           ) : (
-            <span className="text-sm text-slate-500">
+            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800">
               {ta("treatedOn", { date: formatDate(alerte.traitee_le?.slice(0, 10), locale) })}
             </span>
           )}

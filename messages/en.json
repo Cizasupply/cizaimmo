@@ -26,6 +26,7 @@
   "treatedDone": "Alert marked as handled.",
   "treatedOn": "Handled on {date}",
   "treatedTitle": "Handled alerts history ({count})",
+  "untreated": "Untreated",
   "types": {
    "autre": "Other",
    "bail_demarrant": "Lease starting",
