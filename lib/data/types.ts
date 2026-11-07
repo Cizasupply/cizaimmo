@@ -7,7 +7,15 @@
  */
 
 export type Langue = "fr" | "en";
-export type Role = "proprietaire" | "gestionnaire" | "coproprietaire";
+export type Role =
+  | "proprietaire"
+  | "gestionnaire"
+  | "coproprietaire"
+  // Extension v1.2 — Console plateforme (Ciza Group) : voir
+  // docs/admin-finance-v1.2.md. admin = employé Ciza Group ;
+  // super_admin = fondateur, compte unique.
+  | "admin"
+  | "super_admin";
 export type Devise =
   | "USD" | "EUR" | "GBP" | "CAD" | "BIF"
   | "XAF" | "XOF" | "KES" | "TZS" | "RWF" | "UGX" | "BRL";
@@ -26,12 +34,37 @@ export interface Profil {
   role: Role;
   /** Téléphone / WhatsApp du propriétaire (alertes WhatsApp, vitrine). */
   telephone: string | null;
+  /** Extension v1.2 : compte suspendu par la plateforme (accès bloqué, données conservées). */
+  suspendu: boolean;
+  // --- Anti-fraude tarifaire (v1.2) : signaux d'attribution de la grille.
+  /** Pays déclaré au formulaire d'inscription (nom, tel que saisi). */
+  pays_declare?: string | null;
+  /** Code pays de l'IP à l'inscription (x-vercel-ip-country) — jamais l'IP brute. */
+  pays_ip?: string | null;
+  /** Code pays du premier moyen de paiement (préfixe mobile money / carte). */
+  pays_paiement?: string | null;
+  /** Grille attribuée à l'inscription (miroir de abonnements.grille, verrouillée). */
+  grille_attribuee?: Grille | null;
+  /** « ok » ou « a_verifier » (contradiction de signaux → console). */
+  grille_statut?: "ok" | "a_verifier" | null;
+  /** Ajout n°3 : motif prédéfini si l'inscription a été REFUSÉE (sinon null). */
+  motif_refus?: MotifRefus | null;
   created_at: string;
 }
 
 export type Plan = "starter" | "pro" | "agence";
 export type Grille = "afrique" | "internationale";
-export type StatutAbonnement = "essai" | "actif" | "lecture_seule" | "annule";
+/** Grille de prix complète : prix mensuel USD par plan et par grille. */
+export type PrixPlans = Record<Plan, Record<Grille, number>>;
+export type StatutAbonnement =
+  /** Extension v1.2 (ajout n°3) : inscrit, en attente d'approbation humaine — aucun essai démarré. */
+  | "en_attente"
+  | "essai"
+  | "actif"
+  | "lecture_seule"
+  | "annule"
+  /** Extension v1.2 : suspendu par la plateforme (reprise = statut_pre_suspension). */
+  | "suspendu";
 
 export interface Abonnement {
   id: string;
@@ -57,6 +90,8 @@ export interface Abonnement {
   grace_ends_at: string | null;
   /** Données consultables/exportables jusqu'à cette date (90 jours). */
   lecture_seule_jusqu_au: string | null;
+  /** Extension v1.2 : statut à restaurer à la réactivation après suspension. */
+  statut_pre_suspension?: StatutAbonnement | null;
 }
 
 // --- MODULE 5 : factures d'abonnement + paiements mobile money (spec §12) ---
@@ -134,6 +169,12 @@ export interface SignUpInput {
   pays: string;
   devisePrincipale: Devise;
   langue: Langue;
+  /**
+   * Anti-fraude tarifaire : code pays de l'IP détecté côté serveur
+   * (route /api/inscription/contexte, en-tête x-vercel-ip-country).
+   * Seul le code est transmis/stocké — jamais l'adresse IP.
+   */
+  paysIp?: string | null;
 }
 
 export type TypeImmeuble = "immeuble" | "bloc" | "maison";
@@ -156,6 +197,8 @@ export const LIMITE_BLOCS: Record<Plan, number> = {
 };
 
 export function limiteBlocs(plan: Plan, statut: StatutAbonnement): number {
+  // Extension v1.2 : en attente d'approbation ou suspendu = aucun bloc.
+  if (statut === "en_attente" || statut === "suspendu") return 0;
   return statut === "essai" ? LIMITE_BLOCS.pro : LIMITE_BLOCS[plan];
 }
 
@@ -666,4 +709,185 @@ export interface AnnoncePublique {
   ville: string;
   pays: string;
   contact: ContactPublic;
+}
+
+// =============================================================================
+// EXTENSION v1.2 — Console Admin / Super Admin + finances dynamiques.
+// Voir docs/admin-finance-v1.2.md. Règles verrouillées :
+// - super_admin (fondateur, unique) : tout, y compris créer/retirer les
+//   Admins, supprimer définitivement un compte et régler les paramètres ;
+// - admin (employé Ciza Group) : comptes clients, suspension, avis,
+//   retards de paiement — jamais la création d'Admin, la suppression
+//   définitive ni les paramètres ;
+// - avis = modèles prédéfinis uniquement, journalisés ;
+// - gestionnaire multi-rattaché : contextes strictement séparés ;
+// - tarifs et paramètres finance vivent dans la BASE, jamais en dur.
+// =============================================================================
+
+/** Rattachement d'un gestionnaire : contexte Ciza Group OU un propriétaire. */
+export type ContexteRattachement = "cizagroup" | "proprietaire";
+export type StatutRattachement = "actif" | "suspendu";
+
+export interface RattachementGestionnaire {
+  id: string;
+  /** Compte du gestionnaire (profils.id en réel ; e-mail en démo). */
+  gestionnaire_id: string;
+  gestionnaire_email: string;
+  gestionnaire_nom: string | null;
+  contexte: ContexteRattachement;
+  /** Propriétaire servi (contexte « proprietaire ») ; null pour Ciza Group. */
+  proprietaire_id: string | null;
+  proprietaire_nom: string | null;
+  /** Immeubles du contexte accessibles au gestionnaire. */
+  immeuble_ids: string[];
+  statut: StatutRattachement;
+  created_at: string;
+}
+
+/** Entrée du journal d'audit plateforme (append-only). */
+export type CibleAudit =
+  | "compte"
+  | "admin"
+  | "tarif"
+  | "parametre"
+  | "gestionnaire"
+  | "plateforme";
+
+export interface EntreeAudit {
+  id: string;
+  acteur_id: string | null;
+  acteur_email: string;
+  acteur_role: "admin" | "super_admin";
+  action: string;
+  cible_type: CibleAudit;
+  cible_id: string | null;
+  cible_email: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+/** Avis plateforme : modèles prédéfinis UNIQUEMENT (pas de texte libre). */
+export type ModeleAvis =
+  | "retard_paiement"
+  | "fin_essai"
+  | "compte_suspendu"
+  | "compte_reactive"
+  /** Ajout n°3 : refus d'inscription, avec motif prédéfini. */
+  | "inscription_refusee";
+
+/** Motifs de refus d'inscription PRÉDÉFINIS (ajout n°3 — aucun texte libre). */
+export type MotifRefus =
+  | "informations_insuffisantes"
+  | "pays_non_desservi"
+  | "doublon"
+  | "autre";
+
+export interface VariablesAvis {
+  nom: string;
+  plan: string;
+  date: string;
+  /** Motif prédéfini (modèle inscription_refusee uniquement). */
+  motif?: string | null;
+}
+
+export type StatutEnvoiAvis = "envoye" | "non_configuré" | "echec";
+
+export interface Avis {
+  id: string;
+  modele: ModeleAvis;
+  destinataire_id: string | null;
+  destinataire_email: string;
+  variables: VariablesAvis;
+  sujet: string;
+  corps: string;
+  envoye_par: string | null;
+  envoye_par_role: "admin" | "super_admin";
+  statut_envoi: StatutEnvoiAvis;
+  created_at: string;
+}
+
+/** Ligne de la table tarifs_plateforme (source dynamique des prix). */
+export interface TarifPlateforme {
+  id: string;
+  grille: Grille;
+  plan: Plan;
+  prix_mensuel: number;
+  devise: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/** Ligne unique de la table parametres_finance. */
+export interface ParametresFinance {
+  remise_annuelle_pct: number;
+  jours_essai: number;
+  jours_grace: number;
+  penalites_retard_actives: boolean;
+  /**
+   * Anti-fraude tarifaire : codes ISO des pays éligibles à la grille
+   * Afrique. Liste DYNAMIQUE, éditable par le Super Admin (console) —
+   * jamais codée en dur dans la logique d'attribution (lib/grille.ts).
+   */
+  pays_grille_afrique: string[];
+  /**
+   * Approbation manuelle (ajout n°3) : délai affiché sur l'écran
+   * « Compte en attente d'approbation » (texte libre, ex. « 24 h
+   * ouvrées »). DYNAMIQUE, éditable par le Super Admin.
+   */
+  delai_approbation_affiche: string;
+}
+
+/** Vue console d'un compte client (profil + abonnement + retard calculé). */
+export interface ComptePlateforme {
+  id: string;
+  email: string;
+  nom: string;
+  role: Role;
+  pays: string | null;
+  langue: Langue;
+  suspendu: boolean;
+  created_at: string;
+  /** Anti-fraude tarifaire : signaux du compte (console « à vérifier »). */
+  pays_declare: string | null;
+  pays_ip: string | null;
+  pays_paiement: string | null;
+  grille_statut: "ok" | "a_verifier";
+  /** Ajout n°3 : motif prédéfini si l'inscription a été refusée. */
+  motif_refus: MotifRefus | null;
+  abonnement: {
+    plan: Plan;
+    grille: Grille;
+    statut: StatutAbonnement;
+    debut_periode: string;
+    fin_periode: string | null;
+    trial_ends_at: string | null;
+    echec_paiement: boolean;
+    grace_ends_at: string | null;
+    statut_pre_suspension?: StatutAbonnement | null;
+  } | null;
+  /** Retard de paiement d'abonnement (échec ou grâce des paramètres dépassée). */
+  en_retard: boolean;
+}
+
+/** Vue console d'un compte Admin / Super Admin. */
+export interface CompteAdmin {
+  id: string;
+  email: string;
+  nom: string;
+  role: "admin" | "super_admin";
+  statut: "actif" | "suspendu";
+  created_at: string;
+}
+
+/** Résumé de supervision d'un gestionnaire rattaché (lecture, journalisée). */
+export interface SupervisionGestionnaire {
+  rattachement: RattachementGestionnaire;
+  immeubles: {
+    id: string;
+    nom: string;
+    ville: string;
+    devise_principale: Devise;
+    nb_appartements: number;
+    nb_locataires_actifs: number;
+  }[];
 }

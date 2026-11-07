@@ -7,7 +7,11 @@ import { useLocale, useTranslations } from "next-intl";
 import AuthLayout from "@/components/AuthLayout";
 import Field from "@/components/Field";
 import { getDataProvider, isDemoMode } from "@/lib/data";
-import { GESTIONNAIRE_DEMO_EMAIL } from "@/lib/data/demo-seed";
+import {
+  ADMIN_DEMO_EMAIL,
+  GESTIONNAIRE_DEMO_EMAIL,
+  SUPER_ADMIN_DEMO_EMAIL,
+} from "@/lib/data/demo-seed";
 import { AuthError } from "@/lib/data/real";
 
 function isValidEmail(email: string): boolean {
@@ -36,27 +40,53 @@ export default function ConnexionPage() {
 
     setLoading(true);
     try {
-      await getDataProvider().signIn(email, motDePasse);
-      router.push(`/${locale}/dashboard`);
+      const provider = getDataProvider();
+      await provider.signIn(email, motDePasse);
+      // Connexion prioritaire (extension v1.2) : Admin / Super Admin
+      // vers la console plateforme ; les autres vers le tableau de bord
+      // (l'écran d'attente d'approbation s'affiche là si besoin).
+      const profil = await provider.getProfil().catch(() => null);
+      const destination =
+        profil?.role === "admin" || profil?.role === "super_admin"
+          ? `/${locale}/console`
+          : `/${locale}/dashboard`;
+      router.push(destination);
       router.refresh();
     } catch (err) {
-      const key =
-        err instanceof AuthError ? err.i18nKey : "genericError";
+      // Mode réel : AuthError porte la clé i18n. Mode démo : le code
+      // d'erreur métier est traduit ici pour les blocages plateforme.
+      let key = "genericError";
+      if (err instanceof AuthError) key = err.i18nKey;
+      else if (err instanceof Error && err.message === "ERR_COMPTE_SUSPENDU") key = "accountSuspended";
+      else if (err instanceof Error && err.message === "ERR_COMPTE_REFUSE") key = "accountRefused";
       setErrors({ form: t(key as "genericError") });
       setLoading(false);
     }
   }
 
-  async function handleDemo(role: "proprietaire" | "gestionnaire") {
+  async function handleDemo(
+    role: "proprietaire" | "gestionnaire" | "super_admin" | "admin"
+  ) {
     setLoading(true);
     try {
       // Session démo : aucune donnée réelle, tout est étiqueté DÉMO.
       // Le gestionnaire se connecte avec l'e-mail de son invitation :
       // il ne voit que ses immeubles, jamais l'abonnement (spec §2).
+      // Admin / Super Admin démo : direction la console plateforme.
       const emailDemo =
-        role === "gestionnaire" ? GESTIONNAIRE_DEMO_EMAIL : "demo@cizaimmo.com";
+        role === "gestionnaire"
+          ? GESTIONNAIRE_DEMO_EMAIL
+          : role === "super_admin"
+            ? SUPER_ADMIN_DEMO_EMAIL
+            : role === "admin"
+              ? ADMIN_DEMO_EMAIL
+              : "demo@cizaimmo.com";
       await getDataProvider().signIn(emailDemo, "demo-demo");
-      router.push(`/${locale}/dashboard`);
+      router.push(
+        role === "super_admin" || role === "admin"
+          ? `/${locale}/console`
+          : `/${locale}/dashboard`
+      );
       router.refresh();
     } finally {
       setLoading(false);
@@ -124,6 +154,22 @@ export default function ConnexionPage() {
             className="mt-3 w-full rounded-full border-2 border-navy px-6 py-2.5 text-base font-bold text-navy hover:bg-navy hover:text-white disabled:opacity-50"
           >
             {t("demoManager")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemo("super_admin")}
+            disabled={loading}
+            className="mt-3 w-full rounded-full border-2 border-gold bg-navy px-6 py-2.5 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50"
+          >
+            {t("demoSuperAdmin")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemo("admin")}
+            disabled={loading}
+            className="mt-3 w-full rounded-full border-2 border-gold bg-navy px-6 py-2.5 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50"
+          >
+            {t("demoAdmin")}
           </button>
         </div>
       ) : null}

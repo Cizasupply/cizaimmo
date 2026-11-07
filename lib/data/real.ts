@@ -8,9 +8,13 @@ import type {
   Appartement,
   AppartementInput,
   AppartementPatch,
+  Avis,
   Bail,
   BailInput,
   CautionStatut,
+  CibleAudit,
+  CompteAdmin,
+  ComptePlateforme,
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
@@ -20,11 +24,19 @@ import type {
   Devise,
   Document,
   DocumentInput,
+  EntreeAudit,
   FiltreDocuments,
   GestionnaireInvite,
+  Grille,
+  ModeleAvis,
+  MotifRefus,
+  ParametresFinance,
   PreferencesNotifications,
   ProfilPatch,
+  RattachementGestionnaire,
   StatutWhatsApp,
+  SupervisionGestionnaire,
+  TarifPlateforme,
   TauxChange,
   TauxManuelInput,
   TauxResultat,
@@ -55,6 +67,14 @@ import type {
   SignUpInput,
   StatutAppartement,
 } from "./types";
+import {
+  construirePrixPlans,
+  estEnRetardPaiement,
+  PARAMETRES_FINANCE_DEFAUT,
+  TARIFS_SEED,
+} from "../tarifs";
+import { attribuerGrille } from "../grille";
+import { libellerMotif, rendreAvis, rendreBienvenue } from "../avis";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -165,6 +185,25 @@ export class RealProvider implements DataProvider {
   }
 
   async signUp(input: SignUpInput): Promise<{ needsEmailConfirmation: boolean }> {
+    // Anti-fraude tarifaire (v1.2) : la matrice d'attribution est
+    // calculée AVANT l'inscription (liste d'éligibilité DYNAMIQUE lue
+    // dans parametres_finance — lecture publique) et transmise en
+    // métadonnées ; le trigger handle_new_user la stocke et crée
+    // l'abonnement « en_attente » (approbation manuelle, ajout n°3).
+    let codesEligibles = PARAMETRES_FINANCE_DEFAUT.pays_grille_afrique;
+    try {
+      const parametres = await this.getParametresFinance();
+      if (parametres.pays_grille_afrique.length > 0) {
+        codesEligibles = parametres.pays_grille_afrique;
+      }
+    } catch {
+      // Repli : liste seed — l'attribution reste prudente et la console
+      // peut corriger (grille_statut fait foi, pas ce repli).
+    }
+    const attribution = attribuerGrille(
+      { paysDeclare: input.pays, paysIp: input.paysIp ?? null },
+      codesEligibles
+    );
     const { data, error } = await this.client().auth.signUp({
       email: input.email.trim().toLowerCase(),
       password: input.motDePasse,
@@ -174,6 +213,9 @@ export class RealProvider implements DataProvider {
           pays: input.pays,
           devise_principale: input.devisePrincipale,
           langue: input.langue,
+          pays_ip: input.paysIp ?? null,
+          grille_attribuee: attribution.grille,
+          grille_statut: attribution.statut,
         },
         // Après validation de l'e-mail, Supabase redirige vers le callback
         // qui échange le code puis envoie vers le tableau de bord.
@@ -187,11 +229,32 @@ export class RealProvider implements DataProvider {
   }
 
   async signIn(email: string, motDePasse: string): Promise<void> {
-    const { error } = await this.client().auth.signInWithPassword({
+    const client = this.client();
+    const { error } = await client.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password: motDePasse,
     });
     if (error) throw new AuthError(translateAuthError(error.message));
+    // Extension v1.2 : compte REFUSÉ (ajout n°3) ou SUSPENDU par la
+    // plateforme → connexion bloquée avec un message propre (la session
+    // ouverte est refermée aussitôt). Un profil absent (secours du
+    // trigger) ne bloque pas.
+    const session = await this.getSession();
+    if (session) {
+      const { data } = await client
+        .from("profils")
+        .select("suspendu, motif_refus")
+        .eq("id", session.id)
+        .maybeSingle();
+      if (data?.motif_refus) {
+        await client.auth.signOut();
+        throw new AuthError("accountRefused");
+      }
+      if (data?.suspendu) {
+        await client.auth.signOut();
+        throw new AuthError("accountSuspended");
+      }
+    }
   }
 
   async signOut(): Promise<void> {
@@ -234,30 +297,41 @@ export class RealProvider implements DataProvider {
       .limit(1)
       .maybeSingle();
     const role: Profil["role"] = invitation ? "coproprietaire" : "proprietaire";
+    // Métadonnées d'inscription (matrice anti-fraude) si présentes.
+    const { data: userData } = await client.auth.getUser();
+    const meta = (userData.user?.user_metadata ?? {}) as Record<string, unknown>;
+    const grilleMeta =
+      meta.grille_attribuee === "afrique" || meta.grille_attribuee === "internationale"
+        ? (meta.grille_attribuee as Profil["grille_attribuee"])
+        : "internationale";
     const { data: created, error: insertError } = await client
       .from("profils")
       .insert({
         id: session.id,
         nom,
         email: session.email,
-        pays: null,
-        langue: "fr",
-        devise_principale: "USD",
+        pays: (meta.pays as string | undefined) ?? null,
+        langue: (meta.langue as string | undefined) ?? "fr",
+        devise_principale: (meta.devise_principale as string | undefined) ?? "USD",
         role,
+        pays_declare: (meta.pays as string | undefined) ?? null,
+        pays_ip: (meta.pays_ip as string | undefined) ?? null,
+        grille_attribuee: grilleMeta,
+        grille_statut: meta.grille_statut === "a_verifier" ? "a_verifier" : "ok",
       })
       .select()
       .single();
     if (insertError) throw new Error(insertError.message);
     if (role !== "coproprietaire") {
-      const fin = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      // Approbation manuelle (ajout n°3) : en_attente, sans dates d'essai.
       await client.from("abonnements").insert({
         owner_id: session.id,
         plan: "pro",
-        grille: "internationale",
-        statut: "essai",
+        grille: grilleMeta ?? "internationale",
+        statut: "en_attente",
         debut_periode: new Date().toISOString(),
-        fin_periode: fin,
-        trial_ends_at: fin,
+        fin_periode: null,
+        trial_ends_at: null,
       });
     }
     return created as Profil;
@@ -1941,6 +2015,20 @@ export class RealProvider implements DataProvider {
     };
   }
 
+  /**
+   * Prix DYNAMIQUE (extension v1.2) : lu dans tarifs_plateforme via
+   * getTarifsPlateforme() — jamais le littéral codé en dur. Repli :
+   * prixPlan (seed) si la source est injoignable.
+   */
+  private async prixDynamiqueReel(plan: Plan, grille: Grille): Promise<number> {
+    try {
+      const tarifs = await this.getTarifsPlateforme();
+      return construirePrixPlans(tarifs)[plan][grille];
+    } catch {
+      return prixPlan(plan, grille);
+    }
+  }
+
   /** Émet une facture d'abonnement (enregistrement, pas un encaissement). */
   private async emettreFacture(
     abo: Abonnement,
@@ -1962,7 +2050,7 @@ export class RealProvider implements DataProvider {
       numero,
       plan,
       grille: abo.grille,
-      montant: prixPlan(plan, abo.grille),
+      montant: await this.prixDynamiqueReel(plan, abo.grille),
       devise: "USD",
       date_emission: debut,
       date_debut: debut,
@@ -2100,7 +2188,7 @@ export class RealProvider implements DataProvider {
         owner_id: session.id,
         operateur,
         telephone: telephone.trim(),
-        montant: prixPlan(planVise, abo.grille),
+        montant: await this.prixDynamiqueReel(planVise, abo.grille),
         plan: planVise,
         reference: genererReferenceMobileMoney(),
         statut: "en_attente",
@@ -2136,6 +2224,762 @@ export class RealProvider implements DataProvider {
       .order("cree_le", { ascending: false });
     if (error) throw new Error(error.message);
     return (data as PaiementMobileMoney[]).map((p) => ({ ...p, montant: Number(p.montant) }));
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.2 — CONSOLE PLATEFORME (Admin / Super Admin), approbation
+  // des comptes, avis, rattachements, supervision, finances dynamiques.
+  // Voir docs/admin-finance-v1.2.md. La RLS (module-admin.sql) double
+  // chaque garde applicative ci-dessous ; toute action est journalisée
+  // dans journal_audit (append-only).
+  // ==========================================================================
+
+  private async acteurPlateforme(): Promise<{
+    id: string;
+    email: string;
+    role: "admin" | "super_admin";
+  }> {
+    const profil = await this.getProfil();
+    if (
+      !profil ||
+      (profil.role !== "admin" && profil.role !== "super_admin") ||
+      profil.suspendu
+    ) {
+      throw err("ERR_ACCES_PLATEFORME");
+    }
+    return { id: profil.id, email: profil.email, role: profil.role };
+  }
+
+  private async acteurSuperAdmin() {
+    const acteur = await this.acteurPlateforme();
+    if (acteur.role !== "super_admin") throw err("ERR_SUPER_ADMIN_REQUIS");
+    return acteur;
+  }
+
+  private async journaliserAudit(
+    acteur: { id: string; email: string; role: "admin" | "super_admin" },
+    action: string,
+    cibleType: CibleAudit,
+    cibleId: string | null,
+    cibleEmail: string | null,
+    details?: Record<string, unknown> | null
+  ): Promise<void> {
+    await this.client().from("journal_audit").insert({
+      acteur_id: acteur.id,
+      acteur_email: acteur.email,
+      acteur_role: acteur.role,
+      action,
+      cible_type: cibleType,
+      cible_id: cibleId,
+      cible_email: cibleEmail,
+      details: details ?? null,
+    });
+  }
+
+  private async envoyerEmailPlateforme(
+    destinataire: string,
+    sujet: string,
+    texte: string
+  ): Promise<Avis["statut_envoi"]> {
+    try {
+      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte });
+      return statutEmailDepuisResultat(resultat);
+    } catch {
+      return "echec";
+    }
+  }
+
+  /** Abonnement le plus récent d'un compte (console). */
+  private async abonnementDe(compteId: string): Promise<Abonnement | null> {
+    const { data } = await this.client()
+      .from("abonnements")
+      .select("*")
+      .eq("owner_id", compteId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (data as Abonnement | null) ?? null;
+  }
+
+  async listerComptesPlateforme(): Promise<ComptePlateforme[]> {
+    await this.acteurPlateforme();
+    const client = this.client();
+    const parametres = await this.getParametresFinance();
+    const { data: profils, error } = await client
+      .from("profils")
+      .select("*")
+      .in("role", ["proprietaire", "gestionnaire", "coproprietaire"])
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const { data: abonnements } = await client
+      .from("abonnements")
+      .select("*")
+      .order("created_at", { ascending: false });
+    const parProprietaire = new Map<string, Abonnement>();
+    for (const a of (abonnements as Abonnement[] | null) ?? []) {
+      if (!parProprietaire.has(a.owner_id)) parProprietaire.set(a.owner_id, a);
+    }
+    return ((profils as Profil[] | null) ?? []).map((p) => {
+      const abo = parProprietaire.get(p.id) ?? null;
+      const vue = abo
+        ? {
+            plan: abo.plan,
+            grille: abo.grille,
+            statut: abo.statut,
+            debut_periode: abo.debut_periode,
+            fin_periode: abo.fin_periode,
+            trial_ends_at: abo.trial_ends_at,
+            echec_paiement: abo.echec_paiement,
+            grace_ends_at: abo.grace_ends_at,
+            statut_pre_suspension: abo.statut_pre_suspension ?? null,
+          }
+        : null;
+      return {
+        id: p.id,
+        email: p.email,
+        nom: p.nom,
+        role: p.role,
+        pays: p.pays,
+        langue: p.langue,
+        suspendu: p.suspendu ?? false,
+        created_at: p.created_at,
+        pays_declare: p.pays_declare ?? p.pays,
+        pays_ip: p.pays_ip ?? null,
+        pays_paiement: p.pays_paiement ?? null,
+        grille_statut: p.grille_statut ?? "ok",
+        motif_refus: p.motif_refus ?? null,
+        abonnement: vue,
+        en_retard: estEnRetardPaiement(vue, parametres),
+      };
+    });
+  }
+
+  async suspendreCompte(compteId: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const abo = await this.abonnementDe(compteId);
+    const { data: profil } = await client
+      .from("profils")
+      .select("email")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    await client
+      .from("profils")
+      .update({ suspendu: true, suspendu_le: new Date().toISOString() })
+      .eq("id", compteId);
+    if (abo && abo.statut !== "suspendu" && abo.statut !== "en_attente") {
+      await client
+        .from("abonnements")
+        .update({ statut_pre_suspension: abo.statut, statut: "suspendu" })
+        .eq("id", abo.id);
+    }
+    await this.journaliserAudit(acteur, "compte_suspendu", "compte", compteId, profil.email);
+  }
+
+  async reactiverCompte(compteId: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const abo = await this.abonnementDe(compteId);
+    const { data: profil } = await client
+      .from("profils")
+      .select("email")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    await client
+      .from("profils")
+      .update({ suspendu: false, suspendu_le: null })
+      .eq("id", compteId);
+    if (abo && abo.statut === "suspendu") {
+      await client
+        .from("abonnements")
+        .update({
+          statut: abo.statut_pre_suspension ?? "actif",
+          statut_pre_suspension: null,
+        })
+        .eq("id", abo.id);
+    }
+    await this.journaliserAudit(acteur, "compte_reactive", "compte", compteId, profil.email);
+  }
+
+  async supprimerCompteDefinitivement(compteId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    // Audit AVANT la suppression : la ligne survit à la cible (le journal
+    // référence l'acteur, pas la cible, en clé étrangère).
+    await this.journaliserAudit(
+      acteur,
+      "compte_supprime_definitivement",
+      "compte",
+      compteId,
+      profil.email
+    );
+    const { error } = await client.rpc("supprimer_compte_definitivement", {
+      cible: compteId,
+    });
+    if (error) {
+      if (error.message.includes("SUPER_ADMIN_REQUIS")) throw err("ERR_SUPER_ADMIN_REQUIS");
+      if (error.message.includes("AUTO_SUPPRESSION")) throw err("ERR_OPERATION_INTERDITE");
+      throw new Error(error.message);
+    }
+  }
+
+  async approuverCompte(compteId: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const abo = await this.abonnementDe(compteId);
+    if (!abo || abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    const parametres = await this.getParametresFinance();
+    const maintenant = new Date();
+    const finEssai = ajouterJours(maintenant.toISOString(), parametres.jours_essai);
+    // L'essai démarre À L'APPROBATION ; la grille affichée est confirmée.
+    await client
+      .from("abonnements")
+      .update({
+        statut: "essai",
+        debut_periode: maintenant.toISOString(),
+        trial_ends_at: finEssai,
+        fin_periode: finEssai,
+      })
+      .eq("id", abo.id);
+    await client
+      .from("profils")
+      .update({ grille_attribuee: abo.grille })
+      .eq("id", compteId);
+    const bienvenue = rendreBienvenue(profil.nom, profil.langue === "en" ? "en" : "fr");
+    const emailStatut = await this.envoyerEmailPlateforme(
+      profil.email,
+      bienvenue.sujet,
+      bienvenue.corps
+    );
+    await this.journaliserAudit(acteur, "compte_approuve", "compte", compteId, profil.email, {
+      grille: abo.grille,
+      trial_ends_at: finEssai,
+      email_bienvenue: emailStatut,
+    });
+  }
+
+  async refuserCompte(compteId: string, motif: MotifRefus): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const abo = await this.abonnementDe(compteId);
+    if (!abo || abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    const langue = profil.langue === "en" ? "en" : "fr";
+    await client.from("profils").update({ motif_refus: motif }).eq("id", compteId);
+    await client.from("abonnements").update({ statut: "annule" }).eq("id", abo.id);
+    const variables = {
+      nom: profil.nom,
+      plan: abo.plan,
+      date: new Date().toISOString().slice(0, 10),
+      motif: libellerMotif(motif, langue),
+    };
+    const rendu = rendreAvis("inscription_refusee", variables, langue);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      profil.email,
+      rendu.sujet,
+      rendu.corps
+    );
+    await client.from("avis").insert({
+      modele: "inscription_refusee",
+      destinataire_id: compteId,
+      destinataire_email: profil.email,
+      variables,
+      sujet: rendu.sujet,
+      corps: rendu.corps,
+      envoye_par: acteur.id,
+      envoye_par_role: acteur.role,
+      statut_envoi: emailStatut,
+    });
+    await this.journaliserAudit(acteur, "compte_refuse", "compte", compteId, profil.email, {
+      motif,
+      email_refus: emailStatut,
+    });
+  }
+
+  async reattribuerGrille(compteId: string, grille: Grille): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const abo = await this.abonnementDe(compteId);
+    if (!abo) throw err("ERR_INTROUVABLE");
+    await client.from("abonnements").update({ grille }).eq("id", abo.id);
+    await client
+      .from("profils")
+      .update({ grille_attribuee: grille, grille_statut: "ok" })
+      .eq("id", compteId);
+    const { data: profil } = await client
+      .from("profils")
+      .select("email")
+      .eq("id", compteId)
+      .maybeSingle();
+    await this.journaliserAudit(acteur, "grille_reattribuee", "compte", compteId, profil?.email ?? null, {
+      grille,
+    });
+  }
+
+  async envoyerAvis(compteId: string, modele: ModeleAvis): Promise<Avis> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    const abo = await this.abonnementDe(compteId);
+    const variables = {
+      nom: profil.nom,
+      plan: abo?.plan ?? "pro",
+      date: (abo?.trial_ends_at ?? abo?.fin_periode ?? new Date().toISOString()).slice(0, 10),
+    };
+    const rendu = rendreAvis(modele, variables, profil.langue === "en" ? "en" : "fr");
+    const statut = await this.envoyerEmailPlateforme(profil.email, rendu.sujet, rendu.corps);
+    const { data, error } = await client
+      .from("avis")
+      .insert({
+        modele,
+        destinataire_id: compteId,
+        destinataire_email: profil.email,
+        variables,
+        sujet: rendu.sujet,
+        corps: rendu.corps,
+        envoye_par: acteur.id,
+        envoye_par_role: acteur.role,
+        statut_envoi: statut,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    await this.journaliserAudit(acteur, "avis_envoye", "compte", compteId, profil.email, {
+      modele,
+      statut_envoi: statut,
+    });
+    return data as Avis;
+  }
+
+  async listerAdmins(): Promise<CompteAdmin[]> {
+    await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("profils")
+      .select("id, email, nom, role, suspendu, created_at")
+      .in("role", ["admin", "super_admin"])
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data as Record<string, unknown>[] | null) ?? []).map((r) => ({
+      id: r.id as string,
+      email: r.email as string,
+      nom: r.nom as string,
+      role: r.role as "admin" | "super_admin",
+      statut: r.suspendu ? ("suspendu" as const) : ("actif" as const),
+      created_at: r.created_at as string,
+    }));
+  }
+
+  async creerAdmin(_email: string, _nom: string): Promise<CompteAdmin> {
+    await this.acteurSuperAdmin();
+    // Un compte Auth ne se crée pas depuis le client : l'employé
+    // s'inscrit normalement, puis le Super Admin le PROMEUT.
+    throw err("ERR_PROMOTION_REQUISE");
+  }
+
+  async promouvoirAdmin(email: string): Promise<CompteAdmin> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const adresse = email.trim().toLowerCase();
+    const { data: profil } = await client
+      .from("profils")
+      .select("id, email, nom, role, suspendu, created_at")
+      .eq("email", adresse)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.role === "admin" || profil.role === "super_admin") {
+      throw err("ERR_DEJA_ADMIN");
+    }
+    await client.from("profils").update({ role: "admin" }).eq("id", profil.id);
+    await this.journaliserAudit(acteur, "admin_promu", "admin", profil.id, profil.email);
+    return {
+      id: profil.id,
+      email: profil.email,
+      nom: profil.nom,
+      role: "admin",
+      statut: profil.suspendu ? "suspendu" : "actif",
+      created_at: profil.created_at,
+    };
+  }
+
+  async suspendreAdmin(adminId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, role")
+      .eq("id", adminId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.role !== "admin") throw err("ERR_OPERATION_INTERDITE");
+    await client.from("profils").update({ suspendu: true }).eq("id", adminId);
+    await this.journaliserAudit(acteur, "admin_suspendu", "admin", adminId, profil.email);
+  }
+
+  async reactiverAdmin(adminId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email")
+      .eq("id", adminId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    await client.from("profils").update({ suspendu: false }).eq("id", adminId);
+    await this.journaliserAudit(acteur, "admin_reactive", "admin", adminId, profil.email);
+  }
+
+  async retirerAdmin(adminId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, role")
+      .eq("id", adminId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.role !== "admin") throw err("ERR_OPERATION_INTERDITE");
+    // Retirer = le compte redevient un propriétaire ordinaire.
+    await client.from("profils").update({ role: "proprietaire" }).eq("id", adminId);
+    await this.journaliserAudit(acteur, "admin_retire", "admin", adminId, profil.email);
+  }
+
+  async listerJournalAudit(): Promise<EntreeAudit[]> {
+    await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("journal_audit")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return (data as EntreeAudit[] | null) ?? [];
+  }
+
+  /** Résout e-mails/noms des profils référencés par les rattachements. */
+  private async mapperRattachements(
+    lignes: Record<string, unknown>[]
+  ): Promise<RattachementGestionnaire[]> {
+    const ids = new Set<string>();
+    for (const l of lignes) {
+      ids.add(l.gestionnaire_id as string);
+      if (l.proprietaire_id) ids.add(l.proprietaire_id as string);
+    }
+    const parId = new Map<string, { email: string; nom: string }>();
+    if (ids.size > 0) {
+      const { data } = await this.client()
+        .from("profils")
+        .select("id, email, nom")
+        .in("id", Array.from(ids));
+      for (const p of (data as { id: string; email: string; nom: string }[] | null) ?? []) {
+        parId.set(p.id, { email: p.email, nom: p.nom });
+      }
+    }
+    return lignes.map((l) => ({
+      id: l.id as string,
+      gestionnaire_id: l.gestionnaire_id as string,
+      gestionnaire_email: parId.get(l.gestionnaire_id as string)?.email ?? "",
+      gestionnaire_nom: parId.get(l.gestionnaire_id as string)?.nom ?? null,
+      contexte: l.contexte as RattachementGestionnaire["contexte"],
+      proprietaire_id: (l.proprietaire_id as string | null) ?? null,
+      proprietaire_nom: l.proprietaire_id
+        ? parId.get(l.proprietaire_id as string)?.nom ?? null
+        : null,
+      immeuble_ids: (l.immeuble_ids as string[] | null) ?? [],
+      statut: l.statut as RattachementGestionnaire["statut"],
+      created_at: l.created_at as string,
+    }));
+  }
+
+  async listerRattachements(): Promise<RattachementGestionnaire[]> {
+    await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("rattachements_gestionnaires")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return this.mapperRattachements((data as Record<string, unknown>[] | null) ?? []);
+  }
+
+  async creerRattachement(input: {
+    gestionnaire_email: string;
+    gestionnaire_nom?: string | null;
+    contexte: "cizagroup" | "proprietaire";
+    proprietaire_id?: string | null;
+    immeuble_ids: string[];
+  }): Promise<RattachementGestionnaire> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const adresse = input.gestionnaire_email.trim().toLowerCase();
+    const { data: gestionnaire } = await client
+      .from("profils")
+      .select("id")
+      .eq("email", adresse)
+      .maybeSingle();
+    if (!gestionnaire) throw err("ERR_INTROUVABLE");
+    if (input.contexte === "proprietaire" && !input.proprietaire_id) {
+      throw err("ERR_INTROUVABLE");
+    }
+    const { data, error } = await client
+      .from("rattachements_gestionnaires")
+      .insert({
+        gestionnaire_id: gestionnaire.id,
+        contexte: input.contexte,
+        proprietaire_id: input.contexte === "proprietaire" ? input.proprietaire_id : null,
+        immeuble_ids: input.immeuble_ids,
+        statut: "actif",
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    await this.journaliserAudit(acteur, "rattachement_cree", "gestionnaire", data.id, adresse, {
+      contexte: input.contexte,
+    });
+    const [mappe] = await this.mapperRattachements([data as Record<string, unknown>]);
+    return mappe;
+  }
+
+  async retirerRattachement(id: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: ligne } = await client
+      .from("rattachements_gestionnaires")
+      .select("id, gestionnaire_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!ligne) throw err("ERR_INTROUVABLE");
+    await client.from("rattachements_gestionnaires").delete().eq("id", id);
+    await this.journaliserAudit(acteur, "rattachement_retire", "gestionnaire", id, null);
+  }
+
+  async listerMesRattachements(): Promise<RattachementGestionnaire[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+    const { data, error } = await this.client()
+      .from("rattachements_gestionnaires")
+      .select("*")
+      .eq("gestionnaire_id", session.id)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return this.mapperRattachements((data as Record<string, unknown>[] | null) ?? []);
+  }
+
+  async getContexteActif(): Promise<RattachementGestionnaire | null> {
+    const miens = await this.listerMesRattachements();
+    const actifs = miens.filter((r) => r.statut === "actif");
+    if (actifs.length === 0) return null;
+    let choisi: string | null = null;
+    try {
+      choisi = window.localStorage.getItem("cizaimmo-contexte-rattachement");
+    } catch {
+      choisi = null;
+    }
+    return actifs.find((r) => r.id === choisi) ?? actifs[0];
+  }
+
+  async definirContexteActif(rattachementId: string): Promise<RattachementGestionnaire> {
+    const miens = await this.listerMesRattachements();
+    const entree = miens.find((r) => r.id === rattachementId && r.statut === "actif");
+    if (!entree) throw err("ERR_INTROUVABLE");
+    try {
+      window.localStorage.setItem("cizaimmo-contexte-rattachement", rattachementId);
+    } catch {
+      // Stockage indisponible : le contexte reste le premier actif.
+    }
+    return entree;
+  }
+
+  async ouvrirSupervision(rattachementId: string): Promise<SupervisionGestionnaire> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: ligne } = await client
+      .from("rattachements_gestionnaires")
+      .select("*")
+      .eq("id", rattachementId)
+      .maybeSingle();
+    if (!ligne) throw err("ERR_INTROUVABLE");
+    const [rattachement] = await this.mapperRattachements([
+      ligne as Record<string, unknown>,
+    ]);
+    // Ouverture JOURNALISÉE avant l'affichage des données.
+    await this.journaliserAudit(
+      acteur,
+      "supervision_ouverte",
+      "gestionnaire",
+      rattachementId,
+      rattachement.gestionnaire_email || null,
+      { contexte: rattachement.contexte }
+    );
+    let immeubles: SupervisionGestionnaire["immeubles"] = [];
+    if (rattachement.immeuble_ids.length > 0) {
+      const { data: imms } = await client
+        .from("immeubles")
+        .select("id, nom, ville, devise")
+        .in("id", rattachement.immeuble_ids);
+      const { data: apts } = await client
+        .from("appartements")
+        .select("id, immeuble_id")
+        .in("immeuble_id", rattachement.immeuble_ids);
+      const aptParImmeuble = new Map<string, string[]>();
+      for (const a of (apts as { id: string; immeuble_id: string }[] | null) ?? []) {
+        const liste = aptParImmeuble.get(a.immeuble_id) ?? [];
+        liste.push(a.id);
+        aptParImmeuble.set(a.immeuble_id, liste);
+      }
+      const tousApts = (apts as { id: string }[] | null)?.map((a) => a.id) ?? [];
+      const { data: baux } = tousApts.length
+        ? await client
+            .from("baux")
+            .select("appartement_id, locataire_id")
+            .eq("statut", "actif")
+            .in("appartement_id", tousApts)
+        : { data: [] };
+      immeubles = ((imms as { id: string; nom: string; ville: string; devise: Immeuble["devise"] }[] | null) ?? []).map(
+        (imm) => {
+          const aptIds = aptParImmeuble.get(imm.id) ?? [];
+          const locataires = new Set(
+            ((baux as { appartement_id: string; locataire_id: string }[] | null) ?? [])
+              .filter((b) => aptIds.includes(b.appartement_id))
+              .map((b) => b.locataire_id)
+          );
+          return {
+            id: imm.id,
+            nom: imm.nom,
+            ville: imm.ville,
+            devise_principale: imm.devise,
+            nb_appartements: aptIds.length,
+            nb_locataires_actifs: locataires.size,
+          };
+        }
+      );
+    }
+    return { rattachement, immeubles };
+  }
+
+  // --- Finances dynamiques -------------------------------------------------
+
+  async getTarifsPlateforme(): Promise<TarifPlateforme[]> {
+    // Lecture PUBLIQUE (anon) : le front public lit les prix ici.
+    try {
+      const { data, error } = await this.client()
+        .from("tarifs_plateforme")
+        .select("*")
+        .order("grille", { ascending: true })
+        .order("plan", { ascending: true });
+      if (error || !data || data.length === 0) return TARIFS_SEED.map((t) => ({ ...t }));
+      return (data as Record<string, unknown>[]).map((r) => ({
+        id: r.id as string,
+        grille: r.grille as TarifPlateforme["grille"],
+        plan: r.plan as TarifPlateforme["plan"],
+        prix_mensuel: Number(r.prix_mensuel),
+        devise: (r.devise as string) ?? "USD",
+        updated_at: r.updated_at as string,
+        updated_by: (r.updated_by as string | null) ?? null,
+      }));
+    } catch {
+      return TARIFS_SEED.map((t) => ({ ...t }));
+    }
+  }
+
+  async getParametresFinance(): Promise<ParametresFinance> {
+    try {
+      const { data, error } = await this.client()
+        .from("parametres_finance")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+      if (error || !data) return { ...PARAMETRES_FINANCE_DEFAUT };
+      const r = data as Record<string, unknown>;
+      return {
+        remise_annuelle_pct: Number(r.remise_annuelle_pct ?? 20),
+        jours_essai: Number(r.jours_essai ?? 30),
+        jours_grace: Number(r.jours_grace ?? 5),
+        penalites_retard_actives: Boolean(r.penalites_retard_actives ?? false),
+        pays_grille_afrique: Array.isArray(r.pays_grille_afrique)
+          ? (r.pays_grille_afrique as string[])
+          : [...PARAMETRES_FINANCE_DEFAUT.pays_grille_afrique],
+        delai_approbation_affiche:
+          (r.delai_approbation_affiche as string) ??
+          PARAMETRES_FINANCE_DEFAUT.delai_approbation_affiche,
+      };
+    } catch {
+      return { ...PARAMETRES_FINANCE_DEFAUT };
+    }
+  }
+
+  async mettreAJourTarifs(
+    tarifs: TarifPlateforme[],
+    parametres: ParametresFinance
+  ): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    for (const t of tarifs) {
+      if (!t || typeof t.prix_mensuel !== "number" || t.prix_mensuel <= 0) {
+        throw err("ERR_PRIX_INVALIDE");
+      }
+    }
+    const maintenant = new Date().toISOString();
+    const { error: errTarifs } = await client.from("tarifs_plateforme").upsert(
+      tarifs.map((t) => ({
+        grille: t.grille,
+        plan: t.plan,
+        prix_mensuel: t.prix_mensuel,
+        devise: "USD",
+        updated_at: maintenant,
+        updated_by: acteur.id,
+      })),
+      { onConflict: "grille,plan" }
+    );
+    if (errTarifs) throw new Error(errTarifs.message);
+    const { error: errParams } = await client
+      .from("parametres_finance")
+      .update({
+        remise_annuelle_pct: parametres.remise_annuelle_pct,
+        jours_essai: parametres.jours_essai,
+        jours_grace: parametres.jours_grace,
+        penalites_retard_actives: parametres.penalites_retard_actives,
+        pays_grille_afrique: (parametres.pays_grille_afrique ?? [])
+          .map((c) => c.trim().toUpperCase())
+          .filter((c) => /^[A-Z]{2}$/.test(c)),
+        delai_approbation_affiche:
+          parametres.delai_approbation_affiche?.trim() || "24 h ouvrées",
+        updated_at: maintenant,
+        updated_by: acteur.id,
+      })
+      .eq("id", 1);
+    if (errParams) throw new Error(errParams.message);
+    await this.journaliserAudit(acteur, "tarifs_modifies", "tarif", null, null, {
+      tarifs: tarifs.map((t) => ({
+        grille: t.grille,
+        plan: t.plan,
+        prix_mensuel: t.prix_mensuel,
+      })),
+    });
+    await this.journaliserAudit(acteur, "parametres_modifies", "parametre", null, null, {
+      parametres,
+    });
   }
 }
 

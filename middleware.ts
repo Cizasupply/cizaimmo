@@ -25,6 +25,8 @@ const PROTECTED_SEGMENTS = [
   "rapports",
   "vitrine",
   "abonnement",
+  // Extension v1.2 : console plateforme (Admin / Super Admin).
+  "console",
 ];
 
 /** Pages d'authentification (publiques). */

@@ -18,7 +18,29 @@ import Stripe from "stripe";
 import { getStripeClient, stripeWebhookSecret } from "@/lib/stripe";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
 import { ajouterJours, ajouterMois, GRACE_ECHEC_PAIEMENT_JOURS, prixPlan, prochainNumeroFactureAbo } from "@/lib/abonnement";
-import type { Abonnement, Plan } from "@/lib/data/types";
+import { construirePrixPlans, TARIFS_SEED } from "@/lib/tarifs";
+import { evaluerPaysPaiement } from "@/lib/grille";
+import type { Abonnement, Plan, TarifPlateforme } from "@/lib/data/types";
+
+/**
+ * Prix DYNAMIQUE (extension v1.2) : lu dans tarifs_plateforme via le
+ * client service ; repli sur le seed (prixPlan) si la table est absente
+ * ou vide — jamais un autre littéral.
+ */
+async function prixDynamiqueServeur(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServiceClient>>,
+  plan: Plan,
+  grille: Abonnement["grille"]
+): Promise<number> {
+  try {
+    const { data } = await supabase.from("tarifs_plateforme").select("*");
+    const lignes = (data as TarifPlateforme[] | null) ?? [];
+    if (lignes.length > 0) return construirePrixPlans(lignes)[plan][grille];
+  } catch {
+    // Table absente (module-finance non appliqué) : repli seed.
+  }
+  return construirePrixPlans(TARIFS_SEED)[plan][grille] ?? prixPlan(plan, grille);
+}
 
 export async function POST(req: NextRequest) {
   const stripe = getStripeClient();
@@ -96,7 +118,7 @@ export async function POST(req: NextRequest) {
       ),
       plan,
       grille: aboLu.grille,
-      montant: prixPlan(plan, aboLu.grille),
+      montant: await prixDynamiqueServeur(supabase, plan, aboLu.grille),
       devise: "USD",
       date_emission: maintenant,
       date_debut: maintenant,
@@ -106,6 +128,53 @@ export async function POST(req: NextRequest) {
       stripe_invoice_id: null,
       reference_mobile_money: null,
     });
+    // Anti-fraude (signal c) : au PREMIER paiement carte, capturer le
+    // pays de la carte (payment method) ; contradiction avec la grille
+    // attribuée → « a_verifier ». Best-effort : ne bloque jamais le flux.
+    try {
+      const { data: profil } = await supabase
+        .from("profils")
+        .select("pays_paiement")
+        .eq("id", aboLu.owner_id)
+        .maybeSingle();
+      if (profil && !profil.pays_paiement && session.payment_intent) {
+        const piId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent.id;
+        const pi = await stripe.paymentIntents.retrieve(piId);
+        const pmId =
+          typeof pi.payment_method === "string"
+            ? pi.payment_method
+            : pi.payment_method?.id;
+        if (pmId) {
+          const pm = await stripe.paymentMethods.retrieve(pmId);
+          const paysCarte = pm.card?.country ?? null;
+          if (paysCarte) {
+            const { data: params } = await supabase
+              .from("parametres_finance")
+              .select("pays_grille_afrique")
+              .eq("id", 1)
+              .maybeSingle();
+            const eligibles = (params?.pays_grille_afrique as string[] | null) ?? [];
+            const statutGrille = evaluerPaysPaiement(
+              aboLu.grille,
+              paysCarte,
+              eligibles
+            );
+            await supabase
+              .from("profils")
+              .update({
+                pays_paiement: paysCarte,
+                ...(statutGrille === "a_verifier" ? { grille_statut: "a_verifier" } : {}),
+              })
+              .eq("id", aboLu.owner_id);
+          }
+        }
+      }
+    } catch {
+      // Signal (c) best-effort uniquement.
+    }
     return NextResponse.json({ received: true, applied: true });
   }
 

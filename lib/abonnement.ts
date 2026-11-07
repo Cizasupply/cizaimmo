@@ -83,6 +83,9 @@ export function ajouterMois(iso: string, mois = 1): string {
  */
 export function estLectureSeule(abo: Abonnement, maintenant: Date = new Date()): boolean {
   if (abo.statut === "lecture_seule" || abo.statut === "annule") return true;
+  // Extension v1.2 : suspendu par la plateforme = bloqué ; en attente
+  // d'approbation (ajout n°3) = aucune écriture tant que non approuvé.
+  if (abo.statut === "suspendu" || abo.statut === "en_attente") return true;
   if (abo.statut === "essai" && abo.trial_ends_at) {
     if (maintenant.getTime() > new Date(abo.trial_ends_at).getTime()) return true;
   }

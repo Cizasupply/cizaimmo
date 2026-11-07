@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { Profil } from "@/lib/data";
+import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
 import { prenomDe } from "@/lib/nom";
 
 const links = [
@@ -76,6 +76,92 @@ function BlocUtilisateur({ profil }: { profil: Profil }) {
   );
 }
 
+/**
+ * Sélecteur de contexte du gestionnaire MULTI-RATTACHÉ (extension v1.2) :
+ * visible seulement s'il a plus d'un rattachement actif. Les contextes
+ * sont strictement séparés — changer de contexte recharge l'application
+ * sur le parc du contexte choisi, aucune donnée croisée.
+ */
+function SelecteurContexte({
+  rattachements,
+  actifId,
+}: {
+  rattachements: RattachementGestionnaire[];
+  actifId: string | null;
+}) {
+  const t = useTranslations("shell");
+  const [enCours, setEnCours] = useState(false);
+  async function changer(id: string) {
+    setEnCours(true);
+    try {
+      await getDataProvider().definirContexteActif(id);
+      window.location.reload();
+    } catch {
+      setEnCours(false);
+    }
+  }
+  return (
+    <label className="mt-8 block rounded-xl border border-slate-600 px-3 py-2.5">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t("contextLabel")}
+      </span>
+      <select
+        value={actifId ?? ""}
+        disabled={enCours}
+        onChange={(e) => changer(e.target.value)}
+        className="mt-1 w-full rounded-lg bg-navy px-2 py-1.5 text-sm font-semibold text-white"
+      >
+        {rattachements.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.contexte === "cizagroup"
+              ? t("contextCizaGroup")
+              : (r.proprietaire_nom ?? r.proprietaire_id ?? "")}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Écran de blocage plein écran (compte suspendu / en attente d'approbation). */
+function EcranBlocage({
+  titre,
+  corps,
+  accent,
+  onLogout,
+  logoutLabel,
+}: {
+  titre: string;
+  corps: string;
+  accent: "red" | "amber";
+  onLogout: () => void;
+  logoutLabel: string;
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-navy-dark px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+        <div
+          aria-hidden="true"
+          className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full text-2xl ${
+            accent === "red" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+          }`}
+        >
+          {accent === "red" ? "⛔" : "⏳"}
+        </div>
+        <h1 className="text-xl font-bold text-navy">{titre}</h1>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">{corps}</p>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-6 w-full rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light"
+        >
+          {logoutLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({
   title,
   children,
@@ -86,9 +172,14 @@ export default function AppShell({
   const t = useTranslations("nav");
   const tb = useTranslations("brand");
   const tc = useTranslations("common");
+  const ts = useTranslations("shell");
   const locale = useLocale();
   const router = useRouter();
   const [profil, setProfil] = useState<Profil | null>(null);
+  const [abonnement, setAbonnement] = useState<Abonnement | null>(null);
+  const [delaiApprobation, setDelaiApprobation] = useState<string>("");
+  const [rattachements, setRattachements] = useState<RattachementGestionnaire[]>([]);
+  const [contexteActifId, setContexteActifId] = useState<string | null>(null);
   const [menuOuvert, setMenuOuvert] = useState(false);
 
   useEffect(() => {
@@ -105,6 +196,53 @@ export default function AppShell({
   }, []);
 
   const role = profil?.role ?? null;
+
+  // Extension v1.2 — connexion prioritaire : Admin / Super Admin vers
+  // la console plateforme, jamais vers le parc client.
+  useEffect(() => {
+    if (role === "admin" || role === "super_admin") {
+      router.replace(`/${locale}/console`);
+    }
+  }, [role, locale, router]);
+
+  // Abonnement du propriétaire (écran d'attente d'approbation, ajout n°3).
+  useEffect(() => {
+    if (role !== "proprietaire") return;
+    let actif = true;
+    getDataProvider()
+      .getAbonnement()
+      .then(async (a) => {
+        if (!actif) return;
+        setAbonnement(a);
+        if (a?.statut === "en_attente") {
+          const params = await getDataProvider().getParametresFinance();
+          if (actif) setDelaiApprobation(params.delai_approbation_affiche);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      actif = false;
+    };
+  }, [role]);
+
+  // Rattachements du gestionnaire (sélecteur de contexte si multi-rattaché).
+  useEffect(() => {
+    if (role !== "gestionnaire") return;
+    let actif = true;
+    Promise.all([
+      getDataProvider().listerMesRattachements(),
+      getDataProvider().getContexteActif(),
+    ])
+      .then(([liste, contexte]) => {
+        if (!actif) return;
+        setRattachements(liste.filter((r) => r.statut === "actif"));
+        setContexteActifId(contexte?.id ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      actif = false;
+    };
+  }, [role]);
 
   const estProprietaire = role === "proprietaire";
   const estCoproprietaire = role === "coproprietaire";
@@ -178,6 +316,36 @@ export default function AppShell({
     );
   }
 
+  // Extension v1.2 — gardes d'accès AVANT tout module :
+  // plateforme → redirection console (effet ci-dessus) ; suspendu →
+  // écran de blocage ; en attente d'approbation → écran d'attente
+  // (aucun accès aux modules, aucune donnée créée).
+  if (role === "admin" || role === "super_admin") {
+    return <div className="min-h-screen bg-navy-dark" aria-hidden="true" />;
+  }
+  if (profil?.suspendu) {
+    return (
+      <EcranBlocage
+        titre={ts("suspendedTitle")}
+        corps={ts("suspendedBody")}
+        accent="red"
+        onLogout={handleLogout}
+        logoutLabel={tc("logout")}
+      />
+    );
+  }
+  if (estProprietaire && abonnement?.statut === "en_attente") {
+    return (
+      <EcranBlocage
+        titre={ts("pendingTitle")}
+        corps={ts("pendingBody", { delai: delaiApprobation || "24 h ouvrées" })}
+        accent="amber"
+        onLogout={handleLogout}
+        logoutLabel={tc("logout")}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <aside className="fixed inset-y-0 left-0 w-60 bg-navy-dark text-white p-6 hidden md:block">
@@ -198,6 +366,9 @@ export default function AppShell({
         <nav className="space-y-1">
           <LiensNavigation />
         </nav>
+        {role === "gestionnaire" && rattachements.length > 1 ? (
+          <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
+        ) : null}
         {profil ? <BlocUtilisateur profil={profil} /> : null}
         <button
           type="button"
@@ -271,6 +442,9 @@ export default function AppShell({
             <nav className="space-y-1">
               <LiensNavigation onNavigate={() => setMenuOuvert(false)} />
             </nav>
+            {role === "gestionnaire" && rattachements.length > 1 ? (
+              <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
+            ) : null}
             {profil ? <BlocUtilisateur profil={profil} /> : null}
             <button
               type="button"

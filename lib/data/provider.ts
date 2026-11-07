@@ -7,9 +7,13 @@ import type {
   Appartement,
   AppartementInput,
   AppartementPatch,
+  Avis,
   Bail,
   BailInput,
   CautionStatut,
+  CompteAdmin,
+  ComptePlateforme,
+  ContexteRattachement,
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
@@ -19,6 +23,7 @@ import type {
   Document,
   DocumentInput,
   EcheanceLoyer,
+  EntreeAudit,
   FactureAbonnement,
   FiltreAppartements,
   FiltreBaux,
@@ -27,6 +32,7 @@ import type {
   FiltreEcheances,
   FiltreRecus,
   GestionnaireInvite,
+  Grille,
   Immeuble,
   ImmeubleInput,
   ImmeublePatch,
@@ -35,18 +41,24 @@ import type {
   Locataire,
   LocataireInput,
   LocatairePatch,
+  ModeleAvis,
+  MotifRefus,
   OperateurMobileMoney,
   Paiement,
   PaiementMobileMoney,
+  ParametresFinance,
   Plan,
   PreferencesNotifications,
   Profil,
   ProfilPatch,
+  RattachementGestionnaire,
   Recu,
   SessionUser,
   SignUpInput,
   StatutAppartement,
   StatutWhatsApp,
+  SupervisionGestionnaire,
+  TarifPlateforme,
   TauxChange,
   TauxManuelInput,
   TauxResultat,
@@ -429,4 +441,77 @@ export interface DataProvider {
   confirmerPaiementMobileMoney(reference: string): Promise<PaiementMobileMoney>;
   /** Paiements mobile money, expirations de 24 h appliquées à la lecture. */
   listerPaiementsMobileMoney(): Promise<PaiementMobileMoney[]>;
+
+  // ==========================================================================
+  // EXTENSION v1.2 — Console plateforme, approbation, finances dynamiques.
+  // Voir docs/admin-finance-v1.2.md. Les méthodes « plateforme » exigent
+  // une session Admin / Super Admin (garde dans chaque fournisseur) ;
+  // les lectures tarifs/paramètres sont PUBLIQUES (front public).
+  // ==========================================================================
+
+  /** Tous les comptes clients (vue console, retards calculés). */
+  listerComptesPlateforme(): Promise<ComptePlateforme[]>;
+  /** Suspend un compte (accès bloqué, données conservées) — journalisé. */
+  suspendreCompte(compteId: string): Promise<void>;
+  /** Réactive un compte suspendu (statut antérieur restauré) — journalisé. */
+  reactiverCompte(compteId: string): Promise<void>;
+  /** Suppression DÉFINITIVE — Super Admin uniquement, journalisée. */
+  supprimerCompteDefinitivement(compteId: string): Promise<void>;
+  /**
+   * Approuve un compte « en_attente » : la grille affichée est confirmée,
+   * l'essai démarre à l'approbation (jours_essai dynamiques), e-mail de
+   * bienvenue, journalisé.
+   */
+  approuverCompte(compteId: string): Promise<void>;
+  /** Refuse un compte « en_attente » (motif prédéfini) : e-mail + journal. */
+  refuserCompte(compteId: string, motif: MotifRefus): Promise<void>;
+  /** Réattribue la grille d'un compte (Admin / Super Admin) — journalisé. */
+  reattribuerGrille(compteId: string, grille: Grille): Promise<void>;
+  /** Envoie un avis par MODÈLE prédéfini (jamais de texte libre) — journalisé. */
+  envoyerAvis(compteId: string, modele: ModeleAvis): Promise<Avis>;
+
+  /** Comptes Admin / Super Admin (gestion : Super Admin uniquement). */
+  listerAdmins(): Promise<CompteAdmin[]>;
+  /**
+   * Crée un compte Admin. En réel : les comptes Auth ne se créent pas
+   * côté client — lève ERR_PROMOTION_REQUISE (l'employé s'inscrit puis
+   * est promu). En démo : crée l'entrée du registre.
+   */
+  creerAdmin(email: string, nom: string): Promise<CompteAdmin>;
+  /** Promeut un compte existant (inscrit) au rôle Admin — Super Admin. */
+  promouvoirAdmin(email: string): Promise<CompteAdmin>;
+  suspendreAdmin(adminId: string): Promise<void>;
+  reactiverAdmin(adminId: string): Promise<void>;
+  /** Retire le rôle Admin (le compte redevient un compte ordinaire). */
+  retirerAdmin(adminId: string): Promise<void>;
+
+  /** Journal d'audit plateforme (lecture, Admin / Super Admin). */
+  listerJournalAudit(): Promise<EntreeAudit[]>;
+
+  /** Rattachements gestionnaires (console). */
+  listerRattachements(): Promise<RattachementGestionnaire[]>;
+  creerRattachement(input: {
+    gestionnaire_email: string;
+    gestionnaire_nom?: string | null;
+    contexte: ContexteRattachement;
+    proprietaire_id?: string | null;
+    immeuble_ids: string[];
+  }): Promise<RattachementGestionnaire>;
+  retirerRattachement(id: string): Promise<void>;
+  /** Rattachements du gestionnaire connecté (sélecteur de contexte). */
+  listerMesRattachements(): Promise<RattachementGestionnaire[]>;
+  getContexteActif(): Promise<RattachementGestionnaire | null>;
+  definirContexteActif(rattachementId: string): Promise<RattachementGestionnaire>;
+  /** Ouvre la supervision d'un gestionnaire rattaché — JOURNALISÉ. */
+  ouvrirSupervision(rattachementId: string): Promise<SupervisionGestionnaire>;
+
+  /** Tarifs DYNAMIQUES (lecture publique) : source = table/base, jamais en dur. */
+  getTarifsPlateforme(): Promise<TarifPlateforme[]>;
+  /** Paramètres finance (lecture publique ; écriture Super Admin). */
+  getParametresFinance(): Promise<ParametresFinance>;
+  /** Met à jour tarifs + paramètres — Super Admin uniquement, journalisé. */
+  mettreAJourTarifs(
+    tarifs: TarifPlateforme[],
+    parametres: ParametresFinance
+  ): Promise<void>;
 }

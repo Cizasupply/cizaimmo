@@ -17,7 +17,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
 import { ajouterMois, prixPlan, prochainNumeroFactureAbo } from "@/lib/abonnement";
-import type { Abonnement, PaiementMobileMoney } from "@/lib/data/types";
+import { construirePrixPlans, TARIFS_SEED } from "@/lib/tarifs";
+import { evaluerPaysPaiement, paysDepuisTelephone } from "@/lib/grille";
+import type { Abonnement, PaiementMobileMoney, TarifPlateforme } from "@/lib/data/types";
+
+/**
+ * Prix DYNAMIQUE (extension v1.2) : lu dans tarifs_plateforme via le
+ * client service ; repli sur le seed (prixPlan) si la table est absente
+ * ou vide — jamais un autre littéral.
+ */
+async function prixDynamiqueServeur(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServiceClient>>,
+  plan: PaiementMobileMoney["plan"],
+  grille: Abonnement["grille"]
+): Promise<number> {
+  try {
+    const { data } = await supabase.from("tarifs_plateforme").select("*");
+    const lignes = (data as TarifPlateforme[] | null) ?? [];
+    if (lignes.length > 0) return construirePrixPlans(lignes)[plan][grille];
+  } catch {
+    // Table absente (module-finance non appliqué) : repli seed.
+  }
+  return construirePrixPlans(TARIFS_SEED)[plan][grille] ?? prixPlan(plan, grille);
+}
 
 export async function POST(req: NextRequest) {
   let corps: { reference?: unknown; statut?: unknown } = {};
@@ -110,7 +132,7 @@ export async function POST(req: NextRequest) {
     ),
     plan: p.plan,
     grille: aboLu.grille,
-    montant: prixPlan(p.plan, aboLu.grille),
+    montant: await prixDynamiqueServeur(supabase, p.plan, aboLu.grille),
     devise: "USD",
     date_emission: maintenant,
     date_debut: maintenant,
@@ -120,5 +142,40 @@ export async function POST(req: NextRequest) {
     stripe_invoice_id: null,
     reference_mobile_money: reference,
   });
+  // Anti-fraude (signal c) : au PREMIER paiement, capturer le pays du
+  // moyen de paiement (préfixe du numéro) ; contradiction avec la grille
+  // attribuée → compte « a_verifier » (la console décide, rien d'auto).
+  try {
+    const { data: profil } = await supabase
+      .from("profils")
+      .select("pays_paiement, grille_attribuee")
+      .eq("id", p.owner_id)
+      .maybeSingle();
+    if (profil && !profil.pays_paiement) {
+      const paysPaiement = paysDepuisTelephone(p.telephone);
+      if (paysPaiement) {
+        const { data: params } = await supabase
+          .from("parametres_finance")
+          .select("pays_grille_afrique")
+          .eq("id", 1)
+          .maybeSingle();
+        const eligibles = (params?.pays_grille_afrique as string[] | null) ?? [];
+        const statutGrille = evaluerPaysPaiement(
+          aboLu.grille,
+          paysPaiement,
+          eligibles
+        );
+        await supabase
+          .from("profils")
+          .update({
+            pays_paiement: paysPaiement,
+            ...(statutGrille === "a_verifier" ? { grille_statut: "a_verifier" } : {}),
+          })
+          .eq("id", p.owner_id);
+      }
+    }
+  } catch {
+    // Le signal (c) ne doit jamais bloquer la confirmation du paiement.
+  }
   return NextResponse.json({ received: true, applied: true, statut: "confirme" });
 }

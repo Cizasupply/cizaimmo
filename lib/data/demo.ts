@@ -8,9 +8,13 @@ import type {
   Appartement,
   AppartementInput,
   AppartementPatch,
+  Avis,
   Bail,
   BailInput,
   CautionStatut,
+  CibleAudit,
+  CompteAdmin,
+  ComptePlateforme,
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
@@ -21,6 +25,7 @@ import type {
   Document,
   DocumentInput,
   EcheanceLoyer,
+  EntreeAudit,
   FactureAbonnement,
   FiltreAppartements,
   FiltreBaux,
@@ -29,6 +34,7 @@ import type {
   FiltreEcheances,
   FiltreRecus,
   GestionnaireInvite,
+  Grille,
   Immeuble,
   ImmeubleInput,
   ImmeublePatch,
@@ -37,18 +43,24 @@ import type {
   Locataire,
   LocataireInput,
   LocatairePatch,
+  ModeleAvis,
+  MotifRefus,
   OperateurMobileMoney,
   Paiement,
   PaiementMobileMoney,
+  ParametresFinance,
   Plan,
   PreferencesNotifications,
   Profil,
   ProfilPatch,
+  RattachementGestionnaire,
   Recu,
   SessionUser,
   SignUpInput,
   StatutAppartement,
   StatutWhatsApp,
+  SupervisionGestionnaire,
+  TarifPlateforme,
   TauxChange,
   TauxManuelInput,
   TauxResultat,
@@ -87,7 +99,26 @@ import {
   LIMITE_DEMO_CONTENU_OCTETS,
 } from "../module4";
 import { sommeParts, validerParts } from "../indivision";
-import { buildDemoDb, GESTIONNAIRE_DEMO_EMAIL, type DemoDb } from "./demo-seed";
+import {
+  buildDemoDb,
+  CIZAGROUP_OWNER_ID,
+  GESTIONNAIRE_DEMO_EMAIL,
+  SUPER_ADMIN_DEMO_EMAIL,
+  ADMIN_DEMO_EMAIL,
+  type CompteClientDemo,
+  type DemoDb,
+  type ParcDemo,
+} from "./demo-seed";
+import { libellerMotif, rendreAvis, rendreBienvenue } from "../avis";
+import {
+  construirePrixPlans,
+  estEnRetardPaiement,
+} from "../tarifs";
+import {
+  attribuerGrille,
+  evaluerPaysPaiement,
+  paysDepuisTelephone,
+} from "../grille";
 import { FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
 import {
   envoyerEmailViaApi,
@@ -111,6 +142,8 @@ import {
 export const DEMO_SESSION_COOKIE = "cizaimmo-demo-session";
 const DEMO_DB_KEY = "cizaimmo-demo-db-v1";
 const DEMO_SESSION_KEY = "cizaimmo-demo-session-v1";
+/** Extension v1.2 : contexte actif du gestionnaire multi-rattaché. */
+const DEMO_CONTEXTE_KEY = "cizaimmo-demo-contexte-v1";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -136,6 +169,32 @@ function loadDb(): DemoDb {
         db[cle] = frais[cle] as never;
         migre = true;
       }
+    }
+    // Migration douce (extension v1.2) : parc Ciza Group, registre
+    // plateforme et finances dynamiques — remplis depuis la seed sans
+    // écraser les données existantes.
+    if (!db.parcCizaGroup) {
+      db.parcCizaGroup = frais.parcCizaGroup;
+      migre = true;
+    }
+    if (!db.plateforme) {
+      db.plateforme = frais.plateforme;
+      migre = true;
+    }
+    if (!db.finance) {
+      db.finance = frais.finance;
+      migre = true;
+    } else if (
+      db.finance.parametres &&
+      !Array.isArray(db.finance.parametres.pays_grille_afrique)
+    ) {
+      db.finance.parametres.pays_grille_afrique =
+        frais.finance.parametres.pays_grille_afrique;
+      migre = true;
+    }
+    if (db.profil && (db.profil as unknown as Record<string, unknown>).suspendu === undefined) {
+      (db.profil as unknown as Record<string, unknown>).suspendu = false;
+      migre = true;
     }
     // Migration douce (module 6) : nouveaux champs.
     if (db.profil && (db.profil as unknown as Record<string, unknown>).telephone === undefined) {
@@ -272,6 +331,22 @@ export class DemoProvider implements DataProvider {
   async signIn(email: string, _motDePasse: string): Promise<void> {
     const db = loadDb();
     const adresse = email.trim().toLowerCase();
+    // Extension v1.2 : comptes PLATEFORME (Admin / Super Admin démo) —
+    // vérifiés en premier : leur session ouvre la console, jamais le parc.
+    const compteAdmin = db.plateforme.comptesAdmins.find(
+      (a) => a.email.toLowerCase() === adresse
+    );
+    if (compteAdmin) {
+      if (compteAdmin.statut === "suspendu") throw err("ERR_COMPTE_SUSPENDU");
+      const session: SessionUser = {
+        id: `plateforme:${adresse}`,
+        email: adresse,
+        nom: compteAdmin.nom,
+      };
+      window.localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+      setSessionCookie();
+      return;
+    }
     // Module 6 : un co-propriétaire invité se connecte avec l'e-mail de
     // son invitation : sa session est limitée à ses biens partagés,
     // en lecture seule (voir getProfil / filtrage ci-dessous).
@@ -306,6 +381,11 @@ export class DemoProvider implements DataProvider {
       setSessionCookie();
       return;
     }
+    // Extension v1.2 : un compte REFUSÉ (ajout n°3) ou SUSPENDU par la
+    // plateforme ne peut plus se connecter — message propre côté écran
+    // de connexion, données conservées.
+    if (db.profil.motif_refus) throw err("ERR_COMPTE_REFUSE");
+    if (db.profil.suspendu) throw err("ERR_COMPTE_SUSPENDU");
     // La session démo utilise le profil de démonstration ; l'e-mail saisi
     // est conservé comme identifiant d'affichage si différent.
     const session: SessionUser = {
@@ -319,7 +399,14 @@ export class DemoProvider implements DataProvider {
 
   async signUp(input: SignUpInput): Promise<{ needsEmailConfirmation: boolean }> {
     const db = loadDb();
-    const { debut, fin } = trialDates();
+    const { debut } = trialDates();
+    // Anti-fraude tarifaire (v1.2) : attribution de la grille par la
+    // matrice (pays déclaré + code pays IP, liste d'éligibilité
+    // DYNAMIQUE des paramètres finance) — jamais le seul pays déclaré.
+    const attribution = attribuerGrille(
+      { paysDeclare: input.pays, paysIp: input.paysIp ?? null },
+      db.finance.parametres.pays_grille_afrique
+    );
     db.profil = {
       id: db.profil.id,
       nom: input.nom,
@@ -329,23 +416,33 @@ export class DemoProvider implements DataProvider {
       devise_principale: input.devisePrincipale,
       role: "proprietaire",
       telephone: null,
+      suspendu: false,
+      pays_declare: input.pays,
+      pays_ip: input.paysIp ?? null,
+      pays_paiement: null,
+      grille_attribuee: attribution.grille,
+      grille_statut: attribution.statut,
+      motif_refus: null,
       created_at: debut,
     };
     db.abonnement = {
       ...db.abonnement,
       owner_id: db.profil.id,
       plan: "pro",
-      grille: grillePourPays(input.pays),
-      statut: "essai",
+      grille: attribution.grille,
+      // Approbation manuelle (ajout n°3) : en_attente, SANS dates
+      // d'essai — l'essai démarrera à l'approbation par la console.
+      statut: "en_attente",
       debut_periode: debut,
-      fin_periode: fin,
-      trial_ends_at: fin,
+      fin_periode: null,
+      trial_ends_at: null,
       plan_en_attente: null,
       date_effet_plan: null,
       resiliation_programmee: false,
       echec_paiement: false,
       grace_ends_at: null,
       lecture_seule_jusqu_au: null,
+      statut_pre_suspension: null,
     };
     saveDb(db);
     const session: SessionUser = { id: db.profil.id, email: db.profil.email, nom: db.profil.nom };
@@ -374,6 +471,27 @@ export class DemoProvider implements DataProvider {
     const session = await this.getSession();
     if (!session) return null;
     const db = loadDb();
+    // Extension v1.2 : session PLATEFORME — profil synthétique depuis le
+    // registre des Admins (rôle admin / super_admin) ; la console est sa
+    // seule surface, il n'a ni parc ni abonnement.
+    if (session.id.startsWith("plateforme:")) {
+      const entree = db.plateforme.comptesAdmins.find(
+        (a) => a.email.toLowerCase() === session.email.toLowerCase()
+      );
+      if (!entree) return null;
+      return {
+        id: session.id,
+        nom: entree.nom,
+        email: entree.email,
+        pays: "Canada",
+        langue: "fr",
+        devise_principale: "USD",
+        role: entree.role,
+        telephone: null,
+        suspendu: entree.statut === "suspendu",
+        created_at: entree.created_at,
+      };
+    }
     // Module 6 : session co-propriétaire — profil synthétique, rôle
     // coproprietaire, limité aux biens partagés (lecture seule).
     if (session.id.startsWith("coprop:")) {
@@ -393,6 +511,7 @@ export class DemoProvider implements DataProvider {
         devise_principale: premierImmeuble?.devise ?? "USD",
         role: "coproprietaire",
         telephone: partages[0]?.telephone ?? null,
+        suspendu: false,
         created_at: partages[0]?.created_at ?? new Date().toISOString(),
       };
     }
@@ -419,6 +538,7 @@ export class DemoProvider implements DataProvider {
         devise_principale: premierImmeuble?.devise ?? "CAD",
         role: "gestionnaire",
         telephone: null,
+        suspendu: false,
         created_at: invitation?.created_at ?? new Date().toISOString(),
       };
     }
@@ -431,7 +551,12 @@ export class DemoProvider implements DataProvider {
     // Module 6 : un co-propriétaire n'a AUCUN accès à l'abonnement.
     // Gestionnaire : idem (spec §2, §12 — l'abonnement est réservé au
     // propriétaire ; la RLS réelle le refuse aussi).
-    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) return null;
+    // Extension v1.2 : une session plateforme n'a pas d'abonnement.
+    if (
+      session.id.startsWith("coprop:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("plateforme:")
+    ) return null;
     const db = loadDb();
     return this.chargerAbonnement(db);
   }
@@ -511,6 +636,120 @@ export class DemoProvider implements DataProvider {
     return this.sessionGestionnaireEmail() !== null;
   }
 
+  /** E-mail de la session PLATEFORME en cours, ou null (synchrone). */
+  private sessionPlateformeEmail(): string | null {
+    if (!isBrowser()) return null;
+    try {
+      const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw) as SessionUser;
+      return s?.id?.startsWith("plateforme:") ? s.email.toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.2 — contextes du gestionnaire multi-rattaché : le parc
+  // ACTIF dépend du rattachement choisi (sélecteur de contexte). Les
+  // contextes sont STRICTEMENT séparés : contexte « proprietaire » =
+  // collections principales de la base démo ; contexte « cizagroup » =
+  // parc interne Ciza Group. Aucune donnée ne traverse.
+  // ==========================================================================
+
+  /** Rattachements ACTIFS du gestionnaire de la session (ou d'un e-mail). */
+  private rattachementsActifsDe(db: DemoDb, email: string): RattachementGestionnaire[] {
+    return db.plateforme.rattachements.filter(
+      (r) => r.gestionnaire_email.toLowerCase() === email.toLowerCase() && r.statut === "actif"
+    );
+  }
+
+  /** Rattachement actif courant : celui stocké (sélecteur), sinon le premier actif. */
+  private rattachementActif(db: DemoDb): RattachementGestionnaire | null {
+    const email = this.sessionGestionnaireEmail();
+    if (!email) return null;
+    const liste = this.rattachementsActifsDe(db, email);
+    if (liste.length === 0) return null;
+    let choisi: string | null = null;
+    if (isBrowser()) {
+      try {
+        choisi = window.localStorage.getItem(DEMO_CONTEXTE_KEY);
+      } catch {
+        choisi = null;
+      }
+    }
+    return liste.find((r) => r.id === choisi) ?? liste[0];
+  }
+
+  /**
+   * Parc actif de la session : parc Ciza Group si le gestionnaire est
+   * dans son contexte Ciza Group, parc principal sinon. `collections`
+   * pointe vers les VRAIES collections (mutations persistées par saveDb).
+   */
+  private parcActif(db: DemoDb): {
+    estPrincipal: boolean;
+    collections: ParcDemo;
+    ownerId: string;
+  } {
+    const rattachement = this.rattachementActif(db);
+    if (rattachement && rattachement.contexte === "cizagroup") {
+      return {
+        estPrincipal: false,
+        collections: db.parcCizaGroup,
+        ownerId: db.parcCizaGroup.profil.id,
+      };
+    }
+    return {
+      estPrincipal: true,
+      collections: {
+        profil: db.profil,
+        immeubles: db.immeubles,
+        appartements: db.appartements,
+        locataires: db.locataires,
+        baux: db.baux,
+        echeances: db.echeances,
+        paiements: db.paiements,
+        depenses: db.depenses,
+        documents: db.documents,
+        activites: db.activites,
+        alertes: db.alertes,
+        coproprietaires: db.coproprietaires,
+      },
+      ownerId: db.profil.id,
+    };
+  }
+
+  /**
+   * Collections du parc actif, avec RÉAFFECTATION synchronisée : les
+   * méthodes CRUD filtrent parfois par réassignation
+   * (db.appartements = db.appartements.filter(...)) — le setter répercute
+   * l'affectation dans la vraie collection du parc actif.
+   */
+  private cols(db: DemoDb): ParcDemo {
+    const parc = this.parcActif(db);
+    if (parc.estPrincipal) {
+      // Le parc principal EST la base : un proxy qui lit/écrit db.*.
+      const vue = {} as ParcDemo;
+      const cles = [
+        "profil", "immeubles", "appartements", "locataires", "baux",
+        "echeances", "paiements", "depenses", "documents", "activites",
+        "alertes", "coproprietaires",
+      ] as const;
+      for (const cle of cles) {
+        Object.defineProperty(vue, cle, {
+          get: () => db[cle],
+          set: (v: unknown) => {
+            (db as unknown as Record<string, unknown>)[cle] = v;
+          },
+          enumerable: true,
+          configurable: true,
+        });
+      }
+      return vue;
+    }
+    return parc.collections;
+  }
+
   /**
    * Immeubles visibles par la session courante (null = tout voir).
    * Co-propriétaire : ses biens partagés. Gestionnaire : les immeubles
@@ -529,6 +768,12 @@ export class DemoProvider implements DataProvider {
     }
     const emailGestionnaire = this.sessionGestionnaireEmail();
     if (emailGestionnaire) {
+      // Extension v1.2 : les immeubles visibles sont ceux du
+      // RATTACHEMENT actif (contexte choisi) — séparation stricte des
+      // contextes. Repli : l'invitation historique (bases sans
+      // rattachements) garde le comportement d'origine.
+      const rattachement = this.rattachementActif(db);
+      if (rattachement) return new Set(rattachement.immeuble_ids);
       const invitation = db.gestionnaires.find(
         (g) => g.email.trim().toLowerCase() === emailGestionnaire
       );
@@ -539,23 +784,23 @@ export class DemoProvider implements DataProvider {
 
   /** Immeuble d'un appartement (résolution pour le filtrage coproprietaire). */
   private immeubleDeAppartement(db: DemoDb, appartementId: string): string | null {
-    return db.appartements.find((a) => a.id === appartementId)?.immeuble_id ?? null;
+    return this.cols(db).appartements.find((a) => a.id === appartementId)?.immeuble_id ?? null;
   }
 
   private immeubleDeBail(db: DemoDb, bailId: string): string | null {
-    const bail = db.baux.find((b) => b.id === bailId);
+    const bail = this.cols(db).baux.find((b) => b.id === bailId);
     return bail ? this.immeubleDeAppartement(db, bail.appartement_id) : null;
   }
 
   private immeubleDeEcheance(db: DemoDb, echeanceId: string): string | null {
-    const ech = db.echeances.find((e) => e.id === echeanceId);
+    const ech = this.cols(db).echeances.find((e) => e.id === echeanceId);
     return ech ? this.immeubleDeBail(db, ech.bail_id) : null;
   }
 
   /** Un locataire est visible pour une session restreinte s'il a au
    * moins un bail (actif ou terminé) sur un immeuble visible. */
   private locataireVisible(db: DemoDb, locataireId: string, visibles: Set<string>): boolean {
-    return db.baux.some((b) => {
+    return this.cols(db).baux.some((b) => {
       if (b.locataire_id !== locataireId) return false;
       const imm = this.immeubleDeAppartement(db, b.appartement_id);
       return imm !== null && visibles.has(imm);
@@ -599,6 +844,13 @@ export class DemoProvider implements DataProvider {
   private async requireOwnerId(): Promise<string> {
     const session = await this.getSession();
     if (!session) throw err("ERR_NOT_FOUND");
+    // Extension v1.2 : dans le contexte Ciza Group, le propriétaire des
+    // données créées est le parc interne Ciza Group (contexte séparé).
+    if (session.id.startsWith("gestionnaire:")) {
+      const db = loadDb();
+      const parc = this.parcActif(db);
+      if (!parc.estPrincipal) return parc.ownerId;
+    }
     return session.id;
   }
 
@@ -615,9 +867,11 @@ export class DemoProvider implements DataProvider {
     description: string,
     auteurId?: string | null
   ): void {
-    db.activites.push({
+    // Extension v1.2 : le fil suit le parc ACTIF (contexte gestionnaire).
+    const parc = this.parcActif(db);
+    this.cols(db).activites.push({
       id: uid(),
-      owner_id: db.profil.id,
+      owner_id: parc.ownerId,
       type,
       entite_type: entiteType,
       entite_id: entiteId,
@@ -628,7 +882,7 @@ export class DemoProvider implements DataProvider {
   }
 
   private nomLocataire(db: DemoDb, locataireId: string): string {
-    return db.locataires.find((l) => l.id === locataireId)?.nom ?? "—";
+    return this.cols(db).locataires.find((l) => l.id === locataireId)?.nom ?? "—";
   }
 
   private async verifierLimiteBlocs(db: DemoDb, nbActifs: number): Promise<void> {
@@ -639,8 +893,9 @@ export class DemoProvider implements DataProvider {
 
   async listerImmeubles(inclureArchives = false): Promise<Immeuble[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.immeubles
+    return parc.immeubles
       .filter((i) => inclureArchives || i.statut === "actif")
       .filter((i) => !visibles || visibles.has(i.id))
       .slice()
@@ -649,25 +904,27 @@ export class DemoProvider implements DataProvider {
 
   async getImmeuble(id: string): Promise<Immeuble | null> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
     if (visibles && !visibles.has(id)) return null;
-    return db.immeubles.find((i) => i.id === id) ?? null;
+    return parc.immeubles.find((i) => i.id === id) ?? null;
   }
 
   async creerImmeuble(input: ImmeubleInput): Promise<Immeuble> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     if (input.valeur_bien !== null && input.valeur_bien <= 0) throw err("ERR_VALEUR_NON_POSITIVE");
     if (input.prix_acquisition !== null && input.prix_acquisition < 0) throw err("ERR_VALEUR_NON_POSITIVE");
     if (
-      db.immeubles.some(
+      parc.immeubles.some(
         (i) => i.owner_id === ownerId && i.nom.trim().toLowerCase() === input.nom.trim().toLowerCase()
       )
     ) {
       throw err("ERR_IMMEUBLE_NOM_UNIQUE");
     }
-    const nbActifs = db.immeubles.filter(
+    const nbActifs = parc.immeubles.filter(
       (i) => i.owner_id === ownerId && i.statut === "actif"
     ).length;
     await this.verifierLimiteBlocs(db, nbActifs);
@@ -679,7 +936,7 @@ export class DemoProvider implements DataProvider {
       statut: "actif",
       created_at: new Date().toISOString(),
     };
-    db.immeubles.push(immeuble);
+    parc.immeubles.push(immeuble);
     saveDb(db);
     return immeuble;
   }
@@ -687,24 +944,25 @@ export class DemoProvider implements DataProvider {
   async modifierImmeuble(id: string, patch: ImmeublePatch): Promise<Immeuble> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.immeubles.findIndex((i) => i.id === id && i.owner_id === ownerId);
+    const idx = parc.immeubles.findIndex((i) => i.id === id && i.owner_id === ownerId);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     if (patch.valeur_bien !== undefined && patch.valeur_bien !== null && patch.valeur_bien <= 0) {
       throw err("ERR_VALEUR_NON_POSITIVE");
     }
     if (patch.nom) {
       const nom = patch.nom.trim().toLowerCase();
-      if (db.immeubles.some((i) => i.id !== id && i.owner_id === ownerId && i.nom.trim().toLowerCase() === nom)) {
+      if (parc.immeubles.some((i) => i.id !== id && i.owner_id === ownerId && i.nom.trim().toLowerCase() === nom)) {
         throw err("ERR_IMMEUBLE_NOM_UNIQUE");
       }
     }
     const maj: Immeuble = {
-      ...db.immeubles[idx],
+      ...parc.immeubles[idx],
       ...patch,
-      nom: patch.nom ? patch.nom.trim() : db.immeubles[idx].nom,
+      nom: patch.nom ? patch.nom.trim() : parc.immeubles[idx].nom,
     };
-    db.immeubles[idx] = maj;
+    parc.immeubles[idx] = maj;
     saveDb(db);
     return maj;
   }
@@ -716,8 +974,9 @@ export class DemoProvider implements DataProvider {
   async desarchiverImmeuble(id: string): Promise<Immeuble> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const nbActifs = db.immeubles.filter(
+    const nbActifs = parc.immeubles.filter(
       (i) => i.owner_id === ownerId && i.statut === "actif"
     ).length;
     await this.verifierLimiteBlocs(db, nbActifs);
@@ -728,8 +987,9 @@ export class DemoProvider implements DataProvider {
     filtre?: FiltreAppartements & { inclureArchives?: boolean }
   ): Promise<Appartement[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.appartements
+    return parc.appartements
       .filter((a) => (filtre?.inclureArchives ? true : !a.archive))
       .filter((a) => !filtre?.immeubleId || a.immeuble_id === filtre.immeubleId)
       .filter((a) => !filtre?.statut || a.statut === filtre.statut)
@@ -740,7 +1000,8 @@ export class DemoProvider implements DataProvider {
 
   async getAppartement(id: string): Promise<Appartement | null> {
     const db = loadDb();
-    const apt = db.appartements.find((a) => a.id === id) ?? null;
+    const parc = this.cols(db);
+    const apt = parc.appartements.find((a) => a.id === id) ?? null;
     if (!apt) return null;
     const visibles = this.immeublesVisibles(db);
     if (visibles && !visibles.has(apt.immeuble_id)) return null;
@@ -759,7 +1020,7 @@ export class DemoProvider implements DataProvider {
     }
     if (input.charges < 0) throw err("ERR_VALEUR_NON_POSITIVE");
     if (
-      db.appartements.some(
+      this.cols(db).appartements.some(
         (a) =>
           a.immeuble_id === immeubleId &&
           a.id !== exclureId &&
@@ -773,8 +1034,9 @@ export class DemoProvider implements DataProvider {
   async creerAppartement(input: AppartementInput): Promise<Appartement> {
     await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    if (!db.immeubles.some((i) => i.id === input.immeuble_id)) throw err("ERR_NOT_FOUND");
+    if (!parc.immeubles.some((i) => i.id === input.immeuble_id)) throw err("ERR_NOT_FOUND");
     if (input.statut === "occupe") throw err("ERR_SANS_BAIL");
     this.verifierAppartementInput(db, input.immeuble_id, input);
     const appartement: Appartement = {
@@ -784,7 +1046,7 @@ export class DemoProvider implements DataProvider {
       archive: false,
       created_at: new Date().toISOString(),
     };
-    db.appartements.push(appartement);
+    parc.appartements.push(appartement);
     saveDb(db);
     return appartement;
   }
@@ -795,8 +1057,9 @@ export class DemoProvider implements DataProvider {
   ): Promise<Appartement[]> {
     await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    if (!db.immeubles.some((i) => i.id === immeubleId)) throw err("ERR_NOT_FOUND");
+    if (!parc.immeubles.some((i) => i.id === immeubleId)) throw err("ERR_NOT_FOUND");
     // Tout ou rien : on valide tout le lot avant d'insérer quoi que ce soit.
     const numeros = new Set<string>();
     for (const item of items) {
@@ -813,7 +1076,7 @@ export class DemoProvider implements DataProvider {
       archive: false,
       created_at: new Date().toISOString(),
     }));
-    db.appartements.push(...crees);
+    parc.appartements.push(...crees);
     saveDb(db);
     return crees;
   }
@@ -821,10 +1084,11 @@ export class DemoProvider implements DataProvider {
   async modifierAppartement(id: string, patch: AppartementPatch): Promise<Appartement> {
     await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.appartements.findIndex((a) => a.id === id);
+    const idx = parc.appartements.findIndex((a) => a.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
-    const courant = db.appartements[idx];
+    const courant = parc.appartements[idx];
     const candidat: Omit<AppartementInput, "immeuble_id"> = {
       numero: patch.numero ?? courant.numero,
       type: patch.type ?? (courant.type as AppartementInput["type"]),
@@ -843,7 +1107,7 @@ export class DemoProvider implements DataProvider {
     this.verifierAppartementInput(db, courant.immeuble_id, candidat, id);
     // Cohérence statut / bail : « occupé » exige un bail actif, et un
     // appartement avec un bail actif ne peut pas quitter « occupé ».
-    const bailActif = db.baux.some(
+    const bailActif = parc.baux.some(
       (b) => b.appartement_id === id && b.statut === "actif"
     );
     if (candidat.statut === "occupe" && !bailActif) throw err("ERR_SANS_BAIL");
@@ -851,13 +1115,13 @@ export class DemoProvider implements DataProvider {
       throw err("ERR_APPARTEMENT_OCCUPE");
     }
     const maj: Appartement = { ...courant, ...patch, numero: candidat.numero.trim() };
-    db.appartements[idx] = maj;
+    parc.appartements[idx] = maj;
     saveDb(db);
     return maj;
   }
 
   private bailActifDe(db: DemoDb, appartementId: string): Bail | undefined {
-    return db.baux.find((b) => b.appartement_id === appartementId && b.statut === "actif");
+    return this.cols(db).baux.find((b) => b.appartement_id === appartementId && b.statut === "actif");
   }
 
   async changerStatutAppartement(
@@ -865,8 +1129,9 @@ export class DemoProvider implements DataProvider {
     statut: StatutAppartement
   ): Promise<Appartement> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const apt = db.appartements.find((a) => a.id === id);
+    const apt = parc.appartements.find((a) => a.id === id);
     if (!apt) throw err("ERR_NOT_FOUND");
     const bailActif = this.bailActifDe(db, id);
     if (statut === "occupe" && !bailActif) throw err("ERR_SANS_BAIL");
@@ -876,8 +1141,9 @@ export class DemoProvider implements DataProvider {
 
   async basculerVitrine(id: string, vitrine: boolean): Promise<Appartement> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const apt = db.appartements.find((a) => a.id === id);
+    const apt = parc.appartements.find((a) => a.id === id);
     if (!apt) throw err("ERR_NOT_FOUND");
     // Spec §6 (vitrine) : seuls les vacants ou bientôt libres sont publiés.
     if (vitrine && apt.statut !== "vacant" && apt.statut !== "reserve") {
@@ -888,8 +1154,9 @@ export class DemoProvider implements DataProvider {
 
   async archiverAppartement(id: string): Promise<Appartement> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const apt = db.appartements.find((a) => a.id === id);
+    const apt = parc.appartements.find((a) => a.id === id);
     if (!apt) throw err("ERR_NOT_FOUND");
     if (this.bailActifDe(db, id)) throw err("ERR_APPARTEMENT_OCCUPE");
     apt.archive = true;
@@ -899,8 +1166,9 @@ export class DemoProvider implements DataProvider {
 
   async desarchiverAppartement(id: string): Promise<Appartement> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const apt = db.appartements.find((a) => a.id === id);
+    const apt = parc.appartements.find((a) => a.id === id);
     if (!apt) throw err("ERR_NOT_FOUND");
     apt.archive = false;
     saveDb(db);
@@ -909,19 +1177,21 @@ export class DemoProvider implements DataProvider {
 
   async supprimerAppartement(id: string): Promise<void> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const apt = db.appartements.find((a) => a.id === id);
+    const apt = parc.appartements.find((a) => a.id === id);
     if (!apt) throw err("ERR_NOT_FOUND");
     if (this.bailActifDe(db, id)) throw err("ERR_APPARTEMENT_OCCUPE");
-    if (db.baux.some((b) => b.appartement_id === id)) throw err("ERR_BAIL_EXISTANT");
-    db.appartements = db.appartements.filter((a) => a.id !== id);
+    if (parc.baux.some((b) => b.appartement_id === id)) throw err("ERR_BAIL_EXISTANT");
+    parc.appartements = parc.appartements.filter((a) => a.id !== id);
     saveDb(db);
   }
 
   async listerLocataires(): Promise<Locataire[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.locataires
+    return parc.locataires
       .filter((l) => {
         // Gestionnaire : locataires de ses immeubles uniquement (via
         // leurs baux). Co-propriétaire : tous, coordonnées masquées
@@ -936,7 +1206,8 @@ export class DemoProvider implements DataProvider {
 
   async getLocataire(id: string): Promise<Locataire | null> {
     const db = loadDb();
-    const loc = db.locataires.find((l) => l.id === id) ?? null;
+    const parc = this.cols(db);
+    const loc = parc.locataires.find((l) => l.id === id) ?? null;
     if (!loc) return null;
     if (this.sessionEstGestionnaire()) {
       const visibles = this.immeublesVisibles(db);
@@ -948,6 +1219,7 @@ export class DemoProvider implements DataProvider {
   async creerLocataire(input: LocataireInput): Promise<Locataire> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     const locataire: Locataire = {
       id: uid(),
@@ -959,7 +1231,7 @@ export class DemoProvider implements DataProvider {
       lien_expire_le: null,
       created_at: new Date().toISOString(),
     };
-    db.locataires.push(locataire);
+    parc.locataires.push(locataire);
     saveDb(db);
     return locataire;
   }
@@ -967,40 +1239,43 @@ export class DemoProvider implements DataProvider {
   async modifierLocataire(id: string, patch: LocatairePatch): Promise<Locataire> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.locataires.findIndex((l) => l.id === id && l.owner_id === ownerId);
+    const idx = parc.locataires.findIndex((l) => l.id === id && l.owner_id === ownerId);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     const maj: Locataire = {
-      ...db.locataires[idx],
+      ...parc.locataires[idx],
       ...patch,
-      nom: patch.nom ? patch.nom.trim() : db.locataires[idx].nom,
+      nom: patch.nom ? patch.nom.trim() : parc.locataires[idx].nom,
     };
-    db.locataires[idx] = maj;
+    parc.locataires[idx] = maj;
     saveDb(db);
     return maj;
   }
 
   async supprimerLocataire(id: string): Promise<void> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const loc = db.locataires.find((l) => l.id === id);
+    const loc = parc.locataires.find((l) => l.id === id);
     if (!loc) throw err("ERR_NOT_FOUND");
-    if (db.baux.some((b) => b.locataire_id === id && b.statut === "actif")) {
+    if (parc.baux.some((b) => b.locataire_id === id && b.statut === "actif")) {
       throw err("ERR_LOCATAIRE_BAIL_ACTIF");
     }
-    db.locataires = db.locataires.filter((l) => l.id !== id);
+    parc.locataires = parc.locataires.filter((l) => l.id !== id);
     saveDb(db);
   }
 
   async genererLienLocataire(id: string): Promise<LienLocataire> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.locataires.findIndex((l) => l.id === id);
+    const idx = parc.locataires.findIndex((l) => l.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     const token = genererToken();
     const expireLe = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    db.locataires[idx].lien_token = token;
-    db.locataires[idx].lien_expire_le = expireLe;
+    parc.locataires[idx].lien_token = token;
+    parc.locataires[idx].lien_expire_le = expireLe;
     saveDb(db);
     const origine =
       typeof window !== "undefined" && window.location?.origin
@@ -1011,13 +1286,14 @@ export class DemoProvider implements DataProvider {
 
   async revoquerLienLocataire(id: string): Promise<Locataire> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.locataires.findIndex((l) => l.id === id);
+    const idx = parc.locataires.findIndex((l) => l.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
-    db.locataires[idx].lien_token = null;
-    db.locataires[idx].lien_expire_le = null;
+    parc.locataires[idx].lien_token = null;
+    parc.locataires[idx].lien_expire_le = null;
     saveDb(db);
-    return db.locataires[idx];
+    return parc.locataires[idx];
   }
 
   /**
@@ -1084,8 +1360,9 @@ export class DemoProvider implements DataProvider {
 
   async listerBaux(filtre?: FiltreBaux): Promise<Bail[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.baux
+    return parc.baux
       .filter((b) => !filtre?.appartementId || b.appartement_id === filtre.appartementId)
       .filter((b) => !filtre?.locataireId || b.locataire_id === filtre.locataireId)
       .filter((b) => !filtre?.statut || b.statut === filtre.statut)
@@ -1100,7 +1377,8 @@ export class DemoProvider implements DataProvider {
 
   async getBail(id: string): Promise<Bail | null> {
     const db = loadDb();
-    const bail = db.baux.find((b) => b.id === id) ?? null;
+    const parc = this.cols(db);
+    const bail = parc.baux.find((b) => b.id === id) ?? null;
     if (!bail) return null;
     // Session restreinte (co-propriétaire, gestionnaire) : le bail doit
     // appartenir à un immeuble visible — même garde-fou que les listes.
@@ -1115,15 +1393,16 @@ export class DemoProvider implements DataProvider {
   async creerBail(input: BailInput): Promise<Bail> {
     await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const appartement = db.appartements.find((a) => a.id === input.appartement_id);
-    const locataire = db.locataires.find((l) => l.id === input.locataire_id);
+    const appartement = parc.appartements.find((a) => a.id === input.appartement_id);
+    const locataire = parc.locataires.find((l) => l.id === input.locataire_id);
     if (!appartement || !locataire) throw err("ERR_NOT_FOUND");
     if (input.loyer_mensuel <= 0) throw err("ERR_LOYER_NON_POSITIF");
     if (input.jour_exigibilite < 1 || input.jour_exigibilite > 28) throw err("ERR_JOUR_EXIGIBILITE");
     if (input.fin && input.fin <= input.debut) throw err("ERR_BAIL_FIN_AVANT_DEBUT");
     if (input.caution !== null && input.caution < 0) throw err("ERR_VALEUR_NON_POSITIVE");
-    const chevauchement = db.baux.some(
+    const chevauchement = parc.baux.some(
       (b) =>
         b.appartement_id === input.appartement_id &&
         b.statut === "actif" &&
@@ -1136,7 +1415,7 @@ export class DemoProvider implements DataProvider {
       statut: "actif",
       created_at: new Date().toISOString(),
     };
-    db.baux.push(bail);
+    parc.baux.push(bail);
     // L'appartement passe en « occupé » dès la création du bail.
     appartement.statut = "occupe";
     appartement.archive = false;
@@ -1155,28 +1434,29 @@ export class DemoProvider implements DataProvider {
 
   async cloturerBail(id: string, cautionStatut?: CautionStatut): Promise<Bail> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.baux.findIndex((b) => b.id === id);
+    const idx = parc.baux.findIndex((b) => b.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
-    const bail = db.baux[idx];
+    const bail = parc.baux[idx];
     bail.statut = "termine";
     if (cautionStatut) bail.caution_statut = cautionStatut;
-    db.baux[idx] = bail;
+    parc.baux[idx] = bail;
     const session = await this.getSession();
     this.journaliser(
       db,
       "bail",
       "bail",
       bail.id,
-      `Bail clôturé : ${this.nomLocataire(db, bail.locataire_id)} — appartement ${db.appartements.find((a) => a.id === bail.appartement_id)?.numero ?? "—"}`,
+      `Bail clôturé : ${this.nomLocataire(db, bail.locataire_id)} — appartement ${parc.appartements.find((a) => a.id === bail.appartement_id)?.numero ?? "—"}`,
       session?.id
     );
     // L'appartement repasse « vacant » s'il n'a plus aucun bail actif.
-    const autreActif = db.baux.some(
+    const autreActif = parc.baux.some(
       (b) => b.appartement_id === bail.appartement_id && b.statut === "actif"
     );
     if (!autreActif) {
-      const apt = db.appartements.find((a) => a.id === bail.appartement_id);
+      const apt = parc.appartements.find((a) => a.id === bail.appartement_id);
       if (apt) apt.statut = "vacant";
     }
     saveDb(db);
@@ -1185,8 +1465,9 @@ export class DemoProvider implements DataProvider {
 
   async listerDepenses(filtre?: FiltreDepenses): Promise<Depense[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.depenses
+    return parc.depenses
       .filter((d) => !filtre?.immeubleId || d.immeuble_id === filtre.immeubleId)
       .filter((d) => !filtre?.appartementId || d.appartement_id === filtre.appartementId)
       .filter((d) => !visibles || visibles.has(d.immeuble_id))
@@ -1198,12 +1479,13 @@ export class DemoProvider implements DataProvider {
     bailIdOuFiltre?: string | FiltreEcheances
   ): Promise<EcheanceLoyer[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const filtre: FiltreEcheances =
       typeof bailIdOuFiltre === "string"
         ? { bailId: bailIdOuFiltre }
         : bailIdOuFiltre ?? {};
     const visibles = this.immeublesVisibles(db);
-    let liste = db.echeances
+    let liste = parc.echeances
       .filter((e) => !filtre.bailId || e.bail_id === filtre.bailId)
       .filter((e) => !filtre.mois || e.mois === moisVersIso(filtre.mois))
       .filter((e) => {
@@ -1213,9 +1495,9 @@ export class DemoProvider implements DataProvider {
       });
     if (filtre.immeubleId) {
       const bauxImmeuble = new Set(
-        db.baux
+        parc.baux
           .filter((b) =>
-            db.appartements.some(
+            parc.appartements.some(
               (a) => a.id === b.appartement_id && a.immeuble_id === filtre.immeubleId
             )
           )
@@ -1230,8 +1512,9 @@ export class DemoProvider implements DataProvider {
 
   async listerPaiements(echeanceId?: string): Promise<Paiement[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    return db.paiements
+    return parc.paiements
       .filter((p) => !echeanceId || p.echeance_id === echeanceId)
       .filter((p) => {
         if (!visibles) return true;
@@ -1251,9 +1534,9 @@ export class DemoProvider implements DataProvider {
    * qu'un cache, la vérité vient des paiements valides et de la date.
    */
   private avecStatutCalcule(db: DemoDb, echeance: EcheanceLoyer): EcheanceLoyer {
-    const bail = db.baux.find((b) => b.id === echeance.bail_id);
+    const bail = this.cols(db).baux.find((b) => b.id === echeance.bail_id);
     const paye = totalPayeValide(
-      db.paiements.filter((p) => p.echeance_id === echeance.id),
+      this.cols(db).paiements.filter((p) => p.echeance_id === echeance.id),
       echeance.devise
     );
     const statut = calculerStatutEcheance({
@@ -1267,26 +1550,27 @@ export class DemoProvider implements DataProvider {
 
   /** Après chaque écriture, on resynchronise le statut stocké (cache). */
   private resynchroniserStatut(db: DemoDb, echeanceId: string): void {
-    const idx = db.echeances.findIndex((e) => e.id === echeanceId);
-    if (idx >= 0) db.echeances[idx] = this.avecStatutCalcule(db, db.echeances[idx]);
+    const idx = this.cols(db).echeances.findIndex((e) => e.id === echeanceId);
+    if (idx >= 0) this.cols(db).echeances[idx] = this.avecStatutCalcule(db, this.cols(db).echeances[idx]);
   }
 
   async genererEcheances(mois: string): Promise<EcheanceLoyer[]> {
     const moisIso = moisVersIso(mois);
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     // Session restreinte : on ne génère des échéances que pour ses
     // immeubles — sinon la visite d'un mois créerait des échéances
     // pour les biens des autres.
     const visibles = this.immeublesVisibles(db);
-    const bauxActifs = db.baux.filter((b) => {
+    const bauxActifs = parc.baux.filter((b) => {
       if (b.statut !== "actif" || !bailCouvreMois(b, moisIso)) return false;
       if (!visibles) return true;
       const imm = this.immeubleDeAppartement(db, b.appartement_id);
       return imm !== null && visibles.has(imm);
     });
     for (const bail of bauxActifs) {
-      const existe = db.echeances.some(
+      const existe = parc.echeances.some(
         (e) => e.bail_id === bail.id && e.mois === moisIso
       );
       if (existe) continue; // idempotence : une échéance par bail et par mois.
@@ -1302,10 +1586,10 @@ export class DemoProvider implements DataProvider {
         prorata_detail: prorata.detail,
         created_at: new Date().toISOString(),
       };
-      db.echeances.push(echeance);
+      parc.echeances.push(echeance);
     }
     // Resynchroniser les statuts du mois avant de retourner.
-    for (const e of db.echeances.filter((x) => x.mois === moisIso)) {
+    for (const e of parc.echeances.filter((x) => x.mois === moisIso)) {
       this.resynchroniserStatut(db, e.id);
     }
     saveDb(db);
@@ -1314,8 +1598,9 @@ export class DemoProvider implements DataProvider {
 
   async prochainNumeroRecu(): Promise<string> {
     const db = loadDb();
+    const parc = this.cols(db);
     return calculerProchainNumero(
-      db.paiements.map((p) => p.recu_numero),
+      parc.paiements.map((p) => p.recu_numero),
       new Date().getFullYear()
     );
   }
@@ -1326,12 +1611,13 @@ export class DemoProvider implements DataProvider {
     if (!input.montant || input.montant <= 0) throw err("ERR_MONTANT_NON_POSITIF");
     const session = await this.getSession();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const echeance = db.echeances.find((e) => e.id === input.echeance_id);
+    const echeance = parc.echeances.find((e) => e.id === input.echeance_id);
     if (!echeance) throw err("ERR_ECHEANCE_INTROUVABLE");
     const annee = new Date(input.date_paiement).getFullYear();
     const recuNumero = calculerProchainNumero(
-      db.paiements.map((p) => p.recu_numero),
+      parc.paiements.map((p) => p.recu_numero),
       Number.isFinite(annee) ? annee : new Date().getFullYear()
     );
     const paiement: Paiement = {
@@ -1350,11 +1636,11 @@ export class DemoProvider implements DataProvider {
       montant_converti: input.montant_converti ?? null,
       created_at: new Date().toISOString(),
     };
-    db.paiements.push(paiement);
+    parc.paiements.push(paiement);
     this.resynchroniserStatut(db, input.echeance_id);
-    const echeanceLue = db.echeances.find((e) => e.id === input.echeance_id);
-    const bailPaiement = echeanceLue ? db.baux.find((b) => b.id === echeanceLue.bail_id) : undefined;
-    const aptPaiement = bailPaiement ? db.appartements.find((a) => a.id === bailPaiement.appartement_id) : undefined;
+    const echeanceLue = parc.echeances.find((e) => e.id === input.echeance_id);
+    const bailPaiement = echeanceLue ? parc.baux.find((b) => b.id === echeanceLue.bail_id) : undefined;
+    const aptPaiement = bailPaiement ? parc.appartements.find((a) => a.id === bailPaiement.appartement_id) : undefined;
     this.journaliser(
       db,
       "paiement",
@@ -1370,10 +1656,11 @@ export class DemoProvider implements DataProvider {
   async annulerPaiement(id: string, motif?: string): Promise<Paiement> {
     const session = await this.getSession();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.paiements.findIndex((p) => p.id === id);
+    const idx = parc.paiements.findIndex((p) => p.id === id);
     if (idx < 0) throw err("ERR_PAIEMENT_INTROUVABLE");
-    const paiement = db.paiements[idx];
+    const paiement = parc.paiements[idx];
     if (paiement.statut === "annule") throw err("ERR_PAIEMENT_DEJA_ANNULE");
     const maj: Paiement = {
       ...paiement,
@@ -1382,7 +1669,7 @@ export class DemoProvider implements DataProvider {
       annule_le: new Date().toISOString(),
       motif_annulation: motif?.trim() ? motif.trim() : null,
     };
-    db.paiements[idx] = maj;
+    parc.paiements[idx] = maj;
     // Le reçu est annulé avec le paiement ; le statut de l'échéance est recalculé.
     this.resynchroniserStatut(db, paiement.echeance_id);
     saveDb(db);
@@ -1394,8 +1681,9 @@ export class DemoProvider implements DataProvider {
     input: Omit<DeclarerPaiementInput, "echeance_id">
   ): Promise<{ paiement: Paiement; recuNumero: string }> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const ancien = db.paiements.find((p) => p.id === id);
+    const ancien = parc.paiements.find((p) => p.id === id);
     if (!ancien) throw err("ERR_PAIEMENT_INTROUVABLE");
     if (ancien.statut === "annule") throw err("ERR_PAIEMENT_DEJA_ANNULE");
     // Un reçu émis ne se modifie pas : annulation + nouvelle déclaration.
@@ -1405,9 +1693,10 @@ export class DemoProvider implements DataProvider {
       echeance_id: ancien.echeance_id,
     });
     const db2 = loadDb();
-    const idx = db2.paiements.findIndex((p) => p.id === paiement.id);
+    const parc2 = this.cols(db2);
+    const idx = parc2.paiements.findIndex((p) => p.id === paiement.id);
     if (idx >= 0) {
-      db2.paiements[idx] = { ...db2.paiements[idx], remplace_paiement_id: id };
+      parc2.paiements[idx] = { ...parc2.paiements[idx], remplace_paiement_id: id };
       saveDb(db2);
     }
     return { paiement: { ...paiement, remplace_paiement_id: id }, recuNumero };
@@ -1416,12 +1705,12 @@ export class DemoProvider implements DataProvider {
   /** Construit la vue « reçu » à partir d'un paiement et de ses entités liées. */
   private construireRecu(db: DemoDb, paiement: Paiement): Recu | null {
     if (!paiement.recu_numero) return null;
-    const echeance = db.echeances.find((e) => e.id === paiement.echeance_id);
+    const echeance = this.cols(db).echeances.find((e) => e.id === paiement.echeance_id);
     if (!echeance) return null;
-    const bail = db.baux.find((b) => b.id === echeance.bail_id);
-    const locataire = bail ? db.locataires.find((l) => l.id === bail.locataire_id) : undefined;
-    const appartement = bail ? db.appartements.find((a) => a.id === bail.appartement_id) : undefined;
-    const immeuble = appartement ? db.immeubles.find((i) => i.id === appartement.immeuble_id) : undefined;
+    const bail = this.cols(db).baux.find((b) => b.id === echeance.bail_id);
+    const locataire = bail ? this.cols(db).locataires.find((l) => l.id === bail.locataire_id) : undefined;
+    const appartement = bail ? this.cols(db).appartements.find((a) => a.id === bail.appartement_id) : undefined;
+    const immeuble = appartement ? this.cols(db).immeubles.find((i) => i.id === appartement.immeuble_id) : undefined;
     return {
       numero: paiement.recu_numero,
       paiement_id: paiement.id,
@@ -1446,8 +1735,9 @@ export class DemoProvider implements DataProvider {
 
   async listerRecus(filtre?: FiltreRecus): Promise<Recu[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    let recus = db.paiements
+    let recus = parc.paiements
       .filter((p) => {
         if (!visibles) return true;
         const imm = this.immeubleDeEcheance(db, p.echeance_id);
@@ -1485,9 +1775,10 @@ export class DemoProvider implements DataProvider {
     if (!input.categorie) throw err("ERR_CATEGORIE_MANQUANTE");
     if (!input.montant || input.montant <= 0) throw err("ERR_MONTANT_NON_POSITIF");
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    if (!db.immeubles.some((i) => i.id === input.immeuble_id)) throw err("ERR_NOT_FOUND");
-    if (input.appartement_id && !db.appartements.some((a) => a.id === input.appartement_id)) {
+    if (!parc.immeubles.some((i) => i.id === input.immeuble_id)) throw err("ERR_NOT_FOUND");
+    if (input.appartement_id && !parc.appartements.some((a) => a.id === input.appartement_id)) {
       throw err("ERR_NOT_FOUND");
     }
     const session = await this.getSession();
@@ -1505,7 +1796,7 @@ export class DemoProvider implements DataProvider {
       justificatif_url: input.justificatif_url ?? null,
       created_at: new Date().toISOString(),
     };
-    db.depenses.push(depense);
+    parc.depenses.push(depense);
     this.journaliser(
       db,
       "depense",
@@ -1520,35 +1811,38 @@ export class DemoProvider implements DataProvider {
 
   async modifierDepense(id: string, patch: DepensePatch): Promise<Depense> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.depenses.findIndex((d) => d.id === id);
+    const idx = parc.depenses.findIndex((d) => d.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     if (patch.montant !== undefined && patch.montant !== null && patch.montant <= 0) {
       throw err("ERR_MONTANT_NON_POSITIF");
     }
     if (patch.categorie !== undefined && !patch.categorie) throw err("ERR_CATEGORIE_MANQUANTE");
     const maj: Depense = {
-      ...db.depenses[idx],
+      ...parc.depenses[idx],
       ...patch,
-      libelle: patch.libelle ? patch.libelle.trim() : db.depenses[idx].libelle,
+      libelle: patch.libelle ? patch.libelle.trim() : parc.depenses[idx].libelle,
     };
-    db.depenses[idx] = maj;
+    parc.depenses[idx] = maj;
     saveDb(db);
     return maj;
   }
 
   async supprimerDepense(id: string): Promise<void> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    if (!db.depenses.some((d) => d.id === id)) throw err("ERR_NOT_FOUND");
-    db.depenses = db.depenses.filter((d) => d.id !== id);
+    if (!parc.depenses.some((d) => d.id === id)) throw err("ERR_NOT_FOUND");
+    parc.depenses = parc.depenses.filter((d) => d.id !== id);
     saveDb(db);
   }
 
   async listerDocuments(filtre?: FiltreDocuments): Promise<Document[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    let liste = db.documents.slice();
+    let liste = parc.documents.slice();
     if (visibles) {
       // Co-propriétaire : documents des biens partagés uniquement ;
       // jamais les documents liés à un locataire.
@@ -1563,7 +1857,7 @@ export class DemoProvider implements DataProvider {
           return imm !== null && visibles.has(imm);
         }
         if (d.entite_type === "depense") {
-          const dep = db.depenses.find((x) => x.id === d.entite_id);
+          const dep = parc.depenses.find((x) => x.id === d.entite_id);
           return dep !== undefined && visibles.has(dep.immeuble_id);
         }
         return false; // locataire : jamais visible pour un co-propriétaire.
@@ -1582,6 +1876,7 @@ export class DemoProvider implements DataProvider {
   async televerserDocument(input: DocumentInput): Promise<Document> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     const nom = input.nom_fichier.trim();
     if (!nom) throw err("ERR_NOT_FOUND");
@@ -1596,7 +1891,7 @@ export class DemoProvider implements DataProvider {
     }
     // Doublon : même nom + même entité.
     if (
-      db.documents.some(
+      parc.documents.some(
         (d) =>
           d.entite_type === input.entite_type &&
           d.entite_id === input.entite_id &&
@@ -1627,7 +1922,7 @@ export class DemoProvider implements DataProvider {
       contenu: contenuConserve,
       contenu_non_conserve: Boolean(input.contenu) && !contenuConserve,
     };
-    db.documents.push(document);
+    parc.documents.push(document);
     this.journaliser(
       db,
       "document",
@@ -1642,37 +1937,40 @@ export class DemoProvider implements DataProvider {
 
   async renommerDocument(id: string, nomFichier: string): Promise<Document> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const idx = db.documents.findIndex((d) => d.id === id);
+    const idx = parc.documents.findIndex((d) => d.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     const nom = nomFichier.trim();
     if (
-      db.documents.some(
+      parc.documents.some(
         (d) =>
           d.id !== id &&
-          d.entite_type === db.documents[idx].entite_type &&
-          d.entite_id === db.documents[idx].entite_id &&
+          d.entite_type === parc.documents[idx].entite_type &&
+          d.entite_id === parc.documents[idx].entite_id &&
           d.nom_fichier.trim().toLowerCase() === nom.toLowerCase()
       )
     ) {
       throw err("ERR_DOCUMENT_DOUBLON");
     }
-    db.documents[idx] = { ...db.documents[idx], nom_fichier: nom };
+    parc.documents[idx] = { ...parc.documents[idx], nom_fichier: nom };
     saveDb(db);
-    return db.documents[idx];
+    return parc.documents[idx];
   }
 
   async supprimerDocument(id: string): Promise<void> {
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    if (!db.documents.some((d) => d.id === id)) throw err("ERR_NOT_FOUND");
-    db.documents = db.documents.filter((d) => d.id !== id);
+    if (!parc.documents.some((d) => d.id === id)) throw err("ERR_NOT_FOUND");
+    parc.documents = parc.documents.filter((d) => d.id !== id);
     saveDb(db);
   }
 
   async telechargerDocument(id: string): Promise<{ url: string; nomFichier: string }> {
     const db = loadDb();
-    const doc = db.documents.find((d) => d.id === id);
+    const parc = this.cols(db);
+    const doc = parc.documents.find((d) => d.id === id);
     if (!doc) throw err("ERR_NOT_FOUND");
     if (!doc.contenu) throw err("ERR_DOCUMENT_CONTENU_ABSENT");
     return { url: doc.contenu, nomFichier: doc.nom_fichier };
@@ -1680,7 +1978,8 @@ export class DemoProvider implements DataProvider {
 
   async listerActivites(immeubleId?: string | null): Promise<Activite[]> {
     const db = loadDb();
-    let liste = filtrerActivites(db.activites, immeubleId ?? null, db.appartements);
+    const parc = this.cols(db);
+    let liste = filtrerActivites(parc.activites, immeubleId ?? null, parc.appartements);
     const visibles = this.immeublesVisibles(db);
     if (visibles) {
       // Co-propriétaire : événements de ses biens partagés uniquement.
@@ -1691,7 +1990,7 @@ export class DemoProvider implements DataProvider {
           return imm !== null && visibles.has(imm);
         }
         if (a.entite_type === "coproprietaire") {
-          const cop = db.coproprietaires.find((c) => c.id === a.entite_id);
+          const cop = parc.coproprietaires.find((c) => c.id === a.entite_id);
           return cop !== undefined && visibles.has(cop.immeuble_id);
         }
         if (a.entite_type === "loyer") {
@@ -1699,7 +1998,7 @@ export class DemoProvider implements DataProvider {
           return imm !== null && visibles.has(imm);
         }
         if (a.entite_type === "depense") {
-          const dep = db.depenses.find((x) => x.id === a.entite_id);
+          const dep = parc.depenses.find((x) => x.id === a.entite_id);
           return dep !== undefined && visibles.has(dep.immeuble_id);
         }
         if (a.entite_type === "bail") {
@@ -1707,7 +2006,7 @@ export class DemoProvider implements DataProvider {
           return imm !== null && visibles.has(imm);
         }
         if (a.entite_type === "document") {
-          const doc = db.documents.find((x) => x.id === a.entite_id);
+          const doc = parc.documents.find((x) => x.id === a.entite_id);
           if (!doc) return false;
           if (doc.entite_type === "immeuble") return visibles.has(doc.entite_id);
           const imm = doc.entite_type === "appartement"
@@ -1755,6 +2054,7 @@ export class DemoProvider implements DataProvider {
   async genererAlertes(): Promise<Alerte[]> {
     const ownerId = await this.requireOwnerId();
     const db = loadDb();
+    const parc = this.cols(db);
     const session = await this.getSession();
     const echeances = await this.listerEcheances();
     const visibles = this.immeublesVisibles(db);
@@ -1762,20 +2062,20 @@ export class DemoProvider implements DataProvider {
     // (la lecture est déjà filtrée, mais on ne crée pas d'alertes pour
     // les autres immeubles — ni d'e-mails au propriétaire à leur sujet).
     const bauxVisibles = visibles
-      ? db.baux.filter((b) => {
+      ? parc.baux.filter((b) => {
           const imm = this.immeubleDeAppartement(db, b.appartement_id);
           return imm !== null && visibles.has(imm);
         })
-      : db.baux;
+      : parc.baux;
     const appartementsVisibles = visibles
-      ? db.appartements.filter((a) => visibles.has(a.immeuble_id))
-      : db.appartements;
+      ? parc.appartements.filter((a) => visibles.has(a.immeuble_id))
+      : parc.appartements;
     const paiementsVisibles = visibles
-      ? db.paiements.filter((p) => {
+      ? parc.paiements.filter((p) => {
           const imm = this.immeubleDeEcheance(db, p.echeance_id);
           return imm !== null && visibles.has(imm);
         })
-      : db.paiements;
+      : parc.paiements;
     const candidates = genererAlertesCandidates({
       baux: bauxVisibles,
       echeances,
@@ -1785,7 +2085,7 @@ export class DemoProvider implements DataProvider {
       seuilVacanceJours: db.preferences.seuil_vacance_jours,
       langue: db.profil.langue,
     });
-    const existantes = new Set(db.alertes.map((a) => a.dedup_key));
+    const existantes = new Set(parc.alertes.map((a) => a.dedup_key));
     const coupe = new Set<TypeAlerte>(db.preferences.types_coupes);
     for (const c of candidates) {
       if (existantes.has(c.dedup_key)) continue; // idempotence : pas de doublon.
@@ -1831,7 +2131,7 @@ export class DemoProvider implements DataProvider {
         traitee_le: null,
         created_at: new Date().toISOString(),
       };
-      db.alertes.push(alerte);
+      parc.alertes.push(alerte);
       this.journaliser(db, "alerte", "alerte", alerte.id, `Alerte déclenchée : ${c.message}`, session?.id);
     }
     saveDb(db);
@@ -1840,8 +2140,9 @@ export class DemoProvider implements DataProvider {
 
   async listerAlertes(): Promise<Alerte[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
-    let liste = db.alertes.slice();
+    let liste = parc.alertes.slice();
     if (visibles) {
       // Co-propriétaire : alertes de ses biens partagés uniquement
       // (les alertes d'abonnement ne le concernent jamais).
@@ -1871,13 +2172,14 @@ export class DemoProvider implements DataProvider {
 
   async marquerAlerteTraitee(id: string): Promise<Alerte> {
     const db = loadDb();
-    const idx = db.alertes.findIndex((a) => a.id === id);
+    const parc = this.cols(db);
+    const idx = parc.alertes.findIndex((a) => a.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
     const session = await this.getSession();
-    db.alertes[idx] = { ...db.alertes[idx], statut: "traitee", traitee_le: new Date().toISOString() };
-    this.journaliser(db, "alerte", "alerte", id, `Alerte traitée : ${db.alertes[idx].message}`, session?.id);
+    parc.alertes[idx] = { ...parc.alertes[idx], statut: "traitee", traitee_le: new Date().toISOString() };
+    this.journaliser(db, "alerte", "alerte", id, `Alerte traitée : ${parc.alertes[idx].message}`, session?.id);
     saveDb(db);
-    return db.alertes[idx];
+    return parc.alertes[idx];
   }
 
   async modifierProfil(patch: ProfilPatch): Promise<Profil> {
@@ -1886,7 +2188,12 @@ export class DemoProvider implements DataProvider {
     // Co-propriétaire et gestionnaire : le profil du compte appartient
     // au propriétaire — une session restreinte ne le modifie pas
     // (sinon le gestionnaire réécrirait le profil du propriétaire).
-    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) {
+    // Session plateforme : idem (la console ne touche pas au profil client).
+    if (
+      session.id.startsWith("coprop:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("plateforme:")
+    ) {
       throw err("ERR_ROLE_LECTURE_SEULE");
     }
     const db = loadDb();
@@ -1981,9 +2288,10 @@ export class DemoProvider implements DataProvider {
 
   async listerCoproprietaires(immeubleId: string): Promise<Coproprietaire[]> {
     const db = loadDb();
+    const parc = this.cols(db);
     const visibles = this.immeublesVisibles(db);
     if (visibles && !visibles.has(immeubleId)) return [];
-    return db.coproprietaires
+    return parc.coproprietaires
       .filter((c) => c.immeuble_id === immeubleId)
       .slice()
       .sort((a, b) => a.nom.localeCompare(b.nom));
@@ -1997,9 +2305,10 @@ export class DemoProvider implements DataProvider {
     if (!session) throw err("ERR_NOT_FOUND");
     this.verifierProprietaire();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     this.verifierPlanIndivision(db);
-    const immeuble = db.immeubles.find((i) => i.id === immeubleId);
+    const immeuble = parc.immeubles.find((i) => i.id === immeubleId);
     if (!immeuble) throw err("ERR_NOT_FOUND");
     const adresse = input.email.trim().toLowerCase();
     if (!emailValide(adresse)) throw err("ERR_EMAIL_INVALIDE");
@@ -2007,14 +2316,14 @@ export class DemoProvider implements DataProvider {
       throw err("ERR_PART_INVALIDE");
     }
     if (
-      db.coproprietaires.some(
+      parc.coproprietaires.some(
         (c) => c.immeuble_id === immeubleId && c.email.trim().toLowerCase() === adresse
       )
     ) {
       throw err("ERR_PART_EMAIL_UNIQUE");
     }
     const sommeApres =
-      sommeParts(db.coproprietaires.filter((c) => c.immeuble_id === immeubleId)) +
+      sommeParts(parc.coproprietaires.filter((c) => c.immeuble_id === immeubleId)) +
       input.part;
     if (sommeApres > 100 + 0.01) throw err("ERR_PARTS_TOTAL");
     const coproprietaire: Coproprietaire = {
@@ -2027,7 +2336,7 @@ export class DemoProvider implements DataProvider {
       statut: "invite",
       created_at: new Date().toISOString(),
     };
-    db.coproprietaires.push(coproprietaire);
+    parc.coproprietaires.push(coproprietaire);
     this.journaliser(
       db,
       "coproprietaire",
@@ -2048,9 +2357,10 @@ export class DemoProvider implements DataProvider {
     if (!session) throw err("ERR_NOT_FOUND");
     this.verifierProprietaire();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
     this.verifierPlanIndivision(db);
-    const immeuble = db.immeubles.find((i) => i.id === immeubleId);
+    const immeuble = parc.immeubles.find((i) => i.id === immeubleId);
     if (!immeuble) throw err("ERR_NOT_FOUND");
     // Validation complète AVANT tout enregistrement : somme = 100 %,
     // e-mails uniques, parts valides.
@@ -2066,7 +2376,7 @@ export class DemoProvider implements DataProvider {
     }
     const validation = validerParts(normalisees);
     if (!validation.valide) throw err(validation.code ?? "ERR_PARTS_TOTAL");
-    const anciens = db.coproprietaires.filter((c) => c.immeuble_id === immeubleId);
+    const anciens = parc.coproprietaires.filter((c) => c.immeuble_id === immeubleId);
     const parEmail = new Map(anciens.map((c) => [c.email.trim().toLowerCase(), c]));
     const gardes = new Set<string>();
     const resultat: Coproprietaire[] = [];
@@ -2092,8 +2402,8 @@ export class DemoProvider implements DataProvider {
           telephone: p.telephone,
           part: p.part,
         };
-        const idx = db.coproprietaires.findIndex((c) => c.id === ancien.id);
-        db.coproprietaires[idx] = maj;
+        const idx = parc.coproprietaires.findIndex((c) => c.id === ancien.id);
+        parc.coproprietaires[idx] = maj;
         resultat.push(maj);
       } else {
         const cree: Coproprietaire = {
@@ -2106,7 +2416,7 @@ export class DemoProvider implements DataProvider {
           statut: "invite",
           created_at: new Date().toISOString(),
         };
-        db.coproprietaires.push(cree);
+        parc.coproprietaires.push(cree);
         this.journaliser(
           db,
           "coproprietaire",
@@ -2120,7 +2430,7 @@ export class DemoProvider implements DataProvider {
     }
     for (const ancien of anciens) {
       if (!gardes.has(ancien.id)) {
-        db.coproprietaires = db.coproprietaires.filter((c) => c.id !== ancien.id);
+        parc.coproprietaires = parc.coproprietaires.filter((c) => c.id !== ancien.id);
         this.journaliser(
           db,
           "coproprietaire",
@@ -2140,11 +2450,12 @@ export class DemoProvider implements DataProvider {
     if (!session) throw err("ERR_NOT_FOUND");
     this.verifierProprietaire();
     const db = loadDb();
+    const parc = this.cols(db);
     this.verifierEcriture(db);
-    const cop = db.coproprietaires.find((c) => c.id === id);
+    const cop = parc.coproprietaires.find((c) => c.id === id);
     if (!cop) throw err("ERR_COPROPRIETAIRE_INTROUVABLE");
-    const immeuble = db.immeubles.find((i) => i.id === cop.immeuble_id);
-    db.coproprietaires = db.coproprietaires.filter((c) => c.id !== id);
+    const immeuble = parc.immeubles.find((i) => i.id === cop.immeuble_id);
+    parc.coproprietaires = parc.coproprietaires.filter((c) => c.id !== id);
     this.journaliser(
       db,
       "coproprietaire",
@@ -2160,17 +2471,18 @@ export class DemoProvider implements DataProvider {
     const session = await this.getSession();
     if (!session) throw err("ERR_NOT_FOUND");
     const db = loadDb();
-    const idx = db.coproprietaires.findIndex((c) => c.id === id);
+    const parc = this.cols(db);
+    const idx = parc.coproprietaires.findIndex((c) => c.id === id);
     if (idx < 0) throw err("ERR_COPROPRIETAIRE_INTROUVABLE");
-    const cop = db.coproprietaires[idx];
+    const cop = parc.coproprietaires[idx];
     const estProprietaire = !this.sessionEstCoproprietaire();
     const estConcerne =
       session.email.trim().toLowerCase() === cop.email.trim().toLowerCase();
     if (!estProprietaire && !estConcerne) throw err("ERR_ROLE_LECTURE_SEULE");
     if (cop.statut === "actif") return cop;
     const maj: Coproprietaire = { ...cop, statut: "actif" };
-    db.coproprietaires[idx] = maj;
-    const immeuble = db.immeubles.find((i) => i.id === cop.immeuble_id);
+    parc.coproprietaires[idx] = maj;
+    const immeuble = parc.immeubles.find((i) => i.id === cop.immeuble_id);
     this.journaliser(
       db,
       "coproprietaire",
@@ -2257,11 +2569,12 @@ export class DemoProvider implements DataProvider {
 
   async marquerAlerteWhatsApp(id: string, statut: StatutWhatsApp): Promise<Alerte> {
     const db = loadDb();
-    const idx = db.alertes.findIndex((a) => a.id === id);
+    const parc = this.cols(db);
+    const idx = parc.alertes.findIndex((a) => a.id === id);
     if (idx < 0) throw err("ERR_NOT_FOUND");
-    db.alertes[idx] = { ...db.alertes[idx], whatsapp_statut: statut };
+    parc.alertes[idx] = { ...parc.alertes[idx], whatsapp_statut: statut };
     saveDb(db);
-    return db.alertes[idx];
+    return parc.alertes[idx];
   }
 
   // ==========================================================================
@@ -2276,7 +2589,11 @@ export class DemoProvider implements DataProvider {
     if (!session) throw err("ERR_NOT_FOUND");
     // Abonnement réservé au propriétaire (spec §2, §12) : une session
     // restreinte n'y a pas accès — même refus que pour le co-propriétaire.
-    if (session.id.startsWith("coprop:") || session.id.startsWith("gestionnaire:")) {
+    if (
+      session.id.startsWith("coprop:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("plateforme:")
+    ) {
       throw err("ERR_ROLE_LECTURE_SEULE");
     }
     const db = loadDb();
@@ -2290,6 +2607,16 @@ export class DemoProvider implements DataProvider {
       plan: abo.plan,
       statut: abo.statut,
     };
+  }
+
+  /**
+   * Prix DYNAMIQUE (extension v1.2) : lu dans la source tarifs
+   * (db.finance en démo, tarifs_plateforme en réel) — jamais le
+   * littéral codé en dur. Repli interne de construirePrixPlans si la
+   * source est incomplète.
+   */
+  private prixDynamique(db: DemoDb, plan: Plan, grille: Grille): number {
+    return construirePrixPlans(db.finance.tarifs)[plan][grille];
   }
 
   /** Émet une facture d'abonnement locale (enregistrement, pas un encaissement). */
@@ -2309,7 +2636,7 @@ export class DemoProvider implements DataProvider {
       ),
       plan,
       grille: db.abonnement.grille,
-      montant: prixPlan(plan, db.abonnement.grille),
+      montant: this.prixDynamique(db, plan, db.abonnement.grille),
       devise: "USD",
       date_emission: debut,
       date_debut: debut,
@@ -2458,7 +2785,7 @@ export class DemoProvider implements DataProvider {
       owner_id: session.id,
       operateur,
       telephone: telephone.trim(),
-      montant: prixPlan(planVise, abo.grille),
+      montant: this.prixDynamique(db, planVise, abo.grille),
       plan: planVise,
       reference: genererReferenceMobileMoney(),
       statut: "en_attente",
@@ -2497,6 +2824,21 @@ export class DemoProvider implements DataProvider {
     abo.fin_periode = ajouterMois(maintenant, 1);
     abo.mobile_money_ref = reference;
     this.emettreFacture(db, paiement.plan, "mobile_money", reference, maintenant);
+    // Anti-fraude (signal c) : au PREMIER paiement, le pays du moyen de
+    // paiement (préfixe mobile money) est capturé ; une contradiction
+    // avec la grille attribuée fait passer le compte « a_verifier ».
+    if (!db.profil.pays_paiement) {
+      const paysPaiement = paysDepuisTelephone(paiement.telephone);
+      if (paysPaiement) {
+        db.profil.pays_paiement = paysPaiement;
+        const statut = evaluerPaysPaiement(
+          abo.grille,
+          paysPaiement,
+          db.finance.parametres.pays_grille_afrique
+        );
+        if (statut === "a_verifier") db.profil.grille_statut = "a_verifier";
+      }
+    }
     saveDb(db);
     return paiement;
   }
@@ -2509,5 +2851,694 @@ export class DemoProvider implements DataProvider {
     return db.paiementsMobileMoney
       .slice()
       .sort((a, b) => b.cree_le.localeCompare(a.cree_le));
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.2 — CONSOLE PLATEFORME (Admin / Super Admin), approbation
+  // des comptes, avis, rattachements, supervision, finances dynamiques.
+  // Voir docs/admin-finance-v1.2.md. Toute action est journalisée.
+  // ==========================================================================
+
+  /** Acteur plateforme de la session (refus net si non plateforme). */
+  private acteurPlateforme(db: DemoDb): {
+    id: string;
+    email: string;
+    nom: string;
+    role: "admin" | "super_admin";
+  } {
+    const email = this.sessionPlateformeEmail();
+    if (!email) throw err("ERR_ACCES_PLATEFORME");
+    const entree = db.plateforme.comptesAdmins.find(
+      (a) => a.email.toLowerCase() === email
+    );
+    if (!entree || entree.statut === "suspendu") throw err("ERR_ACCES_PLATEFORME");
+    return { id: entree.id, email: entree.email, nom: entree.nom, role: entree.role };
+  }
+
+  private acteurSuperAdmin(db: DemoDb) {
+    const acteur = this.acteurPlateforme(db);
+    if (acteur.role !== "super_admin") throw err("ERR_SUPER_ADMIN_REQUIS");
+    return acteur;
+  }
+
+  private journaliserAudit(
+    db: DemoDb,
+    acteur: { id: string; email: string; role: "admin" | "super_admin" },
+    action: string,
+    cibleType: CibleAudit,
+    cibleId: string | null,
+    cibleEmail: string | null,
+    details?: Record<string, unknown> | null
+  ): void {
+    db.plateforme.journal.push({
+      id: uid(),
+      acteur_id: acteur.id,
+      acteur_email: acteur.email,
+      acteur_role: acteur.role,
+      action,
+      cible_type: cibleType,
+      cible_id: cibleId,
+      cible_email: cibleEmail,
+      details: details ?? null,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  /** Envoi e-mail via la chaîne existante — statut honnête, jamais simulé. */
+  private async envoyerEmailPlateforme(
+    destinataire: string,
+    sujet: string,
+    texte: string
+  ): Promise<Avis["statut_envoi"]> {
+    try {
+      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte });
+      return statutEmailDepuisResultat(resultat);
+    } catch {
+      return "echec";
+    }
+  }
+
+  /** Vue console du compte principal (le compte client « réel » de la démo). */
+  private comptePrincipal(db: DemoDb): ComptePlateforme {
+    const abo = this.chargerAbonnement(db);
+    const vue = {
+      plan: abo.plan,
+      grille: abo.grille,
+      statut: abo.statut,
+      debut_periode: abo.debut_periode,
+      fin_periode: abo.fin_periode,
+      trial_ends_at: abo.trial_ends_at,
+      echec_paiement: abo.echec_paiement,
+      grace_ends_at: abo.grace_ends_at,
+      statut_pre_suspension: abo.statut_pre_suspension ?? null,
+    };
+    return {
+      id: db.profil.id,
+      email: db.profil.email,
+      nom: db.profil.nom,
+      role: db.profil.role,
+      pays: db.profil.pays,
+      langue: db.profil.langue,
+      suspendu: db.profil.suspendu,
+      created_at: db.profil.created_at,
+      pays_declare: db.profil.pays_declare ?? db.profil.pays,
+      pays_ip: db.profil.pays_ip ?? null,
+      pays_paiement: db.profil.pays_paiement ?? null,
+      grille_statut: db.profil.grille_statut ?? "ok",
+      motif_refus: db.profil.motif_refus ?? null,
+      abonnement: vue,
+      en_retard: estEnRetardPaiement(vue, db.finance.parametres),
+    };
+  }
+
+  private compteRegistre(db: DemoDb, entree: CompteClientDemo): ComptePlateforme {
+    return {
+      id: entree.id,
+      email: entree.email,
+      nom: entree.nom,
+      role: entree.role,
+      pays: entree.pays,
+      langue: entree.langue,
+      suspendu: entree.abonnement.statut === "suspendu",
+      created_at: entree.created_at,
+      pays_declare: entree.pays_declare,
+      pays_ip: entree.pays_ip,
+      pays_paiement: entree.pays_paiement,
+      grille_statut: entree.grille_statut,
+      motif_refus: entree.motif_refus ?? null,
+      abonnement: entree.abonnement,
+      en_retard: estEnRetardPaiement(entree.abonnement, db.finance.parametres),
+    };
+  }
+
+  async listerComptesPlateforme(): Promise<ComptePlateforme[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const comptes = [
+      this.comptePrincipal(db),
+      ...db.plateforme.comptesClients.map((c) => this.compteRegistre(db, c)),
+    ];
+    return comptes.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  /** Localise la cible d'une action console : compte principal ou registre. */
+  private trouverCible(
+    db: DemoDb,
+    compteId: string
+  ): { principal: boolean; entree: CompteClientDemo | null } {
+    if (compteId === db.profil.id) return { principal: true, entree: null };
+    const entree = db.plateforme.comptesClients.find((c) => c.id === compteId);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    return { principal: false, entree };
+  }
+
+  async suspendreCompte(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    if (cible.principal) {
+      db.profil.suspendu = true;
+      const abo = db.abonnement;
+      if (abo.statut !== "suspendu" && abo.statut !== "en_attente") {
+        abo.statut_pre_suspension = abo.statut;
+        abo.statut = "suspendu";
+      }
+      this.journaliserAudit(db, acteur, "compte_suspendu", "compte", db.profil.id, db.profil.email);
+    } else {
+      const abo = cible.entree!.abonnement;
+      if (abo.statut !== "suspendu" && abo.statut !== "en_attente") {
+        abo.statut_pre_suspension = abo.statut;
+        abo.statut = "suspendu";
+      }
+      this.journaliserAudit(db, acteur, "compte_suspendu", "compte", cible.entree!.id, cible.entree!.email);
+    }
+    saveDb(db);
+  }
+
+  async reactiverCompte(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    if (cible.principal) {
+      db.profil.suspendu = false;
+      const abo = db.abonnement;
+      if (abo.statut === "suspendu") {
+        abo.statut = abo.statut_pre_suspension ?? "actif";
+        abo.statut_pre_suspension = null;
+      }
+      this.journaliserAudit(db, acteur, "compte_reactive", "compte", db.profil.id, db.profil.email);
+    } else {
+      const abo = cible.entree!.abonnement;
+      if (abo.statut === "suspendu") {
+        abo.statut = abo.statut_pre_suspension ?? "actif";
+        abo.statut_pre_suspension = null;
+      }
+      this.journaliserAudit(db, acteur, "compte_reactive", "compte", cible.entree!.id, cible.entree!.email);
+    }
+    saveDb(db);
+  }
+
+  async supprimerCompteDefinitivement(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const cible = this.trouverCible(db, compteId);
+    // Le compte principal de la démo porte tout le parc fictif : sa
+    // suppression détruirait la démonstration elle-même — refusée ici.
+    // En réel, la suppression définitive passe par la fonction SQL
+    // supprimer_compte_definitivement (Super Admin uniquement).
+    if (cible.principal) throw err("ERR_OPERATION_INTERDITE");
+    this.journaliserAudit(db, acteur, "compte_supprime_definitivement", "compte", cible.entree!.id, cible.entree!.email);
+    db.plateforme.comptesClients = db.plateforme.comptesClients.filter(
+      (c) => c.id !== compteId
+    );
+    saveDb(db);
+  }
+
+  async approuverCompte(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    const maintenant = new Date().toISOString();
+    const finEssai = ajouterJours(maintenant, db.finance.parametres.jours_essai);
+    let emailCible: string;
+    let nomCible: string;
+    let langueCible: "fr" | "en";
+    let grilleConfirmee: Grille;
+    if (cible.principal) {
+      const abo = db.abonnement;
+      if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      abo.statut = "essai";
+      abo.debut_periode = maintenant;
+      abo.trial_ends_at = finEssai;
+      abo.fin_periode = finEssai;
+      // La grille affichée dans la file est confirmée au même geste.
+      db.profil.grille_attribuee = abo.grille;
+      emailCible = db.profil.email;
+      nomCible = db.profil.nom;
+      langueCible = db.profil.langue;
+      grilleConfirmee = abo.grille;
+    } else {
+      const abo = cible.entree!.abonnement;
+      if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      abo.statut = "essai";
+      abo.debut_periode = maintenant;
+      abo.trial_ends_at = finEssai;
+      abo.fin_periode = finEssai;
+      emailCible = cible.entree!.email;
+      nomCible = cible.entree!.nom;
+      langueCible = cible.entree!.langue;
+      grilleConfirmee = abo.grille;
+    }
+    const bienvenue = rendreBienvenue(nomCible, langueCible);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      emailCible,
+      bienvenue.sujet,
+      bienvenue.corps
+    );
+    this.journaliserAudit(db, acteur, "compte_approuve", "compte", compteId, emailCible, {
+      grille: grilleConfirmee,
+      trial_ends_at: finEssai,
+      email_bienvenue: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  async refuserCompte(compteId: string, motif: MotifRefus): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    let emailCible: string;
+    let nomCible: string;
+    let langueCible: "fr" | "en";
+    let planCible: Plan;
+    if (cible.principal) {
+      if (db.abonnement.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      db.abonnement.statut = "annule";
+      db.profil.motif_refus = motif;
+      emailCible = db.profil.email;
+      nomCible = db.profil.nom;
+      langueCible = db.profil.langue;
+      planCible = db.abonnement.plan;
+    } else {
+      if (cible.entree!.abonnement.statut !== "en_attente") {
+        throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      }
+      cible.entree!.abonnement.statut = "annule";
+      cible.entree!.motif_refus = motif;
+      emailCible = cible.entree!.email;
+      nomCible = cible.entree!.nom;
+      langueCible = cible.entree!.langue;
+      planCible = cible.entree!.abonnement.plan;
+    }
+    const variables = {
+      nom: nomCible,
+      plan: planCible,
+      date: new Date().toISOString().slice(0, 10),
+      motif: libellerMotif(motif, langueCible),
+    };
+    const rendu = rendreAvis("inscription_refusee", variables, langueCible);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      emailCible,
+      rendu.sujet,
+      rendu.corps
+    );
+    db.plateforme.avis.push({
+      id: uid(),
+      modele: "inscription_refusee",
+      destinataire_id: compteId,
+      destinataire_email: emailCible,
+      variables,
+      sujet: rendu.sujet,
+      corps: rendu.corps,
+      envoye_par: acteur.id,
+      envoye_par_role: acteur.role,
+      statut_envoi: emailStatut,
+      created_at: new Date().toISOString(),
+    });
+    this.journaliserAudit(db, acteur, "compte_refuse", "compte", compteId, emailCible, {
+      motif,
+      email_refus: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  async reattribuerGrille(compteId: string, grille: Grille): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    if (cible.principal) {
+      db.abonnement.grille = grille;
+      db.profil.grille_attribuee = grille;
+      db.profil.grille_statut = "ok";
+      this.journaliserAudit(db, acteur, "grille_reattribuee", "compte", db.profil.id, db.profil.email, { grille });
+    } else {
+      cible.entree!.abonnement.grille = grille;
+      cible.entree!.grille_statut = "ok";
+      this.journaliserAudit(db, acteur, "grille_reattribuee", "compte", cible.entree!.id, cible.entree!.email, { grille });
+    }
+    saveDb(db);
+  }
+
+  async envoyerAvis(compteId: string, modele: ModeleAvis): Promise<Avis> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const comptes = await this.listerComptesPlateforme();
+    const compte = comptes.find((c) => c.id === compteId);
+    if (!compte) throw err("ERR_INTROUVABLE");
+    const variables = {
+      nom: compte.nom,
+      plan: compte.abonnement?.plan ?? "pro",
+      date: (
+        compte.abonnement?.trial_ends_at ??
+        compte.abonnement?.fin_periode ??
+        new Date().toISOString()
+      ).slice(0, 10),
+    };
+    const rendu = rendreAvis(modele, variables, compte.langue);
+    const statut = await this.envoyerEmailPlateforme(compte.email, rendu.sujet, rendu.corps);
+    const avis: Avis = {
+      id: uid(),
+      modele,
+      destinataire_id: compte.id,
+      destinataire_email: compte.email,
+      variables,
+      sujet: rendu.sujet,
+      corps: rendu.corps,
+      envoye_par: acteur.id,
+      envoye_par_role: acteur.role,
+      statut_envoi: statut,
+      created_at: new Date().toISOString(),
+    };
+    db.plateforme.avis.push(avis);
+    this.journaliserAudit(db, acteur, "avis_envoye", "compte", compte.id, compte.email, {
+      modele,
+      statut_envoi: statut,
+    });
+    saveDb(db);
+    return avis;
+  }
+
+  async listerAdmins(): Promise<CompteAdmin[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    return db.plateforme.comptesAdmins
+      .slice()
+      .sort((a, b) =>
+        a.role === b.role ? a.email.localeCompare(b.email) : a.role === "super_admin" ? -1 : 1
+      );
+  }
+
+  async creerAdmin(email: string, nom: string): Promise<CompteAdmin> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const adresse = email.trim().toLowerCase();
+    if (!emailValide(adresse)) throw err("ERR_EMAIL_INVALIDE");
+    if (db.plateforme.comptesAdmins.some((a) => a.email.toLowerCase() === adresse)) {
+      throw err("ERR_DEJA_ADMIN");
+    }
+    const cree: CompteAdmin = {
+      id: uid(),
+      email: adresse,
+      nom: nom.trim() || adresse,
+      role: "admin",
+      statut: "actif",
+      created_at: new Date().toISOString(),
+    };
+    db.plateforme.comptesAdmins.push(cree);
+    this.journaliserAudit(db, acteur, "admin_cree", "admin", cree.id, cree.email);
+    saveDb(db);
+    return cree;
+  }
+
+  async promouvoirAdmin(email: string): Promise<CompteAdmin> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const adresse = email.trim().toLowerCase();
+    if (db.plateforme.comptesAdmins.some((a) => a.email.toLowerCase() === adresse)) {
+      throw err("ERR_DEJA_ADMIN");
+    }
+    let nom: string | null = null;
+    if (db.profil.email.toLowerCase() === adresse) nom = db.profil.nom;
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.email.toLowerCase() === adresse
+    );
+    if (client) nom = client.nom;
+    const invitation = db.gestionnaires.find(
+      (g) => g.email.toLowerCase() === adresse
+    );
+    if (invitation) nom = invitation.nom ?? nom;
+    if (!nom) throw err("ERR_INTROUVABLE");
+    const cree: CompteAdmin = {
+      id: uid(),
+      email: adresse,
+      nom,
+      role: "admin",
+      statut: "actif",
+      created_at: new Date().toISOString(),
+    };
+    db.plateforme.comptesAdmins.push(cree);
+    this.journaliserAudit(db, acteur, "admin_promu", "admin", cree.id, cree.email);
+    saveDb(db);
+    return cree;
+  }
+
+  async suspendreAdmin(adminId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === adminId);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    if (entree.role === "super_admin") throw err("ERR_OPERATION_INTERDITE");
+    entree.statut = "suspendu";
+    this.journaliserAudit(db, acteur, "admin_suspendu", "admin", entree.id, entree.email);
+    saveDb(db);
+  }
+
+  async reactiverAdmin(adminId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === adminId);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    entree.statut = "actif";
+    this.journaliserAudit(db, acteur, "admin_reactive", "admin", entree.id, entree.email);
+    saveDb(db);
+  }
+
+  async retirerAdmin(adminId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === adminId);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    if (entree.role === "super_admin") throw err("ERR_OPERATION_INTERDITE");
+    this.journaliserAudit(db, acteur, "admin_retire", "admin", entree.id, entree.email);
+    db.plateforme.comptesAdmins = db.plateforme.comptesAdmins.filter(
+      (a) => a.id !== adminId
+    );
+    saveDb(db);
+  }
+
+  async listerJournalAudit(): Promise<EntreeAudit[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    return db.plateforme.journal
+      .slice()
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  async listerRattachements(): Promise<RattachementGestionnaire[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    return db.plateforme.rattachements
+      .slice()
+      .sort((a, b) => a.gestionnaire_email.localeCompare(b.gestionnaire_email));
+  }
+
+  async creerRattachement(input: {
+    gestionnaire_email: string;
+    gestionnaire_nom?: string | null;
+    contexte: "cizagroup" | "proprietaire";
+    proprietaire_id?: string | null;
+    immeuble_ids: string[];
+  }): Promise<RattachementGestionnaire> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const adresse = input.gestionnaire_email.trim().toLowerCase();
+    if (!emailValide(adresse)) throw err("ERR_EMAIL_INVALIDE");
+    if (input.immeuble_ids.length === 0) throw err("ERR_GESTIONNAIRE_SANS_IMMEUBLE");
+    let proprietaireId: string | null = null;
+    let proprietaireNom: string | null = null;
+    let immeublesValides: Set<string>;
+    if (input.contexte === "proprietaire") {
+      // Démo : un seul propriétaire client — le compte principal.
+      if (input.proprietaire_id && input.proprietaire_id !== db.profil.id) {
+        throw err("ERR_INTROUVABLE");
+      }
+      proprietaireId = db.profil.id;
+      proprietaireNom = db.profil.nom;
+      immeublesValides = new Set(db.immeubles.map((i) => i.id));
+    } else {
+      immeublesValides = new Set(db.parcCizaGroup.immeubles.map((i) => i.id));
+    }
+    if (!input.immeuble_ids.every((id) => immeublesValides.has(id))) {
+      throw err("ERR_INTROUVABLE");
+    }
+    if (
+      db.plateforme.rattachements.some(
+        (r) =>
+          r.gestionnaire_email.toLowerCase() === adresse &&
+          r.contexte === input.contexte &&
+          r.proprietaire_id === proprietaireId &&
+          r.statut === "actif"
+      )
+    ) {
+      throw err("ERR_RATTACHEMENT_EXISTANT");
+    }
+    const invitation = db.gestionnaires.find(
+      (g) => g.email.toLowerCase() === adresse
+    );
+    const cree: RattachementGestionnaire = {
+      id: uid(),
+      gestionnaire_id: adresse,
+      gestionnaire_email: adresse,
+      gestionnaire_nom: input.gestionnaire_nom ?? invitation?.nom ?? null,
+      contexte: input.contexte,
+      proprietaire_id: proprietaireId,
+      proprietaire_nom: proprietaireNom,
+      immeuble_ids: input.immeuble_ids,
+      statut: "actif",
+      created_at: new Date().toISOString(),
+    };
+    db.plateforme.rattachements.push(cree);
+    this.journaliserAudit(db, acteur, "rattachement_cree", "gestionnaire", cree.id, adresse, {
+      contexte: input.contexte,
+    });
+    saveDb(db);
+    return cree;
+  }
+
+  async retirerRattachement(id: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const entree = db.plateforme.rattachements.find((r) => r.id === id);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    this.journaliserAudit(db, acteur, "rattachement_retire", "gestionnaire", entree.id, entree.gestionnaire_email);
+    db.plateforme.rattachements = db.plateforme.rattachements.filter((r) => r.id !== id);
+    saveDb(db);
+  }
+
+  async listerMesRattachements(): Promise<RattachementGestionnaire[]> {
+    const db = loadDb();
+    const email = this.sessionGestionnaireEmail();
+    if (!email) return [];
+    return db.plateforme.rattachements
+      .filter((r) => r.gestionnaire_email.toLowerCase() === email)
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+
+  async getContexteActif(): Promise<RattachementGestionnaire | null> {
+    const db = loadDb();
+    return this.rattachementActif(db);
+  }
+
+  async definirContexteActif(rattachementId: string): Promise<RattachementGestionnaire> {
+    const db = loadDb();
+    const email = this.sessionGestionnaireEmail();
+    if (!email) throw err("ERR_ACCES_PLATEFORME");
+    const entree = this.rattachementsActifsDe(db, email).find((r) => r.id === rattachementId);
+    if (!entree) throw err("ERR_INTROUVABLE");
+    if (isBrowser()) {
+      window.localStorage.setItem(DEMO_CONTEXTE_KEY, rattachementId);
+    }
+    return entree;
+  }
+
+  async ouvrirSupervision(rattachementId: string): Promise<SupervisionGestionnaire> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const rattachement = db.plateforme.rattachements.find((r) => r.id === rattachementId);
+    if (!rattachement) throw err("ERR_INTROUVABLE");
+    // Ouverture JOURNALISÉE (qui, quand, quel gestionnaire, quel contexte).
+    this.journaliserAudit(db, acteur, "supervision_ouverte", "gestionnaire", rattachement.id, rattachement.gestionnaire_email, {
+      contexte: rattachement.contexte,
+    });
+    saveDb(db);
+    const parc: ParcDemo =
+      rattachement.contexte === "cizagroup"
+        ? db.parcCizaGroup
+        : {
+            profil: db.profil,
+            immeubles: db.immeubles,
+            appartements: db.appartements,
+            locataires: db.locataires,
+            baux: db.baux,
+            echeances: db.echeances,
+            paiements: db.paiements,
+            depenses: db.depenses,
+            documents: db.documents,
+            activites: db.activites,
+            alertes: db.alertes,
+            coproprietaires: db.coproprietaires,
+          };
+    const immeubles = parc.immeubles
+      .filter((i) => rattachement.immeuble_ids.includes(i.id))
+      .map((imm) => {
+        const apts = parc.appartements.filter((a) => a.immeuble_id === imm.id);
+        const aptIds = new Set(apts.map((a) => a.id));
+        const locatairesActifs = new Set(
+          parc.baux
+            .filter((b) => b.statut === "actif" && aptIds.has(b.appartement_id))
+            .map((b) => b.locataire_id)
+        );
+        return {
+          id: imm.id,
+          nom: imm.nom,
+          ville: imm.ville,
+          devise_principale: imm.devise,
+          nb_appartements: apts.length,
+          nb_locataires_actifs: locatairesActifs.size,
+        };
+      });
+    return { rattachement, immeubles };
+  }
+
+  // --- Finances dynamiques -------------------------------------------------
+
+  async getTarifsPlateforme(): Promise<TarifPlateforme[]> {
+    // Lecture PUBLIQUE (front public, page tarifs, mini-grille accueil).
+    const db = loadDb();
+    return db.finance.tarifs
+      .map((t) => ({ ...t }))
+      .sort((a, b) => a.grille.localeCompare(b.grille) || a.plan.localeCompare(b.plan));
+  }
+
+  async getParametresFinance(): Promise<ParametresFinance> {
+    // Lecture publique (écran d'attente : délai d'approbation affiché).
+    const db = loadDb();
+    return { ...db.finance.parametres };
+  }
+
+  async mettreAJourTarifs(
+    tarifs: TarifPlateforme[],
+    parametres: ParametresFinance
+  ): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    for (const t of tarifs) {
+      if (!t || typeof t.prix_mensuel !== "number" || t.prix_mensuel <= 0) {
+        throw err("ERR_PRIX_INVALIDE");
+      }
+    }
+    if (
+      !(parametres.jours_essai > 0) ||
+      !(parametres.jours_grace >= 0) ||
+      !(parametres.remise_annuelle_pct >= 0 && parametres.remise_annuelle_pct <= 100)
+    ) {
+      throw err("ERR_PRIX_INVALIDE");
+    }
+    const maintenant = new Date().toISOString();
+    db.finance.tarifs = tarifs.map((t) => ({
+      ...t,
+      updated_at: maintenant,
+      updated_by: acteur.id,
+    }));
+    db.finance.parametres = {
+      ...parametres,
+      pays_grille_afrique: (parametres.pays_grille_afrique ?? [])
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => /^[A-Z]{2}$/.test(c)),
+      delai_approbation_affiche:
+        parametres.delai_approbation_affiche?.trim() || "24 h ouvrées",
+    };
+    this.journaliserAudit(db, acteur, "tarifs_modifies", "tarif", null, null, {
+      tarifs: db.finance.tarifs.map((t) => ({
+        grille: t.grille,
+        plan: t.plan,
+        prix_mensuel: t.prix_mensuel,
+      })),
+    });
+    this.journaliserAudit(db, acteur, "parametres_modifies", "parametre", null, null, {
+      parametres: db.finance.parametres,
+    });
+    saveDb(db);
   }
 }

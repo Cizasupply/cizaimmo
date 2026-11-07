@@ -3,21 +3,34 @@ import type {
   Activite,
   Alerte,
   Appartement,
+  Avis,
   Bail,
+  CompteAdmin,
   Coproprietaire,
   Depense,
   Document,
   EcheanceLoyer,
+  EntreeAudit,
   FactureAbonnement,
   GestionnaireInvite,
+  Grille,
   Immeuble,
+  Langue,
   Locataire,
+  MotifRefus,
   Paiement,
   PaiementMobileMoney,
+  ParametresFinance,
+  Plan,
   PreferencesNotifications,
   Profil,
+  RattachementGestionnaire,
+  Role,
+  StatutAbonnement,
+  TarifPlateforme,
   TauxChange,
 } from "./types";
+import { PARAMETRES_FINANCE_DEFAUT, TARIFS_SEED } from "../tarifs";
 
 /**
  * CizaImmo — données de DÉMONSTRATION (Module 1).
@@ -38,6 +51,71 @@ import type {
  * Les échéances couvrent les 5 statuts (spec §9) : à venir, dû, partiel,
  * payé, en retard — dont un paiement annulé (reçu conservé, marqué ANNULÉ).
  */
+
+/**
+ * Collections d'UN parc immobilier (extension v1.2) : le parc du
+ * propriétaire démo OU le parc interne Ciza Group. Les contextes d'un
+ * gestionnaire multi-rattaché sont STRICTEMENT séparés : chaque
+ * contexte lit/écrit dans son propre parc, jamais dans l'autre.
+ */
+export interface ParcDemo {
+  profil: Profil;
+  immeubles: Immeuble[];
+  appartements: Appartement[];
+  locataires: Locataire[];
+  baux: Bail[];
+  echeances: EcheanceLoyer[];
+  paiements: Paiement[];
+  depenses: Depense[];
+  documents: Document[];
+  activites: Activite[];
+  alertes: Alerte[];
+  coproprietaires: Coproprietaire[];
+}
+
+/** Compte client FICTIF du registre plateforme démo (vue console). */
+export interface CompteClientDemo {
+  id: string;
+  email: string;
+  nom: string;
+  role: Role;
+  pays: string | null;
+  langue: Langue;
+  created_at: string;
+  /** Anti-fraude tarifaire : signaux simulés pour tester la matrice. */
+  pays_declare: string | null;
+  pays_ip: string | null;
+  pays_paiement: string | null;
+  grille_statut: "ok" | "a_verifier";
+  /** Ajout n°3 : motif de refus prédéfini si le compte a été refusé. */
+  motif_refus?: MotifRefus | null;
+  abonnement: {
+    plan: Plan;
+    grille: Grille;
+    statut: StatutAbonnement;
+    debut_periode: string;
+    fin_periode: string | null;
+    trial_ends_at: string | null;
+    echec_paiement: boolean;
+    grace_ends_at: string | null;
+    statut_pre_suspension?: StatutAbonnement | null;
+  };
+}
+
+/** Registre plateforme démo (extension v1.2) : admins, clients, audit, avis. */
+export interface PlateformeDemo {
+  comptesAdmins: CompteAdmin[];
+  comptesClients: CompteClientDemo[];
+  rattachements: RattachementGestionnaire[];
+  journal: EntreeAudit[];
+  avis: Avis[];
+}
+
+/** Finances dynamiques démo (extension v1.2) : seed identique à la base réelle. */
+export interface FinanceDemo {
+  tarifs: TarifPlateforme[];
+  parametres: ParametresFinance;
+}
 
 export interface DemoDb {
   profil: Profil;
@@ -60,12 +138,25 @@ export interface DemoDb {
   paiementsMobileMoney: PaiementMobileMoney[];
   /** Module 6 : indivision familiale (parts en %, somme = 100 %). */
   coproprietaires: Coproprietaire[];
+  /** Extension v1.2 : parc interne Ciza Group (contexte gestionnaire séparé). */
+  parcCizaGroup: ParcDemo;
+  /** Extension v1.2 : registre de la console plateforme. */
+  plateforme: PlateformeDemo;
+  /** Extension v1.2 : tarifs + paramètres lus dynamiquement. */
+  finance: FinanceDemo;
 }
 
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
 
+/** Propriétaire du parc interne Ciza Group (données fictives de démo). */
+export const CIZAGROUP_OWNER_ID = "00000000-0000-4000-8000-000000000e01";
+
 /** E-mail de connexion du compte démo gestionnaire (bouton « Essayer comme Gestionnaire »). */
 export const GESTIONNAIRE_DEMO_EMAIL = "gestion.demo@cizaimmo.com";
+
+/** E-mails de connexion des comptes plateforme démo (boutons page connexion). */
+export const SUPER_ADMIN_DEMO_EMAIL = "superadmin.demo@cizaimmo.com";
+export const ADMIN_DEMO_EMAIL = "admin.demo@cizaimmo.com";
 
 export function buildDemoDb(): DemoDb {
   const now = new Date().toISOString();
@@ -80,6 +171,14 @@ export function buildDemoDb(): DemoDb {
     devise_principale: "BIF",
     role: "proprietaire",
     telephone: "+257 79 00 00 01",
+    suspendu: false,
+    // Signaux anti-fraude concordants : déclaré Burundi, IP BI,
+    // premier paiement mobile money +257 → grille Afrique, statut ok.
+    pays_declare: "Burundi",
+    pays_ip: "BI",
+    pays_paiement: "BI",
+    grille_attribuee: "afrique",
+    grille_statut: "ok",
     created_at: now,
   };
 
@@ -326,5 +425,182 @@ export function buildDemoDb(): DemoDb {
     },
   ];
 
-  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires };
+  // ==========================================================================
+  // Extension v1.2 — parc interne CIZA GROUP (contexte séparé du
+  // gestionnaire multi-rattaché), registre plateforme et finances.
+  // Toutes ces données restent FICTIVES et étiquetées DÉMO.
+  // ==========================================================================
+  const dans = (jours: number) =>
+    new Date(Date.now() + jours * 24 * 60 * 60 * 1000).toISOString();
+  const moisCourant = new Date().toISOString().slice(0, 7) + "-01";
+
+  const cgImmeubles: Immeuble[] = [
+    {
+      id: "00000000-0000-4000-8000-000000000e02",
+      owner_id: CIZAGROUP_OWNER_ID,
+      nom: "Résidence Ciza — Rohero",
+      adresse: "Avenue de la Mission N° 8, Rohero",
+      ville: "Bujumbura",
+      pays: "Burundi",
+      devise: "BIF",
+      type: "immeuble",
+      etages: 2,
+      photo_url: null,
+      notes: "Parc interne Ciza Group — démonstration, données fictives.",
+      valeur_bien: 380000000,
+      devise_valeur: "BIF",
+      date_acquisition: "2023-05-10",
+      prix_acquisition: 320000000,
+      date_estimation: "2026-09-15",
+      mode_acquisition: "achat",
+      statut: "actif",
+      created_at: now,
+    },
+  ];
+  const cgAppartements: Appartement[] = [
+    { id: "00000000-0000-4000-8000-000000000e11", immeuble_id: cgImmeubles[0].id, numero: "R1", type: "T2", surface_m2: 62, loyer_defaut: 520000, devise: "BIF", charges: 40000, etage: 0, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e12", immeuble_id: cgImmeubles[0].id, numero: "R2", type: "T3", surface_m2: 88, loyer_defaut: 740000, devise: "BIF", charges: 40000, etage: 1, description: null, photos: [], statut: "occupe", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e13", immeuble_id: cgImmeubles[0].id, numero: "R3", type: "T1", surface_m2: 44, loyer_defaut: 390000, devise: "BIF", charges: 30000, etage: 1, description: null, photos: [], statut: "vacant", vitrine: false, archive: false, valeur_bien: null, devise_valeur: null, created_at: now },
+  ];
+  const cgLocataires: Locataire[] = [
+    { id: "00000000-0000-4000-8000-000000000e21", owner_id: CIZAGROUP_OWNER_ID, nom: "Espoir Manirakiza", telephone: "+25779001122", email: "espoir.m@exemple.bi", piece_type: "cni", piece_numero: "1234567890999", adresse_precedente: "Ngagara, Bujumbura", contact_urgence: "+25779001123", notes: null, lien_token: null, lien_expire_le: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e22", owner_id: CIZAGROUP_OWNER_ID, nom: "Grâce Irakoze", telephone: "+25779003344", email: "grace.i@exemple.bi", piece_type: "cni", piece_numero: "1234567890888", adresse_precedente: "Kinindo, Bujumbura", contact_urgence: "+25779003345", notes: null, lien_token: null, lien_expire_le: null, created_at: now },
+  ];
+  const cgBaux: Bail[] = [
+    { id: "00000000-0000-4000-8000-000000000e31", appartement_id: cgAppartements[0].id, locataire_id: cgLocataires[0].id, debut: "2026-02-01", fin: "2027-01-31", loyer_mensuel: 520000, devise: "BIF", caution: 520000, devise_caution: "BIF", caution_recue_le: "2026-01-27", caution_statut: "recue", jour_exigibilite: 5, charges_incluses: false, statut: "actif", doc_url: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e32", appartement_id: cgAppartements[1].id, locataire_id: cgLocataires[1].id, debut: "2026-06-01", fin: "2027-05-31", loyer_mensuel: 740000, devise: "BIF", caution: 740000, devise_caution: "BIF", caution_recue_le: "2026-05-28", caution_statut: "recue", jour_exigibilite: 5, charges_incluses: false, statut: "actif", doc_url: null, created_at: now },
+  ];
+  const cgEcheances: EcheanceLoyer[] = [
+    { id: "00000000-0000-4000-8000-000000000e41", bail_id: cgBaux[0].id, mois: moisCourant, montant_du: 520000, devise: "BIF", statut: "paye", prorata: false, prorata_detail: null, created_at: now },
+    { id: "00000000-0000-4000-8000-000000000e42", bail_id: cgBaux[1].id, mois: moisCourant, montant_du: 740000, devise: "BIF", statut: "du", prorata: false, prorata_detail: null, created_at: now },
+  ];
+  const parcCizaGroup: ParcDemo = {
+    profil: {
+      id: CIZAGROUP_OWNER_ID,
+      nom: "Ciza Group — Parc interne",
+      email: "parc@cizagroup.com",
+      pays: "Burundi",
+      langue: "fr",
+      devise_principale: "BIF",
+      role: "proprietaire",
+      telephone: "+257 79 94 50 07",
+      suspendu: false,
+      created_at: now,
+    },
+    immeubles: cgImmeubles,
+    appartements: cgAppartements,
+    locataires: cgLocataires,
+    baux: cgBaux,
+    echeances: cgEcheances,
+    paiements: [
+      { id: "00000000-0000-4000-8000-000000000e51", echeance_id: cgEcheances[0].id, montant: 520000, devise: "BIF", date_paiement: new Date().toISOString().slice(0, 10), moyen: "mobile_money", reference: "EcoCash démo", declare_par: CIZAGROUP_OWNER_ID, recu_numero: "CIM-2026-000101", statut: "valide", created_at: now },
+    ],
+    depenses: [
+      { id: "00000000-0000-4000-8000-000000000e61", owner_id: CIZAGROUP_OWNER_ID, immeuble_id: cgImmeubles[0].id, appartement_id: null, date: "2026-10-20", categorie: "entretien", libelle: "Entretien jardin — Résidence Ciza", montant: 85000, devise: "BIF", fournisseur: "Entretien démo", justificatif_url: null, created_at: now },
+    ],
+    documents: [],
+    activites: [
+      { id: "00000000-0000-4000-8000-000000000e71", owner_id: CIZAGROUP_OWNER_ID, type: "paiement", entite_type: "loyer", entite_id: cgEcheances[0].id, auteur: CIZAGROUP_OWNER_ID, description: "Paiement déclaré : 520 000 BIF — Espoir Manirakiza (R1)", created_at: now },
+    ],
+    alertes: [],
+    coproprietaires: [],
+  };
+
+  // Registre plateforme démo : 1 Super Admin (fondateur), 1 Admin
+  // (employée), 5 comptes clients fictifs aux statuts variés — dont un
+  // essai qui finit dans 3 jours, un échec de paiement, un retard au-delà
+  // de la grâce et un compte suspendu.
+  const plateforme: PlateformeDemo = {
+    comptesAdmins: [
+      { id: "plateforme-super-admin", email: SUPER_ADMIN_DEMO_EMAIL, nom: "Ciza Misigaro", role: "super_admin", statut: "actif", created_at: now },
+      { id: "plateforme-admin-1", email: ADMIN_DEMO_EMAIL, nom: "Aline Uwase", role: "admin", statut: "actif", created_at: now },
+    ],
+    comptesClients: [
+      {
+        id: "client-demo-1", email: "jean.bosco.demo@exemple.bi", nom: "Jean Bosco Ndayisenga", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-95),
+        pays_declare: "Burundi", pays_ip: "BI", pays_paiement: "BI", grille_statut: "ok",
+        abonnement: { plan: "pro", grille: "afrique", statut: "actif", debut_periode: dans(-10), fin_periode: dans(20), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        id: "client-demo-2", email: "marie.dubois.demo@exemple.ca", nom: "Marie-Claire Dubois", role: "proprietaire", pays: "Canada", langue: "fr", created_at: dans(-27),
+        pays_declare: "Canada", pays_ip: "CA", pays_paiement: null, grille_statut: "ok",
+        abonnement: { plan: "starter", grille: "internationale", statut: "essai", debut_periode: dans(-27), fin_periode: dans(3), trial_ends_at: dans(3), echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        id: "client-demo-3", email: "patrick.m.demo@exemple.rw", nom: "Patrick Mugisha", role: "proprietaire", pays: "Rwanda", langue: "en", created_at: dans(-140),
+        pays_declare: "Rwanda", pays_ip: "RW", pays_paiement: "RW", grille_statut: "ok",
+        abonnement: { plan: "agence", grille: "afrique", statut: "actif", debut_periode: dans(-28), fin_periode: dans(2), trial_ends_at: null, echec_paiement: true, grace_ends_at: dans(2) },
+      },
+      {
+        id: "client-demo-4", email: "sarah.t.demo@exemple.com", nom: "Sarah Thompson", role: "proprietaire", pays: "États-Unis", langue: "en", created_at: dans(-200),
+        pays_declare: "États-Unis", pays_ip: "US", pays_paiement: "US", grille_statut: "ok",
+        abonnement: { plan: "pro", grille: "internationale", statut: "actif", debut_periode: dans(-40), fin_periode: dans(-10), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        // CONTRADICTION simulée : déclaré Burundi mais IP Canada →
+        // grille INTERNATIONALE attribuée par défaut + « a_verifier »
+        // (le compte a ensuite été suspendu pour impayé).
+        id: "client-demo-5", email: "divine.i.demo@exemple.bi", nom: "Divine Irakoze", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-60),
+        pays_declare: "Burundi", pays_ip: "CA", pays_paiement: null, grille_statut: "a_verifier",
+        abonnement: { plan: "starter", grille: "internationale", statut: "suspendu", debut_periode: dans(-45), fin_periode: dans(-15), trial_ends_at: null, echec_paiement: false, grace_ends_at: null, statut_pre_suspension: "actif" },
+      },
+      {
+        // EN ATTENTE d'approbation (ajout n°3) : signaux concordants
+        // (déclaré Burundi, IP BI) → grille Afrique proposée.
+        id: "client-demo-6", email: "nadine.k.demo@exemple.bi", nom: "Nadine Kamariza", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-1),
+        pays_declare: "Burundi", pays_ip: "BI", pays_paiement: null, grille_statut: "ok",
+        abonnement: { plan: "pro", grille: "afrique", statut: "en_attente", debut_periode: dans(-1), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        // EN ATTENTE + CONTRADICTION : déclaré Rwanda, IP France →
+        // grille Internationale proposée + badge « à vérifier ».
+        id: "client-demo-7", email: "olivier.h.demo@exemple.rw", nom: "Olivier Habimana", role: "proprietaire", pays: "Rwanda", langue: "fr", created_at: dans(0),
+        pays_declare: "Rwanda", pays_ip: "FR", pays_paiement: null, grille_statut: "a_verifier",
+        abonnement: { plan: "pro", grille: "internationale", statut: "en_attente", debut_periode: dans(0), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        // REFUSÉ (ajout n°3) : motif prédéfini « doublon » — connexion impossible.
+        id: "client-demo-8", email: "doublon.demo@exemple.bi", nom: "Compte Doublon", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-20),
+        pays_declare: "Burundi", pays_ip: "BI", pays_paiement: null, grille_statut: "ok", motif_refus: "doublon",
+        abonnement: { plan: "pro", grille: "afrique", statut: "annule", debut_periode: dans(-20), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+    ],
+    rattachements: [
+      {
+        // Contexte PAR DÉFAUT du gestionnaire (premier actif) : le
+        // propriétaire client — comportement historique du compte démo.
+        id: "rattachement-demo-proprietaire",
+        gestionnaire_id: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_email: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_nom: "Marc Dubois",
+        contexte: "proprietaire",
+        proprietaire_id: OWNER_ID,
+        proprietaire_nom: "Amina Niyonzima",
+        immeuble_ids: [immeubles[1].id],
+        statut: "actif",
+        created_at: now,
+      },
+      {
+        id: "rattachement-demo-cizagroup",
+        gestionnaire_id: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_email: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_nom: "Marc Dubois",
+        contexte: "cizagroup",
+        proprietaire_id: null,
+        proprietaire_nom: null,
+        immeuble_ids: [cgImmeubles[0].id],
+        statut: "actif",
+        created_at: now,
+      },
+    ],
+    journal: [],
+    avis: [],
+  };
+
+  const finance: FinanceDemo = {
+    tarifs: TARIFS_SEED.map((t) => ({ ...t })),
+    parametres: { ...PARAMETRES_FINANCE_DEFAUT },
+  };
+
+  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires, parcCizaGroup, plateforme, finance };
 }

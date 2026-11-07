@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -31,6 +31,24 @@ export default function InscriptionPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [confirmationRequise, setConfirmationRequise] = useState(false);
+  // Anti-fraude tarifaire (v1.2) : code pays de l'IP détecté côté
+  // serveur (x-vercel-ip-country) — seul le CODE transite, jamais l'IP.
+  const [paysIp, setPaysIp] = useState<string | null>(null);
+
+  useEffect(() => {
+    let actif = true;
+    fetch("/api/inscription/contexte")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (actif && data && typeof data.pays_ip === "string") {
+          setPaysIp(data.pays_ip);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      actif = false;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,9 +72,11 @@ export default function InscriptionPage() {
         pays,
         devisePrincipale: devise,
         langue,
+        paysIp,
       });
       if (needsEmailConfirmation) {
-        // Essai de 30 jours : il démarre à la validation de l'e-mail (spec §3).
+        // E-mail confirmé → le compte passe en revue d'approbation
+        // (ajout n°3) ; l'essai démarrera à l'approbation.
         setConfirmationRequise(true);
         setLoading(false);
       } else {
