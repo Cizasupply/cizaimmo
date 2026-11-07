@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import SuppressionCompteDialog from "@/components/SuppressionCompteDialog";
 import Field from "@/components/Field";
 import RattachementDisplayId from "@/components/RattachementDisplayId";
 import { formatDate } from "@/lib/format";
@@ -87,7 +87,8 @@ export default function ParametresPage() {
       code === "ERR_AUCUNE_SUPPRESSION" ||
       code === "ERR_DELAI_NON_ECOULE" ||
       code === "ERR_SUPER_ADMIN_REQUIS" ||
-      code === "ERR_ADMIN_INTROUVABLE"
+      code === "ERR_ADMIN_INTROUVABLE" ||
+      code === "ERR_MOT_DE_PASSE_INCORRECT"
     ) {
       setErreur(t15(`errors.${code}` as "errors.ERR_AUCUNE_SUPPRESSION"));
     } else {
@@ -95,16 +96,22 @@ export default function ParametresPage() {
     }
   }
 
-  async function demanderSuppression() {
+  /**
+   * Succès du dialogue de suppression (mot de passe vérifié par le
+   * provider AVANT la RPC — renfort fondateur 2026-11-07) : le
+   * dialogue se ferme et la page reflète la demande posée.
+   */
+  function succesSuppression(maj: Profil) {
     setAConfirmerSuppression(false);
-    try {
-      const maj = await getDataProvider().demanderSuppressionCompte();
-      setProfil(maj);
-      setMessage(t15("deletionRequestedMsg"));
-      setErreur(null);
-    } catch (e) {
-      gererErreurSuppression(e);
-    }
+    setProfil(maj);
+    setMessage(t15("deletionRequestedMsg"));
+    setErreur(null);
+  }
+
+  /** Erreur non « mot de passe » du dialogue : fermé + message page. */
+  function erreurSuppression(e: unknown) {
+    setAConfirmerSuppression(false);
+    gererErreurSuppression(e);
   }
 
   async function annulerSuppression() {
@@ -684,12 +691,9 @@ export default function ParametresPage() {
           </section>
 
           {aConfirmerSuppression ? (
-            <ConfirmDialog
-              title={t15("deletionConfirmTitle")}
-              text={t15("deletionConfirmText")}
-              confirmLabel={t15("deletionConfirmButton")}
-              cancelLabel={tc("cancel")}
-              onConfirm={demanderSuppression}
+            <SuppressionCompteDialog
+              onSucces={succesSuppression}
+              onErreur={erreurSuppression}
               onCancel={() => setAConfirmerSuppression(false)}
             />
           ) : null}

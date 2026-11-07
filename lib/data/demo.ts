@@ -5109,8 +5109,18 @@ export class DemoProvider implements DataProvider {
     }
   }
 
-  async demanderSuppressionCompte(): Promise<Profil> {
+  async demanderSuppressionCompte(motDePasse: string): Promise<Profil> {
     this.acteurClientSuppression();
+    // Renfort fondateur (2026-11-07) : la confirmation par mot de
+    // passe est exigée ici comme en réel. La démo n'a pas de mots de
+    // passe réels (la connexion démo accepte n'importe quel mot de
+    // passe) : la vérification cohérente est la présence d'un mot de
+    // passe non vide — vide → ERR_MOT_DE_PASSE_INCORRECT, aucun
+    // changement d'état. Le mode réel, lui, ré-authentifie via
+    // Supabase Auth (voir real.ts).
+    if (!motDePasse || !motDePasse.trim()) {
+      throw err("ERR_MOT_DE_PASSE_INCORRECT");
+    }
     const db = loadDb();
     if (db.profil.suppression_demandee_le) {
       throw err("ERR_SUPPRESSION_DEJA_DEMANDEE");

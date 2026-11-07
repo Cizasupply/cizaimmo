@@ -121,7 +121,7 @@ function lire(rel) {
   check("abonnement de base actif ou en essai (écriture possible)",
     base.statut === "actif" || base.statut === "essai", base.statut);
 
-  const profDemande = await p.demanderSuppressionCompte();
+  const profDemande = await p.demanderSuppressionCompte("mot-de-passe-demo");
   check("demande posée : profils.suppression_demandee_le renseigné",
     !!profDemande.suppression_demandee_le, JSON.stringify(profDemande.suppression_demandee_le));
 
@@ -143,7 +143,7 @@ function lire(rel) {
   const immeublesLus = await p.listerImmeubles();
   check("lecture toujours possible pendant la suppression", Array.isArray(immeublesLus));
 
-  const eDouble = await attendErreur(p.demanderSuppressionCompte());
+  const eDouble = await attendErreur(p.demanderSuppressionCompte("mot-de-passe-demo"));
   check("double demande refusée (ERR_SUPPRESSION_DEJA_DEMANDEE)",
     eDouble.levee && eDouble.code === "ERR_SUPPRESSION_DEJA_DEMANDEE", JSON.stringify(eDouble));
 
@@ -165,7 +165,7 @@ function lire(rel) {
     eAnnule2.levee && eAnnule2.code === "ERR_AUCUNE_SUPPRESSION", JSON.stringify(eAnnule2));
 
   console.log("== D. Exécution : refus avant 30 j, puis exécution après échéance simulée ==");
-  await p.demanderSuppressionCompte();
+  await p.demanderSuppressionCompte("mot-de-passe-demo");
   const clientId = profil0.id;
 
   await connecter(SUPER_ADMIN_DEMO_EMAIL);

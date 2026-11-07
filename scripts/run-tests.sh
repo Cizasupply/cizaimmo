@@ -174,6 +174,20 @@ else
   ECHEC=1
 fi
 
+# Renfort « suppression de compte : confirmation par mot de passe »
+# (2026-11-07, règle du fondateur) : le mot de passe du compte est
+# vérifié (Supabase Auth en réel) AVANT la RPC de suppression ; un
+# mot de passe faux ne change rien. Dialogue partagé Paramètres +
+# Abonnement, rétractation inchangée (sans mot de passe).
+echo ""
+echo "===== Renfort suppression + mot de passe ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-suppression-mdp.cjs"; then
+  echo "Renfort suppression/mot de passe : OK"
+else
+  echo "Renfort suppression/mot de passe : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

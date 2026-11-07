@@ -1708,6 +1708,8 @@
     "deletionButton": "Request account deletion",
     "deletionConfirmTitle": "Confirm the deletion request",
     "deletionConfirmText": "Your account will immediately switch to read-only. Deletion becomes executable 30 days after your request, and you can cancel at any time before that date from this page.",
+    "deletionPasswordText": "To confirm, enter your account password. Without the correct password, no request will be recorded.",
+    "deletionPasswordLabel": "Account password",
     "deletionConfirmButton": "Confirm the request",
     "deletionPendingTitle": "Account deletion requested",
     "deletionScheduled": "Deletion scheduled for {date}",
@@ -1790,6 +1792,7 @@
       "ERR_MESSAGE_VIDE": "The message is empty.",
       "ERR_CONVERSATION_INTROUVABLE": "Conversation not found or not visible.",
       "ERR_SUPERVISION_LECTURE_SEULE": "Read-only supervision: the platform cannot post in this thread.",
+      "ERR_MOT_DE_PASSE_INCORRECT": "Incorrect password: the deletion request was not recorded.",
       "generic": "Something went wrong. Please try again."
     }
   },

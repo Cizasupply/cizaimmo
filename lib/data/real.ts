@@ -3970,8 +3970,19 @@ export class RealProvider implements DataProvider {
 
   // --- Suppression de compte par le client --------------------------------
 
-  async demanderSuppressionCompte(): Promise<Profil> {
-    await this.requireSession();
+  async demanderSuppressionCompte(motDePasse: string): Promise<Profil> {
+    const session = await this.requireSession();
+    // Renfort fondateur (2026-11-07) : ré-authentification par mot de
+    // passe AVANT tout appel à la RPC de suppression. signInWithPassword
+    // avec l'e-mail de la session = vérification par Supabase Auth (la
+    // session reste celle du même utilisateur). Mot de passe faux ou
+    // vide → ERR_MOT_DE_PASSE_INCORRECT et AUCUN changement d'état.
+    if (!motDePasse) throw err("ERR_MOT_DE_PASSE_INCORRECT");
+    const { error: erreurAuth } = await this.client().auth.signInWithPassword({
+      email: session.email,
+      password: motDePasse
+    });
+    if (erreurAuth) throw err("ERR_MOT_DE_PASSE_INCORRECT");
     const { error } = await this.client().rpc("demander_suppression_compte");
     if (error) throw erreurRpcV15(error);
     const profil = await this.getProfil();

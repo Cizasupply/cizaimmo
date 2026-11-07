@@ -61,10 +61,13 @@ console.log("== 2. Suppression : point d'entrée Paramètres ==");
 const params = lire("app/[locale]/parametres/page.tsx");
 check("parametres : section suppression (titre v15)", params.includes('t15("deletionTitle")'));
 check("parametres : bouton de demande (clé v15)", params.includes('t15("deletionButton")'));
-check("parametres : demande branchée sur la RPC provider", params.includes("demanderSuppressionCompte()"));
+check("parametres : demande branchée sur le dialogue partagé (provider)",
+  params.includes("SuppressionCompteDialog") &&
+  lire("components/SuppressionCompteDialog.tsx").includes("demanderSuppressionCompte(motDePasse)"));
 check("parametres : rétractation branchée", params.includes("annulerSuppressionCompte()"));
 check("parametres : état « en attente » + date (30 j)", params.includes('t15("deletionScheduled"') && params.includes("suppression_demandee_le"));
-check("parametres : confirmation ConfirmDialog", params.includes("aConfirmerSuppression") && params.includes("ConfirmDialog"));
+check("parametres : dialogue de confirmation (SuppressionCompteDialog)",
+  params.includes("aConfirmerSuppression") && params.includes("SuppressionCompteDialog"));
 
 console.log("== 3. Bilingue : sélecteur + erreurs console traduites ==");
 for (const shell of ["components/AppShell.tsx", "components/ConsoleShell.tsx"]) {

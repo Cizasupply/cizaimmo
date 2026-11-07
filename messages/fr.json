@@ -1708,6 +1708,8 @@
     "deletionButton": "Demander la suppression de mon compte",
     "deletionConfirmTitle": "Confirmer la demande de suppression",
     "deletionConfirmText": "Votre compte passera immédiatement en lecture seule. La suppression deviendra exécutable 30 jours après votre demande, et vous pourrez annuler à tout moment avant cette échéance depuis cette page.",
+    "deletionPasswordText": "Pour confirmer, saisissez le mot de passe de votre compte. Sans le bon mot de passe, aucune demande ne sera enregistrée.",
+    "deletionPasswordLabel": "Mot de passe du compte",
     "deletionConfirmButton": "Confirmer la demande",
     "deletionPendingTitle": "Suppression de compte demandée",
     "deletionScheduled": "Suppression prévue le {date}",
@@ -1790,6 +1792,7 @@
       "ERR_MESSAGE_VIDE": "Le message est vide.",
       "ERR_CONVERSATION_INTROUVABLE": "Conversation introuvable ou non visible.",
       "ERR_SUPERVISION_LECTURE_SEULE": "Supervision en lecture seule : la plateforme ne peut pas écrire dans ce fil.",
+      "ERR_MOT_DE_PASSE_INCORRECT": "Mot de passe incorrect : la demande de suppression n'a pas été enregistrée.",
       "generic": "Une erreur est survenue. Réessayez."
     }
   },

@@ -672,6 +672,10 @@ export interface DataProvider {
   //  ERR_CONVERSATION_INTROUVABLE — fil inconnu ou non visible par l'acteur.
   //  ERR_SUPERVISION_LECTURE_SEULE — la plateforme ne peut PAS écrire
   //    dans un fil propriétaire ↔ gestionnaire (refus base en réel).
+  //  ERR_MOT_DE_PASSE_INCORRECT — renfort fondateur (2026-11-07) :
+  //    la demande de suppression exige la confirmation du mot de
+  //    passe du compte, vérifié AVANT l'appel à la RPC ; un mot de
+  //    passe faux ne change RIEN (aucune demande posée).
   // ==========================================================================
 
   // --- Suppression de compte par le client (la base pilote) ---------------
@@ -680,8 +684,13 @@ export interface DataProvider {
    * demande, conserve un instantané complet de l'abonnement et passe
    * le compte en LECTURE SEULE immédiate (garde v1.4). Délai de
    * rétractation : 30 jours. Retourne le profil mis à jour.
+   *
+   * Renfort fondateur (2026-11-07) : le mot de passe du compte est
+   * exigé et VÉRIFIÉ (ré-authentification Supabase Auth en réel)
+   * AVANT l'appel à la RPC — s'il est faux, ERR_MOT_DE_PASSE_INCORRECT
+   * est levée et AUCUNE demande n'est enregistrée.
    */
-  demanderSuppressionCompte(): Promise<Profil>;
+  demanderSuppressionCompte(motDePasse: string): Promise<Profil>;
   /**
    * Annule la demande avant l'échéance : l'abonnement est restauré À
    * L'IDENTIQUE depuis l'instantané (statut, plan, dates, grâce…).
