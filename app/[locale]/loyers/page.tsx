@@ -664,7 +664,7 @@ export default function LoyersPage() {
                     <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsExpected")}</dt><dd className="font-semibold break-all text-navy">{formatMoney(tot.attendu, deviseTot, locale)}</dd></div>
                     <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsCollected")}</dt><dd className="font-semibold break-all text-green-700">{formatMoney(tot.collecte, deviseTot, locale)}</dd></div>
                     <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsRemaining")}</dt><dd className={`font-semibold break-all ${tot.retard > 0 ? "text-red-700" : tot.restant > 0 ? "text-amber-700" : "text-green-700"}`}>{formatMoney(tot.restant, deviseTot, locale)}</dd></div>
-                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsLate")}</dt><dd className="font-semibold break-all text-red-700">{formatMoney(tot.retard, deviseTot, locale)}</dd></div>
+                    <div className="flex justify-between gap-2"><dt className="min-w-0">{t("rents.totalsLate")}</dt><dd className={`font-semibold break-all ${tot.retard > 0 ? "text-red-700" : "text-green-700"}`}>{formatMoney(tot.retard, deviseTot, locale)}</dd></div>
                   </dl>
                 </div>
               ))}
