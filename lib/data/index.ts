@@ -102,6 +102,13 @@ export type {
   SupervisionGestionnaire,
   TarifPlateforme,
   VariablesAvis,
+  // Extension v1.3 — Display ID, intention, dossier, rattachement,
+  // contrat gestionnaire.
+  DemandeRattachement,
+  DossierCompte,
+  StatutContrat,
+  StatutDemandeRattachement,
+  TypeIntention,
 } from "./types";
 export { CATEGORIES_DEPENSES, DEVISES, OPERATEURS_MOBILE_MONEY, TYPES_APPARTEMENT, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT_OCTETS, limiteBlocs, LIMITE_BLOCS } from "./types";
 export {

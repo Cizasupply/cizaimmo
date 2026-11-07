@@ -16,6 +16,8 @@ export default function NouvelImmeublePage() {
   const [abonnement, setAbonnement] = useState<Abonnement | null>(null);
   const [nbActifs, setNbActifs] = useState(0);
   const [chargement, setChargement] = useState(true);
+  // v1.3 : preuve de propriété optionnelle, téléversée après création.
+  const [fichierPreuve, setFichierPreuve] = useState<File | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +39,33 @@ export default function NouvelImmeublePage() {
   const limiteAtteinte = limite !== null && Number.isFinite(limite) && nbActifs >= limite;
 
   async function handleSubmit(input: ImmeubleInput) {
-    const im = await getDataProvider().creerImmeuble(input);
+    const provider = getDataProvider();
+    const im = await provider.creerImmeuble(input);
+    // v1.3 : preuve de propriété (optionnelle) — document
+    // « justificatif » rattaché à l'immeuble. Un échec de téléversement
+    // ne bloque pas la création : le document peut être ajouté plus
+    // tard depuis la page Documents.
+    if (fichierPreuve) {
+      try {
+        const contenu = await new Promise<string>((resolve, reject) => {
+          const lecteur = new FileReader();
+          lecteur.onload = () => resolve(lecteur.result as string);
+          lecteur.onerror = () => reject(new Error("lecture"));
+          lecteur.readAsDataURL(fichierPreuve);
+        });
+        await provider.televerserDocument({
+          type: "justificatif",
+          entite_type: "immeuble",
+          entite_id: im.id,
+          nom_fichier: fichierPreuve.name,
+          taille_octets: fichierPreuve.size,
+          mime_type: fichierPreuve.type || null,
+          contenu,
+        });
+      } catch {
+        // Création conservée ; preuve ajoutable plus tard.
+      }
+    }
     router.push(`/${locale}/immeubles/${im.id}`);
   }
 
@@ -64,7 +92,12 @@ export default function NouvelImmeublePage() {
         </div>
       ) : (
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <ImmeubleForm onSubmit={handleSubmit} submitLabel={t("common.create")} />
+          <ImmeubleForm
+            onSubmit={handleSubmit}
+            submitLabel={t("common.create")}
+            fichierPreuve={fichierPreuve}
+            onFichierPreuveChange={setFichierPreuve}
+          />
         </div>
       )}
     </AppShell>

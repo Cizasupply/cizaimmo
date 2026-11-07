@@ -192,3 +192,75 @@ export function rendreBienvenue(
       "L'équipe CizaImmo — Ciza Group",
   };
 }
+
+/**
+ * E-mail de DÉCISION « gestionnaire approuvé » (v1.3) : envoyé à
+ * l'approbation d'un compte à intention GESTIONNAIRE, avec le contrat de
+ * collaboration en PIÈCE JOINTE (PDF personnalisé avec le Display ID).
+ * Le gestionnaire le signe et le téléverse dans son espace ; ses
+ * fonctions restent verrouillées jusqu'à la validation du contrat
+ * signé par un Admin.
+ */
+export function rendreDecisionGestionnaire(
+  nom: string,
+  displayId: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your property manager account is approved: please sign your agreement",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Good news: your CizaImmo property manager account has been approved and your free trial starts today.\n\n" +
+        `Your file number (Display ID): ${displayId} — keep it: owners will use it to connect their file to yours.\n\n` +
+        "Attached is your CizaImmo collaboration agreement (PDF). Please print it, sign it, " +
+        "then upload the signed copy from your “My agreement” page in CizaImmo. Your manager " +
+        "features (owner connections and access to their buildings) are unlocked once an " +
+        "administrator validates your signed agreement.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre compte gestionnaire est approuvé : signez votre contrat",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Bonne nouvelle : votre compte gestionnaire CizaImmo est approuvé et votre essai gratuit démarre aujourd'hui.\n\n" +
+      `Votre numéro de dossier (Display ID) : ${displayId} — conservez-le : les propriétaires l'utiliseront pour rattacher leur dossier au vôtre.\n\n` +
+      "Vous trouverez en pièce jointe votre contrat de collaboration CizaImmo (PDF). Imprimez-le, signez-le, " +
+      "puis téléversez le contrat signé depuis la page « Mon contrat » de votre espace CizaImmo. Vos fonctions " +
+      "gestionnaire (rattachements de propriétaires et accès à leurs immeubles) seront débloquées dès qu'un " +
+      "administrateur aura validé votre contrat signé.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
+ * E-mail d'ACTIVATION gestionnaire (v1.3) : le contrat signé a été
+ * validé par un Admin — les fonctions gestionnaire sont débloquées.
+ */
+export function rendreActivationGestionnaire(
+  nom: string,
+  displayId: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your signed agreement is validated: manager features unlocked",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Your signed collaboration agreement has been validated. Your manager features are now " +
+        "unlocked: owners can connect to you with your Display ID " +
+        `${displayId}, and once a connection is validated and buildings are assigned, you can manage them in CizaImmo.\n\n` +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre contrat signé est validé : fonctions gestionnaire débloquées",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Votre contrat de collaboration signé a été validé. Vos fonctions gestionnaire sont maintenant " +
+      "débloquées : les propriétaires peuvent se rattacher à vous avec votre Display ID " +
+      `${displayId}, et dès qu'un rattachement est validé et que des immeubles vous sont assignés, vous pouvez les gérer dans CizaImmo.\n\n` +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}

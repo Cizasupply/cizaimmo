@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import Field from "@/components/Field";
+import RattachementDisplayId from "@/components/RattachementDisplayId";
 import { formatDate } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import { dernierTauxAuto, doitActualiserTaux } from "@/lib/taux";
@@ -36,6 +37,7 @@ export default function ParametresPage() {
   const tsub = useTranslations("subscription");
   const tp = useTranslations("pages");
   const tc = useTranslations("crud.common");
+  const td = useTranslations("dossier");
   const locale = useLocale();
   const router = useRouter();
 
@@ -494,6 +496,15 @@ export default function ParametresPage() {
                 {ts("inviteManager")}
               </button>
             </form>
+          </section>
+
+          {/* Rattachement par Display ID (v1.3) : triple validation. */}
+          <section aria-labelledby="rattach-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+            <h2 id="rattach-titre" className="text-lg font-bold text-navy">{td("linkTitle")}</h2>
+            <p className="mt-2 text-sm text-slate-600">{td("linkText")}</p>
+            <div className="mt-4">
+              <RattachementDisplayId />
+            </div>
           </section>
 
           {/* Co-propriétaires d'indivision (module 6, spec §6 suite) */}

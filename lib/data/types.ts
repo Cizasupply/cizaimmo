@@ -49,8 +49,40 @@ export interface Profil {
   grille_statut?: "ok" | "a_verifier" | null;
   /** Ajout n°3 : motif prédéfini si l'inscription a été REFUSÉE (sinon null). */
   motif_refus?: MotifRefus | null;
+  // --- Parcours d'inscription v1.3 : dossier vérifié (voir
+  // docs/parcours-inscription-v1.3.md).
+  /**
+   * Numéro de dossier PUBLIC et unique, généré par le système au format
+   * « CIM-000001 » (séquentiel). Jamais modifiable : c'est la clé du
+   * dossier, du contrat gestionnaire et du rattachement par le
+   * propriétaire. null pour les comptes antérieurs non migrés.
+   */
+  display_id?: string | null;
+  /**
+   * INTENTION déclarée à l'inscription (« Je suis propriétaire » / « Je
+   * suis gestionnaire immobilier »). Ce n'est PAS un rôle : le rôle
+   * technique ne change pas à l'inscription ; l'intention est validée
+   * par un Admin à l'approbation.
+   */
+  type_intention?: TypeIntention;
+  /** Chemin Storage (bucket privé) de la photo de profil du dossier. */
+  photo_profil_path?: string | null;
+  /**
+   * État du contrat de collaboration — comptes à intention
+   * « gestionnaire » uniquement : sans_objet (propriétaires et
+   * gestionnaires pas encore approuvés), a_signer (approuvé, contrat
+   * envoyé), signe_recu (contrat signé téléversé, en attente de
+   * validation Admin), valide (fonctions gestionnaire débloquées).
+   */
+  statut_contrat?: StatutContrat;
   created_at: string;
 }
+
+/** Intention déclarée à l'inscription (v1.3) — validée par l'Admin. */
+export type TypeIntention = "proprietaire" | "gestionnaire";
+
+/** Cycle de vie du contrat gestionnaire (v1.3). */
+export type StatutContrat = "sans_objet" | "a_signer" | "signe_recu" | "valide";
 
 export type Plan = "starter" | "pro" | "agence";
 export type Grille = "afrique" | "internationale";
@@ -175,6 +207,10 @@ export interface SignUpInput {
    * Seul le code est transmis/stocké — jamais l'adresse IP.
    */
   paysIp?: string | null;
+  /** v1.3 : téléphone (obligatoire) — pièce du dossier vérifié. */
+  telephone: string;
+  /** v1.3 : intention déclarée (propriétaire / gestionnaire) — pas un rôle. */
+  intention: TypeIntention;
 }
 
 export type TypeImmeuble = "immeuble" | "bloc" | "maison";
@@ -530,9 +566,24 @@ export interface DepenseInput {
 export type DepensePatch = Partial<DepenseInput>;
 
 // --- MODULE 4 : documents ---------------------------------------------------
-export type TypeDocument = "bail" | "piece_identite" | "justificatif" | "facture" | "autre";
-export const TYPES_DOCUMENT: TypeDocument[] = ["bail", "piece_identite", "justificatif", "facture", "autre"];
-export type EntiteType = "immeuble" | "appartement" | "locataire" | "bail" | "depense";
+export type TypeDocument =
+  | "bail"
+  | "piece_identite"
+  | "justificatif"
+  | "facture"
+  /** v1.3 : contrat de collaboration gestionnaire (à signer ou signé). */
+  | "contrat"
+  | "autre";
+export const TYPES_DOCUMENT: TypeDocument[] = [
+  "bail",
+  "piece_identite",
+  "justificatif",
+  "facture",
+  "contrat",
+  "autre",
+];
+/** v1.3 : « compte » = document du DOSSIER d'inscription (pièce d'identité, contrat). */
+export type EntiteType = "immeuble" | "appartement" | "locataire" | "bail" | "depense" | "compte";
 export const TAILLE_MAX_DOCUMENT_OCTETS = 10 * 1024 * 1024; // 10 Mo (spec §6)
 export const FORMATS_DOCUMENT_ACCEPTES = ["application/pdf", "image/jpeg", "image/png"];
 
@@ -867,6 +918,76 @@ export interface ComptePlateforme {
   } | null;
   /** Retard de paiement d'abonnement (échec ou grâce des paramètres dépassée). */
   en_retard: boolean;
+  // --- v1.3 : dossier vérifié.
+  /** Numéro de dossier public « CIM-000001 » (null si non migré). */
+  display_id: string | null;
+  telephone: string | null;
+  type_intention: TypeIntention;
+  statut_contrat: StatutContrat;
+  /** Dossier complet = photo de profil + pièce d'identité reçues. */
+  dossier_complet: boolean;
+}
+
+/**
+ * Demande de rattachement par Display ID (v1.3) — TRIPLE validation :
+ * le propriétaire demande → le gestionnaire accepte → un Admin valide
+ * systématiquement → seulement ensuite le propriétaire assigne ses
+ * immeubles (mécanisme existant des rattachements, immeuble_ids).
+ */
+export type StatutDemandeRattachement =
+  | "en_attente_gestionnaire"
+  | "en_attente_admin"
+  | "actif"
+  | "refuse";
+
+export interface DemandeRattachement {
+  id: string;
+  proprietaire_id: string;
+  proprietaire_email: string;
+  proprietaire_nom: string;
+  gestionnaire_id: string;
+  gestionnaire_email: string;
+  gestionnaire_nom: string;
+  /** Display ID saisi par le propriétaire (trace de la demande). */
+  gestionnaire_display_id: string;
+  statut: StatutDemandeRattachement;
+  created_at: string;
+  /** Réponse du gestionnaire (acceptation/refus). */
+  repondu_le: string | null;
+  /** Validation Admin (acteur plateforme + date). */
+  valide_par: string | null;
+  valide_le: string | null;
+  /** Rattachement créé à la validation Admin (null avant). */
+  rattachement_id: string | null;
+  /**
+   * Immeubles actuellement assignés sur le rattachement lié (rempli
+   * par listerDemandesRattachement quand la demande est « actif ») —
+   * sert l'écran d'assignation du propriétaire.
+   */
+  rattachement_immeuble_ids?: string[];
+}
+
+/**
+ * Page DOSSIER console (v1.3) : tout ce que l'Admin voit d'un compte —
+ * identité, documents du dossier, preuves de propriété, rattachements
+ * des deux côtés, immeubles, annonces vitrine, abonnement, audit.
+ */
+export interface DossierCompte {
+  compte: ComptePlateforme;
+  /** Chemin Storage de la photo de profil (bucket privé), si reçue. */
+  photo_profil_path: string | null;
+  /** Documents du dossier (entite_type « compte » : pièce d'identité, contrat). */
+  documents_compte: Document[];
+  /** Preuves de propriété : documents « justificatif » des immeubles possédés. */
+  preuves_propriete: Document[];
+  rattachements_comme_proprietaire: RattachementGestionnaire[];
+  rattachements_comme_gestionnaire: RattachementGestionnaire[];
+  demandes: DemandeRattachement[];
+  immeubles_possedes: { id: string; nom: string; ville: string }[];
+  immeubles_geres: { id: string; nom: string; ville: string }[];
+  /** Annonces vitrine : appartements publiés des immeubles possédés. */
+  annonces: { id: string; immeuble_nom: string; numero: string }[];
+  audit: EntreeAudit[];
 }
 
 /** Vue console d'un compte Admin / Super Admin. */

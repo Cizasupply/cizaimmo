@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import AuthLayout from "@/components/AuthLayout";
 import Field from "@/components/Field";
 import { DEVISES, getDataProvider } from "@/lib/data";
-import type { Devise, Langue } from "@/lib/data";
+import type { Devise, Langue, TypeIntention } from "@/lib/data";
 import { PAYS } from "@/lib/countries";
 import { AuthError } from "@/lib/data/real";
 
@@ -23,6 +23,9 @@ export default function InscriptionPage() {
 
   const [nom, setNom] = useState("");
   const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
+  // v1.3 : INTENTION déclarée (pas un rôle) — validée par l'Admin.
+  const [intention, setIntention] = useState<TypeIntention>("proprietaire");
   const [motDePasse, setMotDePasse] = useState("");
   const [pays, setPays] = useState("");
   const [devise, setDevise] = useState<Devise>("USD");
@@ -56,6 +59,8 @@ export default function InscriptionPage() {
     if (!nom.trim()) next.nom = t("nameRequired");
     if (!email.trim()) next.email = t("emailRequired");
     else if (!isValidEmail(email.trim())) next.email = t("emailInvalid");
+    if (!telephone.trim()) next.telephone = t("phoneRequired");
+    else if (telephone.replace(/\D/g, "").length < 8) next.telephone = t("phoneInvalid");
     if (!motDePasse) next.motDePasse = t("passwordRequired");
     else if (motDePasse.length < 8) next.motDePasse = t("passwordTooShort");
     if (!pays) next.pays = t("countryRequired");
@@ -73,6 +78,8 @@ export default function InscriptionPage() {
         devisePrincipale: devise,
         langue,
         paysIp,
+        telephone: telephone.trim(),
+        intention,
       });
       if (needsEmailConfirmation) {
         // E-mail confirmé → le compte passe en revue d'approbation
@@ -118,6 +125,47 @@ export default function InscriptionPage() {
           required
           autoComplete="email"
         />
+        <Field
+          id="telephone"
+          label={t("phone")}
+          type="tel"
+          value={telephone}
+          onChange={setTelephone}
+          error={errors.telephone}
+          required
+          autoComplete="tel"
+        />
+        <fieldset>
+          <legend className="text-sm font-semibold text-slate-900">{t("intentionLabel")}</legend>
+          <div className="mt-2 space-y-2">
+            {(
+              [
+                { valeur: "proprietaire", label: t("intentionOwner") },
+                { valeur: "gestionnaire", label: t("intentionManager") },
+              ] as { valeur: TypeIntention; label: string }[]
+            ).map((choix) => (
+              <label
+                key={choix.valeur}
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-base text-slate-900 ${
+                  intention === choix.valeur
+                    ? "border-gold bg-gold/10 font-semibold"
+                    : "border-slate-300 bg-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="intention"
+                  value={choix.valeur}
+                  checked={intention === choix.valeur}
+                  onChange={() => setIntention(choix.valeur)}
+                  className="h-5 w-5 shrink-0 accent-[#1B2A4A]"
+                />
+                {choix.label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-sm text-slate-600">{t("intentionHint")}</p>
+        </fieldset>
         <Field
           id="mot-de-passe"
           label={t("password")}

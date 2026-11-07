@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { ComptePlateforme, EntreeAudit } from "@/lib/data";
+import type { ComptePlateforme, DemandeRattachement, EntreeAudit } from "@/lib/data";
 import { construirePrixPlans } from "@/lib/tarifs";
 import { formatDate, formatMoney } from "@/lib/format";
 
@@ -21,6 +21,7 @@ export default function ConsoleAccueilPage() {
   const locale = useLocale();
   const [comptes, setComptes] = useState<ComptePlateforme[]>([]);
   const [journal, setJournal] = useState<EntreeAudit[]>([]);
+  const [demandes, setDemandes] = useState<DemandeRattachement[]>([]);
   const [mrr, setMrr] = useState(0);
   const [charge, setCharge] = useState(false);
 
@@ -29,14 +30,16 @@ export default function ConsoleAccueilPage() {
     (async () => {
       try {
         const provider = getDataProvider();
-        const [liste, tarifs, audit] = await Promise.all([
+        const [liste, tarifs, audit, demandesListe] = await Promise.all([
           provider.listerComptesPlateforme(),
           provider.getTarifsPlateforme(),
           provider.listerJournalAudit(),
+          provider.listerDemandesRattachement(),
         ]);
         if (!actif) return;
         const prix = construirePrixPlans(tarifs);
         setComptes(liste);
+        setDemandes(demandesListe);
         setJournal(audit.slice(0, 5));
         setMrr(
           liste
@@ -64,6 +67,12 @@ export default function ConsoleAccueilPage() {
   const actifs = comptes.filter((c) => c.abonnement?.statut === "actif");
   const enEssai = comptes.filter((c) => c.abonnement?.statut === "essai");
 
+  // KPI v1.3 : dossiers incomplets, contrats signés en attente de
+  // validation, demandes de rattachement en attente de l'Admin.
+  const dossiersIncomplets = comptes.filter((c) => !c.dossier_complet);
+  const contratsEnAttente = comptes.filter((c) => c.statut_contrat === "signe_recu");
+  const demandesEnAttenteAdmin = demandes.filter((d) => d.statut === "en_attente_admin");
+
   const cartes = [
     { label: t("statAccounts"), valeur: comptes.length, couleur: "text-navy" },
     { label: t("statPending"), valeur: enAttente.length, couleur: "text-amber-600" },
@@ -71,6 +80,9 @@ export default function ConsoleAccueilPage() {
     { label: t("statLate"), valeur: enRetard.length, couleur: "text-red-600" },
     { label: t("statActive"), valeur: actifs.length, couleur: "text-green-700" },
     { label: t("statTrials"), valeur: enEssai.length, couleur: "text-navy" },
+    { label: t("statIncompleteFiles"), valeur: dossiersIncomplets.length, couleur: "text-amber-600" },
+    { label: t("statContractsPending"), valeur: contratsEnAttente.length, couleur: "text-amber-600" },
+    { label: t("statLinkRequestsPending"), valeur: demandesEnAttenteAdmin.length, couleur: "text-amber-600" },
     {
       label: t("statMrr"),
       valeur: formatMoney(mrr, "USD", locale),

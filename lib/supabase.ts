@@ -16,6 +16,15 @@ import type { NextRequest, NextResponse } from "next/server";
  * RÈGLE DURE : aucun vrai secret n'est jamais écrit dans le code.
  */
 
+/**
+ * Nom du cookie de session DÉMO. Défini ICI (module léger) plutôt que
+ * dans lib/data/demo.ts : le middleware (Edge Runtime) et les routes
+ * API ne doivent importer que cette constante, sans tirer tout le
+ * fournisseur démo — qui dépend depuis la v1.3 du générateur de
+ * contrat (jsPDF, interdit en Edge Runtime).
+ */
+export const DEMO_SESSION_COOKIE = "cizaimmo-demo-session";
+
 export const PLACEHOLDER_URL = "https://your-project.supabase.co";
 export const PLACEHOLDER_ANON_KEY = "your-anon-key-here";
 

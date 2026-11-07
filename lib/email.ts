@@ -35,6 +35,19 @@ export interface EmailAlerte {
    * cette langue seule. Absente : gabarit bilingue FR/EN.
    */
   langue?: LangueEmail;
+  /**
+   * Pièces jointes (v1.3 — contrat gestionnaire) : contenu en base64,
+   * transmises au fournisseur au format Resend « attachments »
+   * ({ filename, content }). Optionnel : l'existant n'est pas affecté.
+   */
+  piecesJointes?: PieceJointeEmail[];
+}
+
+/** Pièce jointe d'un e-mail (v1.3) : nom de fichier + contenu base64. */
+export interface PieceJointeEmail {
+  nom: string;
+  contenuBase64: string;
+  typeMime?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -181,6 +194,7 @@ export async function envoyerEmailViaApi(
         text: email.texte,
         html: email.html,
         langue: email.langue,
+        piecesJointes: email.piecesJointes,
       }),
     });
     if (!reponse.ok) {
@@ -235,6 +249,15 @@ export async function envoyerEmailAlerte(email: EmailAlerte): Promise<ResultatEn
         subject: email.sujet,
         text: gabaritEmailTexte(email.texte, email.langue),
         html: gabaritEmailHtml(corpsHtml, email.langue),
+        // Pièces jointes au format Resend : contenu base64 (v1.3).
+        ...(email.piecesJointes && email.piecesJointes.length > 0
+          ? {
+              attachments: email.piecesJointes.map((p) => ({
+                filename: p.nom,
+                content: p.contenuBase64,
+              })),
+            }
+          : {}),
       }),
     });
     if (!reponse.ok) {

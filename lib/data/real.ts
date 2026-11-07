@@ -18,12 +18,14 @@ import type {
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
+  DemandeRattachement,
   Depense,
   DepenseInput,
   DepensePatch,
   Devise,
   Document,
   DocumentInput,
+  DossierCompte,
   EntreeAudit,
   FiltreDocuments,
   GestionnaireInvite,
@@ -34,6 +36,7 @@ import type {
   PreferencesNotifications,
   ProfilPatch,
   RattachementGestionnaire,
+  StatutContrat,
   StatutWhatsApp,
   SupervisionGestionnaire,
   TarifPlateforme,
@@ -74,7 +77,14 @@ import {
   TARIFS_SEED,
 } from "../tarifs";
 import { attribuerGrille } from "../grille";
-import { libellerMotif, rendreAvis, rendreBienvenue } from "../avis";
+import {
+  libellerMotif,
+  rendreActivationGestionnaire,
+  rendreAvis,
+  rendreBienvenue,
+  rendreDecisionGestionnaire,
+} from "../avis";
+import { genererContratGestionnairePdf } from "../contrat";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -216,6 +226,10 @@ export class RealProvider implements DataProvider {
           pays_ip: input.paysIp ?? null,
           grille_attribuee: attribution.grille,
           grille_statut: attribution.statut,
+          // v1.3 : téléphone + intention — le trigger handle_new_user
+          // (module-v13.sql) les stocke et génère le Display ID.
+          telephone: input.telephone,
+          intention: input.intention,
         },
         // Après validation de l'e-mail, Supabase redirige vers le callback
         // qui échange le code puis envoie vers le tableau de bord.
@@ -2281,10 +2295,17 @@ export class RealProvider implements DataProvider {
     destinataire: string,
     sujet: string,
     texte: string,
-    langue?: "fr" | "en"
+    langue?: "fr" | "en",
+    piecesJointes?: { nom: string; contenuBase64: string }[]
   ): Promise<Avis["statut_envoi"]> {
     try {
-      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte, langue });
+      const resultat = await this.envoyerEmailAlerteFn({
+        destinataire,
+        sujet,
+        texte,
+        langue,
+        piecesJointes,
+      });
       return statutEmailDepuisResultat(resultat);
     } catch {
       return "echec";
@@ -2321,6 +2342,16 @@ export class RealProvider implements DataProvider {
     for (const a of (abonnements as Abonnement[] | null) ?? []) {
       if (!parProprietaire.has(a.owner_id)) parProprietaire.set(a.owner_id, a);
     }
+    // v1.3 : dossiers complets = pièce d'identité reçue (la photo est
+    // sur le profil). Une seule requête pour tous les comptes.
+    const { data: piecesIdentite } = await client
+      .from("documents")
+      .select("entite_id")
+      .eq("entite_type", "compte")
+      .eq("type", "piece_identite");
+    const dossiersAvecPiece = new Set(
+      ((piecesIdentite as { entite_id: string }[] | null) ?? []).map((d) => d.entite_id)
+    );
     return ((profils as Profil[] | null) ?? []).map((p) => {
       const abo = parProprietaire.get(p.id) ?? null;
       const vue = abo
@@ -2352,6 +2383,11 @@ export class RealProvider implements DataProvider {
         motif_refus: p.motif_refus ?? null,
         abonnement: vue,
         en_retard: estEnRetardPaiement(vue, parametres),
+        display_id: p.display_id ?? null,
+        telephone: p.telephone ?? null,
+        type_intention: p.type_intention ?? "proprietaire",
+        statut_contrat: p.statut_contrat ?? "sans_objet",
+        dossier_complet: Boolean(p.photo_profil_path) && dossiersAvecPiece.has(p.id),
       };
     });
   }
@@ -2440,7 +2476,7 @@ export class RealProvider implements DataProvider {
     if (!abo || abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
     const { data: profil } = await client
       .from("profils")
-      .select("email, nom, langue")
+      .select("email, nom, langue, type_intention, display_id, telephone, pays")
       .eq("id", compteId)
       .maybeSingle();
     if (!profil) throw err("ERR_INTROUVABLE");
@@ -2457,21 +2493,55 @@ export class RealProvider implements DataProvider {
         fin_periode: finEssai,
       })
       .eq("id", abo.id);
+    const estGestionnaire = profil.type_intention === "gestionnaire";
     await client
       .from("profils")
-      .update({ grille_attribuee: abo.grille })
+      .update({
+        grille_attribuee: abo.grille,
+        // v1.3 : l'approbation d'un GESTIONNAIRE déclenche le contrat.
+        ...(estGestionnaire ? { statut_contrat: "a_signer" } : {}),
+      })
       .eq("id", compteId);
-    const bienvenue = rendreBienvenue(profil.nom, profil.langue === "en" ? "en" : "fr");
-    const emailStatut = await this.envoyerEmailPlateforme(
-      profil.email,
-      bienvenue.sujet,
-      bienvenue.corps,
-      profil.langue === "en" ? "en" : "fr"
-    );
+    const langue = profil.langue === "en" ? "en" : "fr";
+    // v1.3 : gestionnaire → e-mail de DÉCISION avec le contrat en pièce
+    // jointe ; propriétaire → e-mail de bienvenue (flux v1.2 inchangé).
+    let emailStatut: Avis["statut_envoi"];
+    let contratJoint = false;
+    if (estGestionnaire && profil.display_id) {
+      const contrat = await genererContratGestionnairePdf({
+        nom: profil.nom,
+        displayId: profil.display_id,
+        email: profil.email,
+        telephone: profil.telephone ?? null,
+        pays: profil.pays ?? null,
+        langue,
+        date: maintenant.toISOString().slice(0, 10),
+      });
+      const decision = rendreDecisionGestionnaire(profil.nom, profil.display_id, langue);
+      emailStatut = await this.envoyerEmailPlateforme(
+        profil.email,
+        decision.sujet,
+        decision.corps,
+        langue,
+        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
+      );
+      contratJoint = true;
+    } else {
+      const bienvenue = rendreBienvenue(profil.nom, langue);
+      emailStatut = await this.envoyerEmailPlateforme(
+        profil.email,
+        bienvenue.sujet,
+        bienvenue.corps,
+        langue
+      );
+    }
     await this.journaliserAudit(acteur, "compte_approuve", "compte", compteId, profil.email, {
       grille: abo.grille,
       trial_ends_at: finEssai,
       email_bienvenue: emailStatut,
+      ...(contratJoint
+        ? { contrat_envoye: true, display_id: profil.display_id }
+        : {}),
     });
   }
 
@@ -2983,6 +3053,570 @@ export class RealProvider implements DataProvider {
     });
     await this.journaliserAudit(acteur, "parametres_modifies", "parametre", null, null, {
       parametres,
+    });
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.3 — Dossiers vérifiés, contrat gestionnaire, rattachement
+  // par Display ID (triple validation). Voir docs/parcours-inscription-v1.3.md
+  // et supabase/module-v13.sql (table demandes_rattachement, RPC de
+  // recherche par Display ID, politique « contrepartie »).
+  // ==========================================================================
+
+  /** Mappe une ligne demandes_rattachement (+ profils résolus) vers le type partagé. */
+  private async mapperDemandes(
+    lignes: Record<string, unknown>[]
+  ): Promise<DemandeRattachement[]> {
+    const ids = new Set<string>();
+    for (const l of lignes) {
+      ids.add(l.proprietaire_id as string);
+      ids.add(l.gestionnaire_id as string);
+    }
+    const parId = new Map<string, { email: string; nom: string }>();
+    if (ids.size > 0) {
+      const { data } = await this.client()
+        .from("profils")
+        .select("id, email, nom")
+        .in("id", Array.from(ids));
+      for (const p of (data as { id: string; email: string; nom: string }[] | null) ?? []) {
+        parId.set(p.id, { email: p.email, nom: p.nom });
+      }
+    }
+    return lignes.map((l) => ({
+      id: l.id as string,
+      proprietaire_id: l.proprietaire_id as string,
+      proprietaire_email: parId.get(l.proprietaire_id as string)?.email ?? "",
+      proprietaire_nom: parId.get(l.proprietaire_id as string)?.nom ?? "",
+      gestionnaire_id: l.gestionnaire_id as string,
+      gestionnaire_email: parId.get(l.gestionnaire_id as string)?.email ?? "",
+      gestionnaire_nom: parId.get(l.gestionnaire_id as string)?.nom ?? "",
+      gestionnaire_display_id: l.gestionnaire_display_id as string,
+      statut: l.statut as DemandeRattachement["statut"],
+      created_at: l.created_at as string,
+      repondu_le: (l.repondu_le as string | null) ?? null,
+      valide_par: (l.valide_par as string | null) ?? null,
+      valide_le: (l.valide_le as string | null) ?? null,
+      rattachement_id: (l.rattachement_id as string | null) ?? null,
+    }));
+  }
+
+  async soumettreDocumentCompte(
+    type: "piece_identite" | "contrat",
+    input: DocumentInput
+  ): Promise<Document> {
+    // Pas de garde « abonnement actif » : le dossier se complète PENDANT
+    // l'attente d'approbation. La RLS borne l'écriture au titulaire
+    // (owner_id = auth.uid()) et la lecture au titulaire + plateforme.
+    const session = await this.requireSession();
+    const nom = input.nom_fichier.trim();
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
+    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      input.taille_octets !== undefined &&
+      input.taille_octets !== null &&
+      input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    const client = this.client();
+    const { data: doublon } = await client
+      .from("documents")
+      .select("id")
+      .eq("entite_type", "compte")
+      .eq("entite_id", session.id)
+      .eq("type", type)
+      .ilike("nom_fichier", nom)
+      .limit(1);
+    if (doublon && doublon.length > 0) throw err("ERR_DOCUMENT_DOUBLON");
+    if (!input.contenu) throw err("ERR_DOCUMENT_FORMAT");
+    const storagePath = `${session.id}/compte/${Date.now()}-${nom}`;
+    const blob = await (await fetch(input.contenu)).blob();
+    const { error: uploadError } = await client.storage
+      .from("documents-prives")
+      .upload(storagePath, blob, { contentType: input.mime_type ?? blob.type, upsert: false });
+    if (uploadError) {
+      if (/bucket not found/i.test(uploadError.message)) throw err("ERR_BUCKET_MANQUANT");
+      throw new Error(uploadError.message);
+    }
+    const { data, error } = await client
+      .from("documents")
+      .insert({
+        owner_id: session.id,
+        type,
+        entite_type: "compte",
+        entite_id: session.id,
+        nom_fichier: nom,
+        storage_path: storagePath,
+        taille_octets: input.taille_octets ?? blob.size,
+        mime_type: input.mime_type ?? blob.type,
+        ajoute_par: session.id,
+      })
+      .select()
+      .single();
+    if (error) {
+      await client.storage.from("documents-prives").remove([storagePath]);
+      throw new Error(error.message);
+    }
+    return data as Document;
+  }
+
+  async televerserPhotoProfil(input: DocumentInput): Promise<string> {
+    const session = await this.requireSession();
+    const nom = input.nom_fichier.trim();
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    if (!["jpg", "jpeg", "png"].includes(extension)) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      input.taille_octets !== undefined &&
+      input.taille_octets !== null &&
+      input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    if (!input.contenu) throw err("ERR_DOCUMENT_FORMAT");
+    const client = this.client();
+    const storagePath = `${session.id}/profil/photo-${Date.now()}.${extension}`;
+    const blob = await (await fetch(input.contenu)).blob();
+    const { error: uploadError } = await client.storage
+      .from("documents-prives")
+      .upload(storagePath, blob, { contentType: input.mime_type ?? blob.type, upsert: false });
+    if (uploadError) {
+      if (/bucket not found/i.test(uploadError.message)) throw err("ERR_BUCKET_MANQUANT");
+      throw new Error(uploadError.message);
+    }
+    const { error } = await client
+      .from("profils")
+      .update({ photo_profil_path: storagePath })
+      .eq("id", session.id);
+    if (error) throw new Error(error.message);
+    return storagePath;
+  }
+
+  async listerDossier(compteId: string): Promise<DossierCompte> {
+    await this.acteurPlateforme();
+    const client = this.client();
+    const comptes = await this.listerComptesPlateforme();
+    const compte = comptes.find((c) => c.id === compteId);
+    if (!compte) throw err("ERR_INTROUVABLE");
+    const { data: profilRow } = await client
+      .from("profils")
+      .select("photo_profil_path")
+      .eq("id", compteId)
+      .maybeSingle();
+
+    const { data: docsCompte } = await client
+      .from("documents")
+      .select("*")
+      .eq("entite_type", "compte")
+      .eq("entite_id", compteId)
+      .order("created_at", { ascending: false });
+
+    const { data: immeublesRows } = await client
+      .from("immeubles")
+      .select("id, nom, ville")
+      .eq("owner_id", compteId);
+    const immeublesPossedes = (immeublesRows as { id: string; nom: string; ville: string }[] | null) ?? [];
+    const idsPossedes = immeublesPossedes.map((i) => i.id);
+
+    let preuvesPropriete: Document[] = [];
+    if (idsPossedes.length > 0) {
+      const { data } = await client
+        .from("documents")
+        .select("*")
+        .eq("entite_type", "immeuble")
+        .eq("type", "justificatif")
+        .in("entite_id", idsPossedes)
+        .order("created_at", { ascending: false });
+      preuvesPropriete = (data as Document[] | null) ?? [];
+    }
+
+    const { data: rattRows } = await client
+      .from("rattachements_gestionnaires")
+      .select("*")
+      .or(`proprietaire_id.eq.${compteId},gestionnaire_id.eq.${compteId}`);
+    const rattachements = await this.mapperRattachements(
+      (rattRows as Record<string, unknown>[] | null) ?? []
+    );
+    const commeProprietaire = rattachements.filter((r) => r.proprietaire_id === compteId);
+    const commeGestionnaire = rattachements.filter((r) => r.gestionnaire_id === compteId);
+
+    const { data: demandeRows } = await client
+      .from("demandes_rattachement")
+      .select("*")
+      .or(`proprietaire_id.eq.${compteId},gestionnaire_id.eq.${compteId}`)
+      .order("created_at", { ascending: false });
+    const demandes = await this.mapperDemandes(
+      (demandeRows as Record<string, unknown>[] | null) ?? []
+    );
+
+    const idsGeres = Array.from(new Set(commeGestionnaire.flatMap((r) => r.immeuble_ids)));
+    let immeublesGeres: { id: string; nom: string; ville: string }[] = [];
+    if (idsGeres.length > 0) {
+      const { data } = await client
+        .from("immeubles")
+        .select("id, nom, ville")
+        .in("id", idsGeres);
+      immeublesGeres = (data as { id: string; nom: string; ville: string }[] | null) ?? [];
+    }
+
+    let annonces: { id: string; immeuble_nom: string; numero: string }[] = [];
+    if (idsPossedes.length > 0) {
+      const { data } = await client
+        .from("appartements")
+        .select("id, numero, immeuble_id")
+        .eq("vitrine", true)
+        .in("immeuble_id", idsPossedes);
+      const nomParId = new Map(immeublesPossedes.map((i) => [i.id, i.nom]));
+      annonces = ((data as { id: string; numero: string; immeuble_id: string }[] | null) ?? []).map(
+        (a) => ({ id: a.id, immeuble_nom: nomParId.get(a.immeuble_id) ?? "", numero: a.numero })
+      );
+    }
+
+    const { data: auditRows } = await client
+      .from("journal_audit")
+      .select("*")
+      .or(`cible_id.eq.${compteId},cible_email.eq.${compte.email}`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    return {
+      compte,
+      photo_profil_path: profilRow?.photo_profil_path ?? null,
+      documents_compte: (docsCompte as Document[] | null) ?? [],
+      preuves_propriete: preuvesPropriete,
+      rattachements_comme_proprietaire: commeProprietaire,
+      rattachements_comme_gestionnaire: commeGestionnaire,
+      demandes,
+      immeubles_possedes: immeublesPossedes,
+      immeubles_geres: immeublesGeres,
+      annonces,
+      audit: (auditRows as EntreeAudit[] | null) ?? [],
+    };
+  }
+
+  async rechercherCompteParDisplayId(
+    displayId: string
+  ): Promise<{ nom: string; display_id: string } | null> {
+    await this.requireSession();
+    // RPC security definer (module-v13.sql) : ne retourne que l'id
+    // technique, le nom et le Display ID d'un compte « gestionnaire ».
+    const { data, error } = await this.client().rpc(
+      "rechercher_gestionnaire_par_display_id",
+      { p_display_id: displayId.trim().toUpperCase() }
+    );
+    if (error) throw new Error(error.message);
+    const ligne = (data as { id: string; nom: string; display_id: string }[] | null)?.[0];
+    if (!ligne) return null;
+    // L'écran de confirmation n'expose QUE le nom + le Display ID.
+    return { nom: ligne.nom, display_id: ligne.display_id };
+  }
+
+  async demanderRattachementParDisplayId(
+    displayId: string
+  ): Promise<DemandeRattachement> {
+    const session = await this.requireSession();
+    const client = this.client();
+    const { data: rpcData, error: rpcError } = await client.rpc(
+      "rechercher_gestionnaire_par_display_id",
+      { p_display_id: displayId.trim().toUpperCase() }
+    );
+    if (rpcError) throw new Error(rpcError.message);
+    const gestionnaire = (rpcData as { id: string; nom: string; display_id: string }[] | null)?.[0];
+    if (!gestionnaire || gestionnaire.id === session.id) throw err("ERR_INTROUVABLE");
+    const { data: existante } = await client
+      .from("demandes_rattachement")
+      .select("id")
+      .eq("proprietaire_id", session.id)
+      .eq("gestionnaire_id", gestionnaire.id)
+      .neq("statut", "refuse")
+      .limit(1);
+    if (existante && existante.length > 0) throw err("ERR_DEMANDE_EXISTANTE");
+    const { data, error } = await client
+      .from("demandes_rattachement")
+      .insert({
+        proprietaire_id: session.id,
+        gestionnaire_id: gestionnaire.id,
+        gestionnaire_display_id: gestionnaire.display_id,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const [mappee] = await this.mapperDemandes([data as Record<string, unknown>]);
+    return mappee;
+  }
+
+  async listerDemandesRattachement(): Promise<DemandeRattachement[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+    const profil = await this.getProfil();
+    const client = this.client();
+    let requete = client
+      .from("demandes_rattachement")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (profil?.role !== "admin" && profil?.role !== "super_admin") {
+      requete = requete.or(
+        `proprietaire_id.eq.${session.id},gestionnaire_id.eq.${session.id}`
+      );
+    }
+    const { data, error } = await requete;
+    if (error) throw new Error(error.message);
+    const demandes = await this.mapperDemandes(
+      (data as Record<string, unknown>[] | null) ?? []
+    );
+    // Immeubles assignés des rattachements liés (écran d'assignation).
+    const rattachementIds = demandes
+      .map((d) => d.rattachement_id)
+      .filter((id): id is string => Boolean(id));
+    if (rattachementIds.length > 0) {
+      const { data: rattachements } = await this.client()
+        .from("rattachements_gestionnaires")
+        .select("id, immeuble_ids")
+        .in("id", rattachementIds);
+      const parId = new Map(
+        ((rattachements as { id: string; immeuble_ids: string[] }[] | null) ?? []).map(
+          (r) => [r.id, r.immeuble_ids ?? []] as const
+        )
+      );
+      for (const d of demandes) {
+        if (d.rattachement_id) {
+          d.rattachement_immeuble_ids = parId.get(d.rattachement_id) ?? [];
+        }
+      }
+    }
+    return demandes;
+  }
+
+  async repondreDemandeRattachement(
+    demandeId: string,
+    accepter: boolean
+  ): Promise<DemandeRattachement> {
+    const session = await this.requireSession();
+    const client = this.client();
+    const { data: demande } = await client
+      .from("demandes_rattachement")
+      .select("*")
+      .eq("id", demandeId)
+      .maybeSingle();
+    if (!demande || demande.gestionnaire_id !== session.id) {
+      throw err("ERR_INTROUVABLE");
+    }
+    if (demande.statut !== "en_attente_gestionnaire") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    if (accepter) {
+      // Verrou contrat : accepter exige un contrat VALIDÉ.
+      const profil = await this.getProfil();
+      if (profil?.statut_contrat !== "valide") throw err("ERR_CONTRAT_NON_VALIDE");
+    }
+    const { data, error } = await client
+      .from("demandes_rattachement")
+      .update({
+        statut: accepter ? "en_attente_admin" : "refuse",
+        repondu_le: new Date().toISOString(),
+      })
+      .eq("id", demandeId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const [mappee] = await this.mapperDemandes([data as Record<string, unknown>]);
+    return mappee;
+  }
+
+  async validerRattachementAdmin(
+    demandeId: string,
+    accepter: boolean
+  ): Promise<DemandeRattachement> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: demande } = await client
+      .from("demandes_rattachement")
+      .select("*")
+      .eq("id", demandeId)
+      .maybeSingle();
+    if (!demande) throw err("ERR_INTROUVABLE");
+    if (demande.statut !== "en_attente_admin") throw err("ERR_STATUT_INVALIDE");
+    let rattachementId: string | null = null;
+    if (accepter) {
+      const { data: rattachement, error: errRatt } = await client
+        .from("rattachements_gestionnaires")
+        .insert({
+          gestionnaire_id: demande.gestionnaire_id,
+          contexte: "proprietaire",
+          proprietaire_id: demande.proprietaire_id,
+          // AUCUN immeuble à la création : l'assignation est le geste
+          // du propriétaire (mécanisme existant, immeuble_ids).
+          immeuble_ids: [],
+          statut: "actif",
+        })
+        .select()
+        .single();
+      if (errRatt) throw new Error(errRatt.message);
+      rattachementId = rattachement.id as string;
+    }
+    const { data, error } = await client
+      .from("demandes_rattachement")
+      .update({
+        statut: accepter ? "actif" : "refuse",
+        valide_par: acteur.id,
+        valide_le: new Date().toISOString(),
+        rattachement_id: rattachementId,
+      })
+      .eq("id", demandeId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const [mappee] = await this.mapperDemandes([data as Record<string, unknown>]);
+    await this.journaliserAudit(
+      acteur,
+      accepter ? "rattachement_valide" : "rattachement_refuse",
+      "gestionnaire",
+      demande.gestionnaire_id,
+      mappee.gestionnaire_email || null,
+      { demande_id: demandeId, proprietaire: mappee.proprietaire_email }
+    );
+    return mappee;
+  }
+
+  async assignerImmeublesRattachement(
+    rattachementId: string,
+    immeubleIds: string[]
+  ): Promise<RattachementGestionnaire> {
+    const session = await this.requireSession();
+    const client = this.client();
+    const { data: rattachement } = await client
+      .from("rattachements_gestionnaires")
+      .select("*")
+      .eq("id", rattachementId)
+      .eq("proprietaire_id", session.id)
+      .eq("statut", "actif")
+      .maybeSingle();
+    if (!rattachement) throw err("ERR_INTROUVABLE");
+    // Seuls les immeubles du propriétaire peuvent être assignés.
+    let valides: string[] = [];
+    if (immeubleIds.length > 0) {
+      const { data } = await client
+        .from("immeubles")
+        .select("id")
+        .eq("owner_id", session.id)
+        .in("id", immeubleIds);
+      valides = ((data as { id: string }[] | null) ?? []).map((i) => i.id);
+    }
+    const { data, error } = await client
+      .from("rattachements_gestionnaires")
+      .update({ immeuble_ids: valides })
+      .eq("id", rattachementId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const [mappe] = await this.mapperRattachements([data as Record<string, unknown>]);
+    return mappe;
+  }
+
+  async genererContratGestionnaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const session = await this.requireSession();
+    if (compteId !== session.id) await this.acteurPlateforme();
+    const { data: profil } = await this.client()
+      .from("profils")
+      .select("nom, email, telephone, pays, langue, display_id")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil || !profil.display_id) throw err("ERR_INTROUVABLE");
+    return genererContratGestionnairePdf({
+      nom: profil.nom,
+      displayId: profil.display_id,
+      email: profil.email,
+      telephone: profil.telephone ?? null,
+      pays: profil.pays ?? null,
+      langue: profil.langue === "en" ? "en" : "fr",
+      date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async getMonContrat(): Promise<{
+    statut: StatutContrat;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }> {
+    const profil = await this.getProfil();
+    if (!profil) throw err("ERR_NOT_FOUND");
+    if (!profil.display_id) {
+      return {
+        statut: profil.statut_contrat ?? "sans_objet",
+        display_id: null,
+        nomFichier: "",
+        contenuBase64: null,
+      };
+    }
+    const pdf = await genererContratGestionnairePdf({
+      nom: profil.nom,
+      displayId: profil.display_id,
+      email: profil.email,
+      telephone: profil.telephone ?? null,
+      pays: profil.pays ?? null,
+      langue: profil.langue === "en" ? "en" : "fr",
+      date: new Date().toISOString().slice(0, 10),
+    });
+    return {
+      statut: profil.statut_contrat ?? "sans_objet",
+      display_id: profil.display_id,
+      nomFichier: pdf.nomFichier,
+      contenuBase64: pdf.contenuBase64,
+    };
+  }
+
+  async televerserContratSigne(input: DocumentInput): Promise<Document> {
+    const document = await this.soumettreDocumentCompte("contrat", input);
+    const profil = await this.getProfil();
+    if (
+      profil &&
+      profil.type_intention === "gestionnaire" &&
+      profil.statut_contrat === "a_signer"
+    ) {
+      await this.client()
+        .from("profils")
+        .update({ statut_contrat: "signe_recu" })
+        .eq("id", profil.id);
+    }
+    return document;
+  }
+
+  async validerContrat(compteId: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue, display_id, statut_contrat")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.statut_contrat !== "signe_recu") throw err("ERR_STATUT_INVALIDE");
+    await client
+      .from("profils")
+      .update({ statut_contrat: "valide" })
+      .eq("id", compteId);
+    const langue = profil.langue === "en" ? "en" : "fr";
+    const activation = rendreActivationGestionnaire(
+      profil.nom,
+      profil.display_id ?? "",
+      langue
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      profil.email,
+      activation.sujet,
+      activation.corps,
+      langue
+    );
+    await this.journaliserAudit(acteur, "contrat_valide", "compte", compteId, profil.email, {
+      display_id: profil.display_id,
+      email_activation: emailStatut,
     });
   }
 }

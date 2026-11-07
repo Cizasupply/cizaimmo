@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
 import { prenomDe } from "@/lib/nom";
+import DossierBloc from "@/components/DossierBloc";
 
 const links = [
   { key: "dashboard", href: "/dashboard" },
@@ -130,12 +131,15 @@ function EcranBlocage({
   accent,
   onLogout,
   logoutLabel,
+  children,
 }: {
   titre: string;
   corps: string;
   accent: "red" | "amber";
   onLogout: () => void;
   logoutLabel: string;
+  /** Contenu additionnel (v1.3 : Display ID + bloc dossier sur l'attente). */
+  children?: React.ReactNode;
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-dark px-4 py-10">
@@ -150,6 +154,7 @@ function EcranBlocage({
         </div>
         <h1 className="text-xl font-bold text-navy">{titre}</h1>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">{corps}</p>
+        {children}
         <button
           type="button"
           onClick={onLogout}
@@ -312,6 +317,17 @@ export default function AppShell({
               </Link>
             ))
           : null}
+        {/* v1.3 : espace gestionnaire (contrat + demandes) — comptes à
+            intention gestionnaire et gestionnaires rattachés. */}
+        {profil?.type_intention === "gestionnaire" || role === "gestionnaire" ? (
+          <Link
+            href="/contrat"
+            onClick={onNavigate}
+            className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
+          >
+            {t("contract")}
+          </Link>
+        ) : null}
       </>
     );
   }
@@ -342,7 +358,26 @@ export default function AppShell({
         accent="amber"
         onLogout={handleLogout}
         logoutLabel={tc("logout")}
-      />
+      >
+        {/* v1.3 : le numéro de dossier (Display ID) + le bloc de
+            complétion du dossier, directement sur l'écran d'attente. */}
+        {profil?.display_id ? (
+          <p className="mt-4 rounded-xl bg-gold/15 px-4 py-3 text-sm text-slate-700">
+            {ts("displayIdLabel")} :{" "}
+            <strong className="text-base font-bold tracking-wide text-navy">
+              {profil.display_id}
+            </strong>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              {ts("displayIdKeep")}
+            </span>
+          </p>
+        ) : null}
+        {profil ? (
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <DossierBloc profil={profil} />
+          </div>
+        ) : null}
+      </EcranBlocage>
     );
   }
 

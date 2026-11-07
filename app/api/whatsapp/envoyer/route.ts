@@ -16,7 +16,7 @@
  * Configuration : voir docs/whatsapp-setup.md.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_SESSION_COOKIE } from "@/lib/data/demo";
+import { DEMO_SESSION_COOKIE } from "@/lib/supabase";
 import { createSupabaseServerClient, isDemoMode } from "@/lib/supabase";
 import { envoyerWhatsApp } from "@/lib/whatsapp";
 

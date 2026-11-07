@@ -8,6 +8,7 @@ import { DEVISES } from "@/lib/data";
 import { PAYS } from "@/lib/countries";
 import type { Devise, Immeuble, ImmeubleInput } from "@/lib/data";
 import { messageErreur } from "@/lib/translateError";
+import DocumentUpload from "@/components/DocumentUpload";
 
 type Errors = Partial<Record<string, string>> & { form?: string };
 
@@ -20,15 +21,26 @@ export default function ImmeubleForm({
   initial,
   onSubmit,
   submitLabel,
+  fichierPreuve,
+  onFichierPreuveChange,
 }: {
   initial?: Immeuble | null;
   onSubmit: (input: ImmeubleInput) => Promise<void>;
   submitLabel: string;
+  /**
+   * v1.3 (création seulement) : preuve de propriété OPTIONNELLE
+   * (titre/certificat foncier ou acte d'achat) — téléversée par la
+   * page après la création, comme document « justificatif » de
+   * l'immeuble ; visible dans le Dossier console du propriétaire.
+   */
+  fichierPreuve?: File | null;
+  onFichierPreuveChange?: (fichier: File | null) => void;
 }) {
   const t = useTranslations("crud");
   const tf = useTranslations("crud.buildings.fields");
   const tv = useTranslations("crud.validation");
   const tc = useTranslations("crud.common");
+  const td = useTranslations("dossier");
 
   const [nom, setNom] = useState(initial?.nom ?? "");
   const [adresse, setAdresse] = useState(initial?.adresse ?? "");
@@ -163,6 +175,16 @@ export default function ImmeubleForm({
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 outline-none focus:border-gold focus:ring-2 focus:ring-gold/40"
         />
       </div>
+      {onFichierPreuveChange ? (
+        <div className="rounded-xl border border-slate-200 p-4">
+          <DocumentUpload
+            fichier={fichierPreuve ?? null}
+            onFichierChange={onFichierPreuveChange}
+            label={td("ownershipProofLabel")}
+          />
+          <p className="mt-1 text-sm text-slate-600">{td("ownershipProofHint")}</p>
+        </div>
+      ) : null}
       {errors.form ? (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{errors.form}</p>
       ) : null}

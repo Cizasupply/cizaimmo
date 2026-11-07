@@ -33,6 +33,8 @@ import type {
   FiltreDocuments,
   FiltreEcheances,
   FiltreRecus,
+  DemandeRattachement,
+  DossierCompte,
   GestionnaireInvite,
   Grille,
   Immeuble,
@@ -58,6 +60,7 @@ import type {
   SessionUser,
   SignUpInput,
   StatutAppartement,
+  StatutContrat,
   StatutWhatsApp,
   SupervisionGestionnaire,
   TarifPlateforme,
@@ -66,6 +69,7 @@ import type {
   TauxResultat,
   TypeAlerte,
   TypeActivite,
+  TypeIntention,
 } from "./types";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
@@ -109,7 +113,14 @@ import {
   type DemoDb,
   type ParcDemo,
 } from "./demo-seed";
-import { libellerMotif, rendreAvis, rendreBienvenue } from "../avis";
+import {
+  libellerMotif,
+  rendreActivationGestionnaire,
+  rendreAvis,
+  rendreBienvenue,
+  rendreDecisionGestionnaire,
+} from "../avis";
+import { genererContratGestionnairePdf } from "../contrat";
 import {
   construirePrixPlans,
   estEnRetardPaiement,
@@ -139,7 +150,11 @@ import {
  * local et démarre un essai Pro de 30 jours, comme en mode réel.
  */
 
-export const DEMO_SESSION_COOKIE = "cizaimmo-demo-session";
+// La constante vit dans lib/supabase.ts (module léger) pour que le
+// middleware Edge ne tire pas ce fournisseur — ré-exportée ici pour
+// les imports historiques depuis « @/lib/data/demo ».
+export { DEMO_SESSION_COOKIE } from "../supabase";
+import { DEMO_SESSION_COOKIE } from "../supabase";
 const DEMO_DB_KEY = "cizaimmo-demo-db-v1";
 const DEMO_SESSION_KEY = "cizaimmo-demo-session-v1";
 /** Extension v1.2 : contexte actif du gestionnaire multi-rattaché. */
@@ -268,6 +283,48 @@ function loadDb(): DemoDb {
           g.nom = propre;
           migre = true;
         }
+      }
+    }
+    // Migration douce (v1.3) : Display ID, intention, statut du contrat,
+    // demandes de rattachement et documents de dossier.
+    if (typeof db.compteurDisplayId !== "number") {
+      db.compteurDisplayId = frais.compteurDisplayId;
+      migre = true;
+    }
+    if (db.profil) {
+      const rec = db.profil as unknown as Record<string, unknown>;
+      if (!rec.display_id) { rec.display_id = frais.profil.display_id ?? null; migre = true; }
+      if (!rec.type_intention) { rec.type_intention = "proprietaire"; migre = true; }
+      if (rec.photo_profil_path === undefined) { rec.photo_profil_path = null; migre = true; }
+      if (!rec.statut_contrat) { rec.statut_contrat = "sans_objet"; migre = true; }
+    }
+    if (db.plateforme) {
+      if (!Array.isArray(db.plateforme.demandesRattachement)) {
+        db.plateforme.demandesRattachement = frais.plateforme.demandesRattachement;
+        migre = true;
+      }
+      if (!Array.isArray(db.plateforme.documentsComptes)) {
+        db.plateforme.documentsComptes = frais.plateforme.documentsComptes;
+        migre = true;
+      }
+      for (const c of db.plateforme.comptesClients) {
+        const rec = c as unknown as Record<string, unknown>;
+        const fraisC = frais.plateforme.comptesClients.find((f) => f.id === c.id);
+        if (!rec.display_id && fraisC) {
+          rec.display_id = fraisC.display_id;
+          rec.telephone = fraisC.telephone;
+          rec.type_intention = fraisC.type_intention;
+          rec.statut_contrat = fraisC.statut_contrat;
+          rec.dossier_complet = fraisC.dossier_complet;
+          migre = true;
+        }
+      }
+      // Persona v1.3 ajoutée par la seed (Sira Diallo, contrat en
+      // attente de validation) : ajoutée si absente.
+      const sira = frais.plateforme.comptesClients.find((c) => c.id === "client-demo-9");
+      if (sira && !db.plateforme.comptesClients.some((c) => c.id === "client-demo-9")) {
+        db.plateforme.comptesClients.push(sira);
+        migre = true;
       }
     }
     if (migre) window.localStorage.setItem(DEMO_DB_KEY, JSON.stringify(db));
@@ -415,7 +472,7 @@ export class DemoProvider implements DataProvider {
       langue: input.langue,
       devise_principale: input.devisePrincipale,
       role: "proprietaire",
-      telephone: null,
+      telephone: input.telephone?.trim() || null,
       suspendu: false,
       pays_declare: input.pays,
       pays_ip: input.paysIp ?? null,
@@ -423,8 +480,16 @@ export class DemoProvider implements DataProvider {
       grille_attribuee: attribution.grille,
       grille_statut: attribution.statut,
       motif_refus: null,
+      // v1.3 : Display ID séquentiel généré par le système (jamais
+      // modifiable) ; l'INTENTION est stockée telle quelle — le rôle
+      // technique reste « proprietaire » à l'inscription.
+      display_id: `CIM-${String(db.compteurDisplayId).padStart(6, "0")}`,
+      type_intention: input.intention,
+      photo_profil_path: null,
+      statut_contrat: "sans_objet",
       created_at: debut,
     };
+    db.compteurDisplayId += 1;
     db.abonnement = {
       ...db.abonnement,
       owner_id: db.profil.id,
@@ -539,6 +604,12 @@ export class DemoProvider implements DataProvider {
         role: "gestionnaire",
         telephone: null,
         suspendu: false,
+        // v1.3 : le gestionnaire démo est un dossier ÉTABLI — Display ID
+        // fixe CIM-000002 et contrat déjà validé (fonctions débloquées).
+        display_id: "CIM-000002",
+        type_intention: "gestionnaire",
+        photo_profil_path: "demo:photo-profil-marc",
+        statut_contrat: "valide",
         created_at: invitation?.created_at ?? new Date().toISOString(),
       };
     }
@@ -2910,14 +2981,34 @@ export class DemoProvider implements DataProvider {
     destinataire: string,
     sujet: string,
     texte: string,
-    langue?: "fr" | "en"
+    langue?: "fr" | "en",
+    piecesJointes?: { nom: string; contenuBase64: string }[]
   ): Promise<Avis["statut_envoi"]> {
     try {
-      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte, langue });
+      const resultat = await this.envoyerEmailAlerteFn({
+        destinataire,
+        sujet,
+        texte,
+        langue,
+        piecesJointes,
+      });
       return statutEmailDepuisResultat(resultat);
     } catch {
       return "echec";
     }
+  }
+
+  /** v1.3 : dossier complet du compte principal = photo + pièce d'identité reçues. */
+  private dossierCompletPrincipal(db: DemoDb): boolean {
+    return (
+      Boolean(db.profil.photo_profil_path) &&
+      db.documents.some(
+        (d) =>
+          d.entite_type === "compte" &&
+          d.type === "piece_identite" &&
+          d.entite_id === db.profil.id
+      )
+    );
   }
 
   /** Vue console du compte principal (le compte client « réel » de la démo). */
@@ -2950,6 +3041,11 @@ export class DemoProvider implements DataProvider {
       motif_refus: db.profil.motif_refus ?? null,
       abonnement: vue,
       en_retard: estEnRetardPaiement(vue, db.finance.parametres),
+      display_id: db.profil.display_id ?? null,
+      telephone: db.profil.telephone,
+      type_intention: db.profil.type_intention ?? "proprietaire",
+      statut_contrat: db.profil.statut_contrat ?? "sans_objet",
+      dossier_complet: this.dossierCompletPrincipal(db),
     };
   }
 
@@ -2970,6 +3066,11 @@ export class DemoProvider implements DataProvider {
       motif_refus: entree.motif_refus ?? null,
       abonnement: entree.abonnement,
       en_retard: estEnRetardPaiement(entree.abonnement, db.finance.parametres),
+      display_id: entree.display_id,
+      telephone: entree.telephone,
+      type_intention: entree.type_intention,
+      statut_contrat: entree.statut_contrat,
+      dossier_complet: entree.dossier_complet,
     };
   }
 
@@ -3066,6 +3167,10 @@ export class DemoProvider implements DataProvider {
     let nomCible: string;
     let langueCible: "fr" | "en";
     let grilleConfirmee: Grille;
+    let intentionCible: TypeIntention = "proprietaire";
+    let displayIdCible: string | null = null;
+    let telephoneCible: string | null = null;
+    let paysCible: string | null = null;
     if (cible.principal) {
       const abo = db.abonnement;
       if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
@@ -3079,6 +3184,12 @@ export class DemoProvider implements DataProvider {
       nomCible = db.profil.nom;
       langueCible = db.profil.langue;
       grilleConfirmee = abo.grille;
+      intentionCible = db.profil.type_intention ?? "proprietaire";
+      displayIdCible = db.profil.display_id ?? null;
+      telephoneCible = db.profil.telephone;
+      paysCible = db.profil.pays;
+      // v1.3 : l'approbation d'un GESTIONNAIRE déclenche le contrat.
+      if (intentionCible === "gestionnaire") db.profil.statut_contrat = "a_signer";
     } else {
       const abo = cible.entree!.abonnement;
       if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
@@ -3090,18 +3201,53 @@ export class DemoProvider implements DataProvider {
       nomCible = cible.entree!.nom;
       langueCible = cible.entree!.langue;
       grilleConfirmee = abo.grille;
+      intentionCible = cible.entree!.type_intention;
+      displayIdCible = cible.entree!.display_id;
+      telephoneCible = cible.entree!.telephone;
+      paysCible = cible.entree!.pays;
+      if (intentionCible === "gestionnaire") cible.entree!.statut_contrat = "a_signer";
     }
-    const bienvenue = rendreBienvenue(nomCible, langueCible);
-    const emailStatut = await this.envoyerEmailPlateforme(
-      emailCible,
-      bienvenue.sujet,
-      bienvenue.corps,
-      langueCible
-    );
+    // v1.3 : compte à intention GESTIONNAIRE → e-mail de DÉCISION avec
+    // le contrat de collaboration en pièce jointe (PDF personnalisé
+    // avec le Display ID). Ses fonctions restent verrouillées tant que
+    // le contrat signé n'est pas validé (statut_contrat).
+    let emailStatut: Avis["statut_envoi"];
+    let contratJoint = false;
+    if (intentionCible === "gestionnaire" && displayIdCible) {
+      const contrat = await genererContratGestionnairePdf({
+        nom: nomCible,
+        displayId: displayIdCible,
+        email: emailCible,
+        telephone: telephoneCible,
+        pays: paysCible,
+        langue: langueCible,
+        date: maintenant.slice(0, 10),
+      });
+      const decision = rendreDecisionGestionnaire(nomCible, displayIdCible, langueCible);
+      emailStatut = await this.envoyerEmailPlateforme(
+        emailCible,
+        decision.sujet,
+        decision.corps,
+        langueCible,
+        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
+      );
+      contratJoint = true;
+    } else {
+      const bienvenue = rendreBienvenue(nomCible, langueCible);
+      emailStatut = await this.envoyerEmailPlateforme(
+        emailCible,
+        bienvenue.sujet,
+        bienvenue.corps,
+        langueCible
+      );
+    }
     this.journaliserAudit(db, acteur, "compte_approuve", "compte", compteId, emailCible, {
       grille: grilleConfirmee,
       trial_ends_at: finEssai,
       email_bienvenue: emailStatut,
+      ...(contratJoint
+        ? { contrat_envoye: true, display_id: displayIdCible }
+        : {}),
     });
     saveDb(db);
   }
@@ -3542,6 +3688,669 @@ export class DemoProvider implements DataProvider {
     });
     this.journaliserAudit(db, acteur, "parametres_modifies", "parametre", null, null, {
       parametres: db.finance.parametres,
+    });
+    saveDb(db);
+  }
+
+  // ==========================================================================
+  // EXTENSION v1.3 — Dossiers vérifiés, contrat gestionnaire, rattachement
+  // par Display ID (triple validation). Voir docs/parcours-inscription-v1.3.md.
+  // ==========================================================================
+
+  /**
+   * Identité « compte » du gestionnaire DÉMO (Marc Dubois) : il n'est pas
+   * dans le registre clients — son dossier v1.3 est fixe et établi
+   * (Display ID CIM-000002, contrat VALIDÉ) ; ses documents vivent dans
+   * plateforme.documentsComptes.
+   */
+  private compteGestionnaireDemo(
+    db: DemoDb
+  ): { id: string; email: string; nom: string; display_id: string; statut_contrat: StatutContrat } | null {
+    const invitation = db.gestionnaires.find(
+      (g) => g.email.toLowerCase() === GESTIONNAIRE_DEMO_EMAIL
+    );
+    if (!invitation) return null;
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      nom: invitation.nom ?? "Marc Dubois",
+      display_id: "CIM-000002",
+      statut_contrat: "valide",
+    };
+  }
+
+  /** Cherche un compte par Display ID : principal, registre, gestionnaire démo. */
+  private trouverParDisplayId(
+    db: DemoDb,
+    displayId: string
+  ): {
+    id: string;
+    email: string;
+    nom: string;
+    type_intention: TypeIntention;
+    statut_contrat: StatutContrat;
+  } | null {
+    const cible = displayId.trim().toUpperCase();
+    if (!cible) return null;
+    if ((db.profil.display_id ?? "").toUpperCase() === cible) {
+      return {
+        id: db.profil.id,
+        email: db.profil.email,
+        nom: db.profil.nom,
+        type_intention: db.profil.type_intention ?? "proprietaire",
+        statut_contrat: db.profil.statut_contrat ?? "sans_objet",
+      };
+    }
+    const entree = db.plateforme.comptesClients.find(
+      (c) => c.display_id.toUpperCase() === cible
+    );
+    if (entree) {
+      return {
+        id: entree.id,
+        email: entree.email,
+        nom: entree.nom,
+        type_intention: entree.type_intention,
+        statut_contrat: entree.statut_contrat,
+      };
+    }
+    const marc = this.compteGestionnaireDemo(db);
+    if (marc && marc.display_id === cible) {
+      return {
+        id: marc.id,
+        email: marc.email,
+        nom: marc.nom,
+        type_intention: "gestionnaire",
+        statut_contrat: marc.statut_contrat,
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Ajoute un document au DOSSIER du compte connecté (entite « compte »).
+   * Accessible pendant l'attente d'approbation (pas de garde abonnement) :
+   * c'est précisément là que le dossier se complète.
+   */
+  private async ajouterDocumentCompte(
+    type: "piece_identite" | "contrat",
+    input: DocumentInput
+  ): Promise<Document> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const nom = input.nom_fichier.trim();
+    if (!nom) throw err("ERR_NOT_FOUND");
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
+    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      input.taille_octets !== undefined &&
+      input.taille_octets !== null &&
+      input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    let ownerId: string;
+    let liste: Document[];
+    if (session.id.startsWith("gestionnaire:")) {
+      const marc = this.compteGestionnaireDemo(db);
+      if (!marc) throw err("ERR_NOT_FOUND");
+      ownerId = marc.id;
+      liste = db.plateforme.documentsComptes;
+    } else if (
+      session.id.startsWith("plateforme:") ||
+      session.id.startsWith("coprop:")
+    ) {
+      throw err("ERR_NOT_FOUND");
+    } else {
+      ownerId = db.profil.id;
+      liste = db.documents;
+    }
+    if (
+      liste.some(
+        (d) =>
+          d.entite_type === "compte" &&
+          d.entite_id === ownerId &&
+          d.type === type &&
+          d.nom_fichier.trim().toLowerCase() === nom.toLowerCase()
+      )
+    ) {
+      throw err("ERR_DOCUMENT_DOUBLON");
+    }
+    const taille = input.taille_octets ?? null;
+    const contenuConserve =
+      input.contenu && taille !== null && taille <= LIMITE_DEMO_CONTENU_OCTETS
+        ? input.contenu
+        : null;
+    const document: Document = {
+      id: uid(),
+      owner_id: ownerId,
+      type,
+      entite_type: "compte",
+      entite_id: ownerId,
+      nom_fichier: nom,
+      storage_path: `demo:${uid()}`,
+      taille_octets: taille,
+      mime_type: input.mime_type ?? null,
+      ajoute_par: ownerId,
+      created_at: new Date().toISOString(),
+      contenu: contenuConserve,
+      contenu_non_conserve: Boolean(input.contenu) && !contenuConserve,
+    };
+    liste.push(document);
+    saveDb(db);
+    return document;
+  }
+
+  async soumettreDocumentCompte(
+    type: "piece_identite" | "contrat",
+    input: DocumentInput
+  ): Promise<Document> {
+    return this.ajouterDocumentCompte(type, input);
+  }
+
+  async televerserPhotoProfil(input: DocumentInput): Promise<string> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const nom = input.nom_fichier.trim();
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    if (!["jpg", "jpeg", "png"].includes(extension)) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      input.taille_octets !== undefined &&
+      input.taille_octets !== null &&
+      input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    const chemin = `demo:photo-profil-${uid()}`;
+    if (session.id.startsWith("gestionnaire:")) {
+      // Gestionnaire démo : la photo est acceptée (chemin retourné),
+      // son dossier seedé reste la référence.
+      return chemin;
+    }
+    if (session.id.startsWith("plateforme:") || session.id.startsWith("coprop:")) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const db = loadDb();
+    db.profil.photo_profil_path = chemin;
+    saveDb(db);
+    return chemin;
+  }
+
+  async listerDossier(compteId: string): Promise<DossierCompte> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const comptes = await this.listerComptesPlateforme();
+    const compte = comptes.find((c) => c.id === compteId);
+    if (!compte) throw err("ERR_INTROUVABLE");
+    const estPrincipal = compteId === db.profil.id;
+
+    const documentsCompte = estPrincipal
+      ? db.documents.filter((d) => d.entite_type === "compte" && d.entite_id === compteId)
+      : db.plateforme.documentsComptes.filter((d) => d.entite_id === compteId);
+    const photoPath = estPrincipal
+      ? db.profil.photo_profil_path ?? null
+      : compte.dossier_complet
+        ? `demo:photo-${compteId}`
+        : null;
+
+    const immeublesPossedes = estPrincipal
+      ? db.immeubles
+          .filter((i) => i.owner_id === compteId)
+          .map((i) => ({ id: i.id, nom: i.nom, ville: i.ville }))
+      : [];
+    const idsPossedes = new Set(immeublesPossedes.map((i) => i.id));
+    const preuvesPropriete = estPrincipal
+      ? db.documents.filter(
+          (d) =>
+            d.entite_type === "immeuble" &&
+            d.type === "justificatif" &&
+            idsPossedes.has(d.entite_id)
+        )
+      : [];
+
+    const tousRattachements = db.plateforme.rattachements;
+    const commeProprietaire = tousRattachements.filter(
+      (r) => r.proprietaire_id === compteId
+    );
+    const commeGestionnaire = tousRattachements.filter(
+      (r) =>
+        r.gestionnaire_email.toLowerCase() === compte.email.toLowerCase()
+    );
+    const parcs = [db.immeubles, db.parcCizaGroup.immeubles];
+    const resoudre = (id: string) => {
+      for (const parc of parcs) {
+        const trouve = parc.find((i) => i.id === id);
+        if (trouve) return { id: trouve.id, nom: trouve.nom, ville: trouve.ville };
+      }
+      return null;
+    };
+    const immeublesGeres = commeGestionnaire
+      .flatMap((r) => r.immeuble_ids)
+      .map(resoudre)
+      .filter((i): i is { id: string; nom: string; ville: string } => i !== null);
+
+    const annonces = estPrincipal
+      ? db.appartements
+          .filter((a) => a.vitrine && idsPossedes.has(a.immeuble_id))
+          .map((a) => ({
+            id: a.id,
+            immeuble_nom:
+              db.immeubles.find((i) => i.id === a.immeuble_id)?.nom ?? "",
+            numero: a.numero,
+          }))
+      : [];
+
+    return {
+      compte,
+      photo_profil_path: photoPath,
+      documents_compte: documentsCompte,
+      preuves_propriete: preuvesPropriete,
+      rattachements_comme_proprietaire: commeProprietaire,
+      rattachements_comme_gestionnaire: commeGestionnaire,
+      demandes: db.plateforme.demandesRattachement.filter(
+        (d) =>
+          d.proprietaire_id === compteId ||
+          d.gestionnaire_id === compteId ||
+          d.gestionnaire_email.toLowerCase() === compte.email.toLowerCase()
+      ),
+      immeubles_possedes: immeublesPossedes,
+      immeubles_geres: immeublesGeres,
+      annonces,
+      audit: db.plateforme.journal.filter(
+        (e) => e.cible_id === compteId || e.cible_email === compte.email
+      ),
+    };
+  }
+
+  async rechercherCompteParDisplayId(
+    displayId: string
+  ): Promise<{ nom: string; display_id: string } | null> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const trouve = this.trouverParDisplayId(db, displayId);
+    if (!trouve || trouve.type_intention !== "gestionnaire") return null;
+    // Recherche PUBLIQUE minimale : nom + Display ID, rien d'autre.
+    return { nom: trouve.nom, display_id: displayId.trim().toUpperCase() };
+  }
+
+  async demanderRattachementParDisplayId(
+    displayId: string
+  ): Promise<DemandeRattachement> {
+    const session = await this.getSession();
+    if (
+      !session ||
+      session.id.startsWith("plateforme:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("coprop:")
+    ) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const db = loadDb();
+    const cible = this.trouverParDisplayId(db, displayId);
+    if (!cible || cible.type_intention !== "gestionnaire" || cible.id === db.profil.id) {
+      throw err("ERR_INTROUVABLE");
+    }
+    const existante = db.plateforme.demandesRattachement.find(
+      (d) =>
+        d.proprietaire_id === db.profil.id &&
+        d.gestionnaire_id === cible.id &&
+        d.statut !== "refuse"
+    );
+    if (existante) throw err("ERR_DEMANDE_EXISTANTE");
+    const demande: DemandeRattachement = {
+      id: uid(),
+      proprietaire_id: db.profil.id,
+      proprietaire_email: db.profil.email,
+      proprietaire_nom: db.profil.nom,
+      gestionnaire_id: cible.id,
+      gestionnaire_email: cible.email,
+      gestionnaire_nom: cible.nom,
+      gestionnaire_display_id: displayId.trim().toUpperCase(),
+      statut: "en_attente_gestionnaire",
+      created_at: new Date().toISOString(),
+      repondu_le: null,
+      valide_par: null,
+      valide_le: null,
+      rattachement_id: null,
+    };
+    db.plateforme.demandesRattachement.push(demande);
+    saveDb(db);
+    return demande;
+  }
+
+  async listerDemandesRattachement(): Promise<DemandeRattachement[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+    const db = loadDb();
+    const toutes = [...db.plateforme.demandesRattachement].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at)
+    );
+    if (session.id.startsWith("plateforme:")) return toutes;
+    if (session.id.startsWith("gestionnaire:")) {
+      const email = session.id.slice("gestionnaire:".length);
+      return toutes.filter(
+        (d) => d.gestionnaire_email.toLowerCase() === email
+      );
+    }
+    if (session.id.startsWith("coprop:")) return [];
+    // Compte principal : ses demandes envoyées (propriétaire) ET celles
+    // reçues (si son intention est « gestionnaire »).
+    const miennes = toutes.filter(
+      (d) =>
+        d.proprietaire_id === db.profil.id ||
+        d.gestionnaire_email.toLowerCase() === db.profil.email.toLowerCase()
+    );
+    // Immeubles assignés du rattachement lié (écran d'assignation).
+    return miennes.map((d) => {
+      if (!d.rattachement_id) return d;
+      const rattachement = db.plateforme.rattachements.find(
+        (r) => r.id === d.rattachement_id
+      );
+      return rattachement
+        ? { ...d, rattachement_immeuble_ids: [...rattachement.immeuble_ids] }
+        : d;
+    });
+  }
+
+  async repondreDemandeRattachement(
+    demandeId: string,
+    accepter: boolean
+  ): Promise<DemandeRattachement> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const demande = db.plateforme.demandesRattachement.find((d) => d.id === demandeId);
+    if (!demande) throw err("ERR_INTROUVABLE");
+    let statutContratActeur: StatutContrat;
+    if (session.id.startsWith("gestionnaire:")) {
+      const email = session.id.slice("gestionnaire:".length);
+      if (demande.gestionnaire_email.toLowerCase() !== email) {
+        throw err("ERR_INTROUVABLE");
+      }
+      statutContratActeur =
+        this.compteGestionnaireDemo(db)?.statut_contrat ?? "sans_objet";
+    } else if (
+      !session.id.startsWith("plateforme:") &&
+      !session.id.startsWith("coprop:")
+    ) {
+      if (demande.gestionnaire_email.toLowerCase() !== db.profil.email.toLowerCase()) {
+        throw err("ERR_INTROUVABLE");
+      }
+      statutContratActeur = db.profil.statut_contrat ?? "sans_objet";
+    } else {
+      throw err("ERR_INTROUVABLE");
+    }
+    if (demande.statut !== "en_attente_gestionnaire") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    if (accepter) {
+      // Verrou contrat : accepter exige un contrat VALIDÉ.
+      if (statutContratActeur !== "valide") throw err("ERR_CONTRAT_NON_VALIDE");
+      demande.statut = "en_attente_admin";
+    } else {
+      demande.statut = "refuse";
+    }
+    demande.repondu_le = new Date().toISOString();
+    saveDb(db);
+    return demande;
+  }
+
+  async validerRattachementAdmin(
+    demandeId: string,
+    accepter: boolean
+  ): Promise<DemandeRattachement> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const demande = db.plateforme.demandesRattachement.find((d) => d.id === demandeId);
+    if (!demande) throw err("ERR_INTROUVABLE");
+    if (demande.statut !== "en_attente_admin") throw err("ERR_STATUT_INVALIDE");
+    demande.valide_par = acteur.id;
+    demande.valide_le = new Date().toISOString();
+    if (accepter) {
+      const rattachement: RattachementGestionnaire = {
+        id: uid(),
+        gestionnaire_id: demande.gestionnaire_email,
+        gestionnaire_email: demande.gestionnaire_email,
+        gestionnaire_nom: demande.gestionnaire_nom,
+        contexte: "proprietaire",
+        proprietaire_id: demande.proprietaire_id,
+        proprietaire_nom: demande.proprietaire_nom,
+        // AUCUN immeuble à la création : l'assignation est le geste du
+        // propriétaire, via le mécanisme existant (immeuble_ids).
+        immeuble_ids: [],
+        statut: "actif",
+        created_at: new Date().toISOString(),
+      };
+      db.plateforme.rattachements.push(rattachement);
+      demande.rattachement_id = rattachement.id;
+      demande.statut = "actif";
+    } else {
+      demande.statut = "refuse";
+    }
+    this.journaliserAudit(
+      db,
+      acteur,
+      accepter ? "rattachement_valide" : "rattachement_refuse",
+      "gestionnaire",
+      demande.gestionnaire_id,
+      demande.gestionnaire_email,
+      { demande_id: demande.id, proprietaire: demande.proprietaire_email }
+    );
+    saveDb(db);
+    return demande;
+  }
+
+  async assignerImmeublesRattachement(
+    rattachementId: string,
+    immeubleIds: string[]
+  ): Promise<RattachementGestionnaire> {
+    const session = await this.getSession();
+    if (
+      !session ||
+      session.id.startsWith("plateforme:") ||
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("coprop:")
+    ) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const db = loadDb();
+    const rattachement = db.plateforme.rattachements.find(
+      (r) =>
+        r.id === rattachementId &&
+        r.proprietaire_id === db.profil.id &&
+        r.statut === "actif"
+    );
+    if (!rattachement) throw err("ERR_INTROUVABLE");
+    // Seuls les immeubles du propriétaire peuvent être assignés.
+    rattachement.immeuble_ids = immeubleIds.filter((id) =>
+      db.immeubles.some((i) => i.id === id && i.owner_id === db.profil.id)
+    );
+    saveDb(db);
+    return rattachement;
+  }
+
+  /** Données d'en-tête du contrat pour un compte (principal / registre / démo). */
+  private donneesContrat(
+    db: DemoDb,
+    compteId: string
+  ): {
+    nom: string;
+    displayId: string;
+    email: string;
+    telephone: string | null;
+    pays: string | null;
+    langue: "fr" | "en";
+  } | null {
+    if (compteId === db.profil.id) {
+      if (!db.profil.display_id) return null;
+      return {
+        nom: db.profil.nom,
+        displayId: db.profil.display_id,
+        email: db.profil.email,
+        telephone: db.profil.telephone,
+        pays: db.profil.pays,
+        langue: db.profil.langue,
+      };
+    }
+    const entree = db.plateforme.comptesClients.find((c) => c.id === compteId);
+    if (entree) {
+      return {
+        nom: entree.nom,
+        displayId: entree.display_id,
+        email: entree.email,
+        telephone: entree.telephone,
+        pays: entree.pays,
+        langue: entree.langue,
+      };
+    }
+    const marc = this.compteGestionnaireDemo(db);
+    if (marc && compteId === marc.id) {
+      return {
+        nom: marc.nom,
+        displayId: marc.display_id,
+        email: marc.email,
+        telephone: null,
+        pays: "Canada",
+        langue: "fr",
+      };
+    }
+    return null;
+  }
+
+  async genererContratGestionnaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const donnees = this.donneesContrat(db, compteId);
+    if (!donnees) throw err("ERR_INTROUVABLE");
+    const estPlateforme = session.id.startsWith("plateforme:");
+    const estSoi =
+      compteId === db.profil.id ||
+      (session.id.startsWith("gestionnaire:") &&
+        donnees.email.toLowerCase() ===
+          session.id.slice("gestionnaire:".length));
+    if (!estPlateforme && !estSoi) throw err("ERR_INTROUVABLE");
+    return genererContratGestionnairePdf({
+      ...donnees,
+      date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async getMonContrat(): Promise<{
+    statut: StatutContrat;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    if (session.id.startsWith("gestionnaire:")) {
+      const marc = this.compteGestionnaireDemo(db);
+      if (!marc) throw err("ERR_NOT_FOUND");
+      const pdf = await genererContratGestionnairePdf({
+        nom: marc.nom,
+        displayId: marc.display_id,
+        email: marc.email,
+        telephone: null,
+        pays: "Canada",
+        langue: "fr",
+        date: new Date().toISOString().slice(0, 10),
+      });
+      return {
+        statut: marc.statut_contrat,
+        display_id: marc.display_id,
+        nomFichier: pdf.nomFichier,
+        contenuBase64: pdf.contenuBase64,
+      };
+    }
+    if (session.id.startsWith("plateforme:") || session.id.startsWith("coprop:")) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const donnees = this.donneesContrat(db, db.profil.id);
+    const pdf = donnees
+      ? await genererContratGestionnairePdf({
+          ...donnees,
+          date: new Date().toISOString().slice(0, 10),
+        })
+      : null;
+    return {
+      statut: db.profil.statut_contrat ?? "sans_objet",
+      display_id: db.profil.display_id ?? null,
+      nomFichier: pdf?.nomFichier ?? "",
+      contenuBase64: pdf?.contenuBase64 ?? null,
+    };
+  }
+
+  async televerserContratSigne(input: DocumentInput): Promise<Document> {
+    const document = await this.ajouterDocumentCompte("contrat", input);
+    const session = await this.getSession();
+    const db = loadDb();
+    // Compte principal à intention gestionnaire : le contrat signé
+    // attend maintenant la validation d'un Admin.
+    if (
+      session &&
+      !session.id.startsWith("gestionnaire:") &&
+      !session.id.startsWith("plateforme:") &&
+      !session.id.startsWith("coprop:") &&
+      db.profil.type_intention === "gestionnaire" &&
+      db.profil.statut_contrat === "a_signer"
+    ) {
+      db.profil.statut_contrat = "signe_recu";
+      saveDb(db);
+    }
+    return document;
+  }
+
+  async validerContrat(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    let emailCible: string;
+    let nomCible: string;
+    let langueCible: "fr" | "en";
+    let displayIdCible: string | null;
+    if (cible.principal) {
+      if (db.profil.statut_contrat !== "signe_recu") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      db.profil.statut_contrat = "valide";
+      emailCible = db.profil.email;
+      nomCible = db.profil.nom;
+      langueCible = db.profil.langue;
+      displayIdCible = db.profil.display_id ?? null;
+    } else {
+      if (cible.entree!.statut_contrat !== "signe_recu") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      cible.entree!.statut_contrat = "valide";
+      emailCible = cible.entree!.email;
+      nomCible = cible.entree!.nom;
+      langueCible = cible.entree!.langue;
+      displayIdCible = cible.entree!.display_id;
+    }
+    const activation = rendreActivationGestionnaire(
+      nomCible,
+      displayIdCible ?? "",
+      langueCible
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      emailCible,
+      activation.sujet,
+      activation.corps,
+      langueCible
+    );
+    this.journaliserAudit(db, acteur, "contrat_valide", "compte", compteId, emailCible, {
+      display_id: displayIdCible,
+      email_activation: emailStatut,
     });
     saveDb(db);
   }

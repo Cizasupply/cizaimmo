@@ -17,7 +17,7 @@
  * et les anciens taux (datés) restent affichés tels quels.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_SESSION_COOKIE } from "@/lib/data/demo";
+import { DEMO_SESSION_COOKIE } from "@/lib/supabase";
 import { isDemoMode } from "@/lib/supabase";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";

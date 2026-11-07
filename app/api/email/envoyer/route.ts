@@ -19,7 +19,7 @@
  * SendGrid, Mailgun…) — aucun secret en clair dans le code, jamais.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_SESSION_COOKIE } from "@/lib/data/demo";
+import { DEMO_SESSION_COOKIE } from "@/lib/supabase";
 import { createSupabaseServerClient, isDemoMode } from "@/lib/supabase";
 import { envoyerEmailAlerte } from "@/lib/email";
 
@@ -36,7 +36,14 @@ export async function POST(req: NextRequest) {
   if (!(await authentifie(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  let corps: { to?: unknown; subject?: unknown; text?: unknown; html?: unknown; langue?: unknown } = {};
+  let corps: {
+    to?: unknown;
+    subject?: unknown;
+    text?: unknown;
+    html?: unknown;
+    langue?: unknown;
+    piecesJointes?: unknown;
+  } = {};
   try {
     corps = await req.json();
   } catch {
@@ -55,12 +62,31 @@ export async function POST(req: NextRequest) {
   if (subject.length > 500 || text.length > 10000) {
     return NextResponse.json({ error: "message_trop_long" }, { status: 400 });
   }
+  // Pièces jointes (v1.3 — contrat gestionnaire) : au plus 3 fichiers,
+  // chacun ≤ ~10 Mo en base64 (≈ 14 M de caractères). Format strict :
+  // { nom, contenuBase64 } — tout le reste est ignoré/rejeté.
+  let piecesJointes: { nom: string; contenuBase64: string }[] | undefined;
+  if (corps.piecesJointes !== undefined) {
+    if (!Array.isArray(corps.piecesJointes) || corps.piecesJointes.length > 3) {
+      return NextResponse.json({ error: "pieces_jointes_invalides" }, { status: 400 });
+    }
+    piecesJointes = [];
+    for (const p of corps.piecesJointes as { nom?: unknown; contenuBase64?: unknown }[]) {
+      const nom = typeof p?.nom === "string" ? p.nom.trim() : "";
+      const contenuBase64 = typeof p?.contenuBase64 === "string" ? p.contenuBase64 : "";
+      if (!nom || nom.length > 200 || contenuBase64.length === 0 || contenuBase64.length > 14_000_000) {
+        return NextResponse.json({ error: "pieces_jointes_invalides" }, { status: 400 });
+      }
+      piecesJointes.push({ nom, contenuBase64 });
+    }
+  }
   const resultat = await envoyerEmailAlerte({
     destinataire: to,
     sujet: subject,
     texte: text,
     html,
     langue,
+    piecesJointes,
   });
   return NextResponse.json(resultat);
 }

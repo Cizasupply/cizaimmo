@@ -22,7 +22,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   --esModuleInterop --skipLibCheck --moduleResolution node --rootDir lib \
   lib/loyers.ts lib/module4.ts lib/exports.ts lib/email.ts lib/format.ts \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
-  lib/grille.ts lib/tarifs.ts lib/avis.ts \
+  lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -71,6 +71,18 @@ if node "scripts/test-taux-convertisseur.cjs"; then
   echo "Convertisseur public : OK"
 else
   echo "Convertisseur public : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Extension v1.3 — parcours d'inscription et dossiers vérifiés :
+# Display ID, intention, dossier, contrat gestionnaire (cachet +
+# pièce jointe), rattachement à triple validation : même harnais.
+echo ""
+echo "===== Extension v1.3 (Inscription / Dossiers / Contrat / Rattachement) ====="
+if node "scripts/test-inscription-v13.cjs"; then
+  echo "Extension v1.3 : OK"
+else
+  echo "Extension v1.3 : ÉCHEC" >&2
   ECHEC=1
 fi
 

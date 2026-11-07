@@ -1,7 +1,7 @@
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseMiddlewareClient, isDemoMode } from "@/lib/supabase";
-import { DEMO_SESSION_COOKIE } from "@/lib/data/demo";
+import { DEMO_SESSION_COOKIE } from "@/lib/supabase";
 
 const intlMiddleware = createMiddleware({
   locales: ["fr", "en"],

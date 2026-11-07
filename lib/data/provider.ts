@@ -17,11 +17,13 @@ import type {
   Coproprietaire,
   CoproprietaireInput,
   DeclarerPaiementInput,
+  DemandeRattachement,
   Depense,
   DepenseInput,
   DepensePatch,
   Document,
   DocumentInput,
+  DossierCompte,
   EcheanceLoyer,
   EntreeAudit,
   FactureAbonnement,
@@ -514,4 +516,93 @@ export interface DataProvider {
     tarifs: TarifPlateforme[],
     parametres: ParametresFinance
   ): Promise<void>;
+
+  // ==========================================================================
+  // EXTENSION v1.3 — Parcours d'inscription et dossiers vérifiés.
+  // Voir docs/parcours-inscription-v1.3.md. Display ID « CIM-000001 »,
+  // dossier (photo + pièce d'identité), contrat gestionnaire, et
+  // rattachement par Display ID à TRIPLE validation (propriétaire →
+  // gestionnaire → Admin).
+  // ==========================================================================
+
+  /**
+   * Soumet un document du DOSSIER du compte connecté (entite_type
+   * « compte ») : pièce d'identité ou contrat signé. N'exige pas un
+   * abonnement actif — le dossier se complète pendant l'attente
+   * d'approbation. Le titulaire seul (et la plateforme) peut le lire.
+   */
+  soumettreDocumentCompte(
+    type: "piece_identite" | "contrat",
+    input: DocumentInput
+  ): Promise<Document>;
+  /**
+   * Téléverse la photo de profil du dossier (bucket privé) et pose
+   * profils.photo_profil_path. Retourne le chemin Storage.
+   */
+  televerserPhotoProfil(input: DocumentInput): Promise<string>;
+  /** Page DOSSIER console d'un compte (plateforme uniquement). */
+  listerDossier(compteId: string): Promise<DossierCompte>;
+  /**
+   * Recherche publique minimale par Display ID (propriétaire) : retourne
+   * UNIQUEMENT le nom + le Display ID du compte gestionnaire trouvé —
+   * jamais d'e-mail, de téléphone ou d'autre donnée.
+   */
+  rechercherCompteParDisplayId(
+    displayId: string
+  ): Promise<{ nom: string; display_id: string } | null>;
+  /**
+   * Le propriétaire demande le rattachement au gestionnaire désigné par
+   * son Display ID → demande « en_attente_gestionnaire ».
+   */
+  demanderRattachementParDisplayId(displayId: string): Promise<DemandeRattachement>;
+  /**
+   * Demandes de rattachement visibles par l'acteur : le propriétaire
+   * voit les siennes, le gestionnaire celles qui lui sont adressées,
+   * la plateforme toutes (file de validation Admin incluse).
+   */
+  listerDemandesRattachement(): Promise<DemandeRattachement[]>;
+  /**
+   * Le gestionnaire accepte (exige statut_contrat « valide », sinon
+   * ERR_CONTRAT_NON_VALIDE) → « en_attente_admin » ; ou refuse.
+   */
+  repondreDemandeRattachement(demandeId: string, accepter: boolean): Promise<DemandeRattachement>;
+  /**
+   * L'Admin valide une demande acceptée : crée le rattachement
+   * (contexte « proprietaire », immeuble_ids VIDE — l'assignation reste
+   * le geste du propriétaire) ; ou refuse la demande. Journalisé.
+   */
+  validerRattachementAdmin(demandeId: string, accepter: boolean): Promise<DemandeRattachement>;
+  /**
+   * Le propriétaire assigne ses immeubles à un rattachement ACTIF
+   * (mécanisme existant : immeuble_ids du rattachement).
+   */
+  assignerImmeublesRattachement(
+    rattachementId: string,
+    immeubleIds: string[]
+  ): Promise<RattachementGestionnaire>;
+  /**
+   * Génère le contrat de collaboration d'un compte gestionnaire (PDF,
+   * langue du compte) — plateforme, ou le gestionnaire pour SON propre
+   * contrat. Retourne le nom de fichier + le contenu base64.
+   */
+  genererContratGestionnaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }>;
+  /** État du contrat du compte CONNECTÉ (page « Mon contrat »). */
+  getMonContrat(): Promise<{
+    statut: import("./types").StatutContrat;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }>;
+  /**
+   * Le gestionnaire téléverse son contrat SIGNÉ (PDF ou photo) →
+   * statut_contrat « signe_recu », en attente de validation Admin.
+   */
+  televerserContratSigne(input: DocumentInput): Promise<Document>;
+  /**
+   * L'Admin valide le contrat signé d'un gestionnaire → statut_contrat
+   * « valide », fonctions débloquées, e-mail d'activation. Journalisé.
+   */
+  validerContrat(compteId: string): Promise<void>;
 }

@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { ComptePlateforme, ModeleAvis, MotifRefus, Profil } from "@/lib/data";
@@ -33,6 +34,13 @@ export default function ConsoleComptesPage() {
   const [comptes, setComptes] = useState<ComptePlateforme[]>([]);
   const [profil, setProfil] = useState<Profil | null>(null);
   const [filtre, setFiltre] = useState<Filtre>("tous");
+  // v1.3 : recherche + filtres dossier (nom, Display ID, e-mail,
+  // téléphone ; intention, statut, grille, dossier complet/incomplet).
+  const [recherche, setRecherche] = useState("");
+  const [filtreIntention, setFiltreIntention] = useState<string>("tous");
+  const [filtreStatut, setFiltreStatut] = useState<string>("tous");
+  const [filtreGrille, setFiltreGrille] = useState<string>("tous");
+  const [filtreDossier, setFiltreDossier] = useState<string>("tous");
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState<string | null>(null);
@@ -103,10 +111,21 @@ export default function ConsoleComptesPage() {
   ];
 
   const visibles = comptes.filter((c) => {
-    if (filtre === "en_attente") return c.abonnement?.statut === "en_attente";
-    if (filtre === "a_verifier") return c.grille_statut === "a_verifier";
-    if (filtre === "en_retard") return c.en_retard;
-    if (filtre === "suspendus") return c.abonnement?.statut === "suspendu" || c.suspendu;
+    if (filtre === "en_attente" && c.abonnement?.statut !== "en_attente") return false;
+    if (filtre === "a_verifier" && c.grille_statut !== "a_verifier") return false;
+    if (filtre === "en_retard" && !c.en_retard) return false;
+    if (filtre === "suspendus" && !(c.abonnement?.statut === "suspendu" || c.suspendu)) return false;
+    // v1.3 : recherche texte libre (nom, Display ID, e-mail, téléphone).
+    const q = recherche.trim().toLowerCase();
+    if (q) {
+      const champs = [c.nom, c.email, c.display_id ?? "", c.telephone ?? ""];
+      if (!champs.some((ch) => ch.toLowerCase().includes(q))) return false;
+    }
+    if (filtreIntention !== "tous" && c.type_intention !== filtreIntention) return false;
+    if (filtreStatut !== "tous" && c.abonnement?.statut !== filtreStatut) return false;
+    if (filtreGrille !== "tous" && c.abonnement?.grille !== filtreGrille) return false;
+    if (filtreDossier === "complet" && !c.dossier_complet) return false;
+    if (filtreDossier === "incomplet" && c.dossier_complet) return false;
     return true;
   });
 
@@ -160,6 +179,80 @@ export default function ConsoleComptesPage() {
         ))}
       </div>
 
+      {/* v1.3 : recherche + filtres dossier. */}
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="min-w-56 flex-1">
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("searchLabel")}
+          </span>
+          <input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder={t("searchPlaceholder")}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold"
+          />
+        </label>
+        <label>
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("filterIntention")}
+          </span>
+          <select
+            value={filtreIntention}
+            onChange={(e) => setFiltreIntention(e.target.value)}
+            className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="tous">{t("filterAny")}</option>
+            <option value="proprietaire">{t("intention.proprietaire")}</option>
+            <option value="gestionnaire">{t("intention.gestionnaire")}</option>
+          </select>
+        </label>
+        <label>
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("filterStatus")}
+          </span>
+          <select
+            value={filtreStatut}
+            onChange={(e) => setFiltreStatut(e.target.value)}
+            className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="tous">{t("filterAny")}</option>
+            {["en_attente", "essai", "actif", "lecture_seule", "suspendu", "annule"].map((s) => (
+              <option key={s} value={s}>
+                {t(`status.${s}` as "status.actif")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("filterGrid")}
+          </span>
+          <select
+            value={filtreGrille}
+            onChange={(e) => setFiltreGrille(e.target.value)}
+            className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="tous">{t("filterAny")}</option>
+            <option value="afrique">{t("grid.afrique")}</option>
+            <option value="internationale">{t("grid.internationale")}</option>
+          </select>
+        </label>
+        <label>
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("filterFile")}
+          </span>
+          <select
+            value={filtreDossier}
+            onChange={(e) => setFiltreDossier(e.target.value)}
+            className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="tous">{t("filterAny")}</option>
+            <option value="complet">{t("fileComplete")}</option>
+            <option value="incomplet">{t("fileIncomplete")}</option>
+          </select>
+        </label>
+      </div>
+
       {message ? (
         <p role="status" className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
           {message}
@@ -193,10 +286,37 @@ export default function ConsoleComptesPage() {
                 <div className="min-w-0">
                   <h2 className="truncate font-bold text-navy">{compte.nom}</h2>
                   <p className="truncate text-sm text-slate-500">{compte.email}</p>
+                  {/* v1.3 : Display ID + téléphone + intention du dossier. */}
+                  <p className="text-xs text-slate-500">
+                    {compte.display_id ? (
+                      <>
+                        <strong className="font-bold tracking-wide text-navy">{compte.display_id}</strong>
+                        {" · "}
+                      </>
+                    ) : null}
+                    {compte.telephone ?? "—"}
+                    {" · "}
+                    {t(`intention.${compte.type_intention}` as "intention.proprietaire")}
+                  </p>
                   <Signaux compte={compte} />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <BadgeStatut compte={compte} />
+                  {!compte.dossier_complet ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                      {t("badgeIncompleteFile")}
+                    </span>
+                  ) : null}
+                  {compte.statut_contrat === "signe_recu" ? (
+                    <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-800">
+                      {t("badgeContractToValidate")}
+                    </span>
+                  ) : null}
+                  {compte.statut_contrat === "a_signer" ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                      {t("badgeContractToSign")}
+                    </span>
+                  ) : null}
                   {compte.grille_statut === "a_verifier" ? (
                     <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
                       ⚠ {t("badgeToVerify")}
@@ -213,6 +333,15 @@ export default function ConsoleComptesPage() {
                     </span>
                   ) : null}
                 </div>
+              </div>
+
+              <div className="mt-3">
+                <Link
+                  href={`/${locale}/console/comptes/${compte.id}`}
+                  className="inline-block rounded-full border border-navy px-4 py-1.5 text-sm font-bold text-navy hover:bg-navy hover:text-white"
+                >
+                  📁 {t("openFile")}
+                </Link>
               </div>
 
               <p className="mt-3 text-sm text-slate-600">

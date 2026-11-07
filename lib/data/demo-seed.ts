@@ -7,6 +7,7 @@ import type {
   Bail,
   CompteAdmin,
   Coproprietaire,
+  DemandeRattachement,
   Depense,
   Document,
   EcheanceLoyer,
@@ -27,8 +28,10 @@ import type {
   RattachementGestionnaire,
   Role,
   StatutAbonnement,
+  StatutContrat,
   TarifPlateforme,
   TauxChange,
+  TypeIntention,
 } from "./types";
 import { PARAMETRES_FINANCE_DEFAUT, TARIFS_SEED } from "../tarifs";
 
@@ -89,6 +92,13 @@ export interface CompteClientDemo {
   grille_statut: "ok" | "a_verifier";
   /** Ajout n°3 : motif de refus prédéfini si le compte a été refusé. */
   motif_refus?: MotifRefus | null;
+  // --- v1.3 : dossier vérifié (Display ID fixe, cohérent dans la démo).
+  display_id: string;
+  telephone: string | null;
+  type_intention: TypeIntention;
+  statut_contrat: StatutContrat;
+  /** Photo de profil reçue + pièce d'identité reçue. */
+  dossier_complet: boolean;
   abonnement: {
     plan: Plan;
     grille: Grille;
@@ -109,6 +119,14 @@ export interface PlateformeDemo {
   rattachements: RattachementGestionnaire[];
   journal: EntreeAudit[];
   avis: Avis[];
+  /** v1.3 : demandes de rattachement par Display ID (triple validation). */
+  demandesRattachement: DemandeRattachement[];
+  /**
+   * v1.3 : documents « compte » des personas du REGISTRE et du
+   * gestionnaire démo (pièces d'identité, contrats) — le compte
+   * principal range les siens dans db.documents comme les autres.
+   */
+  documentsComptes: Document[];
 }
 
 /** Finances dynamiques démo (extension v1.2) : seed identique à la base réelle. */
@@ -144,6 +162,11 @@ export interface DemoDb {
   plateforme: PlateformeDemo;
   /** Extension v1.2 : tarifs + paramètres lus dynamiquement. */
   finance: FinanceDemo;
+  /**
+   * v1.3 : prochain numéro de la séquence Display ID démo (les personas
+   * seedés occupent CIM-000001 à CIM-000011 — voir buildDemoDb).
+   */
+  compteurDisplayId: number;
 }
 
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
@@ -179,6 +202,12 @@ export function buildDemoDb(): DemoDb {
     pays_paiement: "BI",
     grille_attribuee: "afrique",
     grille_statut: "ok",
+    // v1.3 : premier Display ID de la démo ; dossier complet (photo +
+    // pièce d'identité seedées plus bas).
+    display_id: "CIM-000001",
+    type_intention: "proprietaire",
+    photo_profil_path: "demo:photo-profil-amina",
+    statut_contrat: "sans_objet",
     created_at: now,
   };
 
@@ -358,6 +387,23 @@ export function buildDemoDb(): DemoDb {
       contenu: null,
       contenu_non_conserve: true,
     },
+    {
+      // v1.3 : pièce d'identité du DOSSIER d'Amina (entite « compte ») —
+      // avec sa photo de profil seedée, son dossier est COMPLET.
+      id: "00000000-0000-4000-8000-000000000a02",
+      owner_id: OWNER_ID,
+      type: "piece_identite",
+      entite_type: "compte",
+      entite_id: OWNER_ID,
+      nom_fichier: "piece-identite-amina.jpg",
+      storage_path: "demo:piece-identite-amina",
+      taille_octets: 96400,
+      mime_type: "image/jpeg",
+      ajoute_par: OWNER_ID,
+      created_at: now,
+      contenu: null,
+      contenu_non_conserve: true,
+    },
   ];
 
   // Fil d'actualité de départ : il se nourrit des événements déjà enregistrés.
@@ -519,21 +565,25 @@ export function buildDemoDb(): DemoDb {
       {
         id: "client-demo-1", email: "jean.bosco.demo@exemple.bi", nom: "Jean Bosco Ndayisenga", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-95),
         pays_declare: "Burundi", pays_ip: "BI", pays_paiement: "BI", grille_statut: "ok",
+        display_id: "CIM-000003", telephone: "+257 79 11 22 33", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
         abonnement: { plan: "pro", grille: "afrique", statut: "actif", debut_periode: dans(-10), fin_periode: dans(20), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
         id: "client-demo-2", email: "marie.dubois.demo@exemple.ca", nom: "Marie-Claire Dubois", role: "proprietaire", pays: "Canada", langue: "fr", created_at: dans(-27),
         pays_declare: "Canada", pays_ip: "CA", pays_paiement: null, grille_statut: "ok",
+        display_id: "CIM-000004", telephone: "+1 514 555 0142", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
         abonnement: { plan: "starter", grille: "internationale", statut: "essai", debut_periode: dans(-27), fin_periode: dans(3), trial_ends_at: dans(3), echec_paiement: false, grace_ends_at: null },
       },
       {
         id: "client-demo-3", email: "patrick.m.demo@exemple.rw", nom: "Patrick Mugisha", role: "proprietaire", pays: "Rwanda", langue: "en", created_at: dans(-140),
         pays_declare: "Rwanda", pays_ip: "RW", pays_paiement: "RW", grille_statut: "ok",
+        display_id: "CIM-000005", telephone: "+250 788 000 111", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
         abonnement: { plan: "agence", grille: "afrique", statut: "actif", debut_periode: dans(-28), fin_periode: dans(2), trial_ends_at: null, echec_paiement: true, grace_ends_at: dans(2) },
       },
       {
         id: "client-demo-4", email: "sarah.t.demo@exemple.com", nom: "Sarah Thompson", role: "proprietaire", pays: "États-Unis", langue: "en", created_at: dans(-200),
         pays_declare: "États-Unis", pays_ip: "US", pays_paiement: "US", grille_statut: "ok",
+        display_id: "CIM-000006", telephone: "+1 212 555 0187", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
         abonnement: { plan: "pro", grille: "internationale", statut: "actif", debut_periode: dans(-40), fin_periode: dans(-10), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
@@ -542,6 +592,7 @@ export function buildDemoDb(): DemoDb {
         // (le compte a ensuite été suspendu pour impayé).
         id: "client-demo-5", email: "divine.i.demo@exemple.bi", nom: "Divine Irakoze", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-60),
         pays_declare: "Burundi", pays_ip: "CA", pays_paiement: null, grille_statut: "a_verifier",
+        display_id: "CIM-000007", telephone: "+257 79 44 55 66", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
         abonnement: { plan: "starter", grille: "internationale", statut: "suspendu", debut_periode: dans(-45), fin_periode: dans(-15), trial_ends_at: null, echec_paiement: false, grace_ends_at: null, statut_pre_suspension: "actif" },
       },
       {
@@ -549,6 +600,9 @@ export function buildDemoDb(): DemoDb {
         // (déclaré Burundi, IP BI) → grille Afrique proposée.
         id: "client-demo-6", email: "nadine.k.demo@exemple.bi", nom: "Nadine Kamariza", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-1),
         pays_declare: "Burundi", pays_ip: "BI", pays_paiement: null, grille_statut: "ok",
+        // v1.3 : dossier INCOMPLET (ni photo ni pièce d'identité) — la
+        // console le signale, l'approbation reste possible.
+        display_id: "CIM-000008", telephone: "+257 79 77 88 99", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
         abonnement: { plan: "pro", grille: "afrique", statut: "en_attente", debut_periode: dans(-1), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
@@ -556,13 +610,25 @@ export function buildDemoDb(): DemoDb {
         // grille Internationale proposée + badge « à vérifier ».
         id: "client-demo-7", email: "olivier.h.demo@exemple.rw", nom: "Olivier Habimana", role: "proprietaire", pays: "Rwanda", langue: "fr", created_at: dans(0),
         pays_declare: "Rwanda", pays_ip: "FR", pays_paiement: null, grille_statut: "a_verifier",
+        display_id: "CIM-000009", telephone: "+250 788 222 333", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
         abonnement: { plan: "pro", grille: "internationale", statut: "en_attente", debut_periode: dans(0), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
         // REFUSÉ (ajout n°3) : motif prédéfini « doublon » — connexion impossible.
         id: "client-demo-8", email: "doublon.demo@exemple.bi", nom: "Compte Doublon", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-20),
         pays_declare: "Burundi", pays_ip: "BI", pays_paiement: null, grille_statut: "ok", motif_refus: "doublon",
+        display_id: "CIM-000010", telephone: null, type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
         abonnement: { plan: "pro", grille: "afrique", statut: "annule", debut_periode: dans(-20), fin_periode: null, trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
+      },
+      {
+        // v1.3 : GESTIONNAIRE approuvée (essai en cours) dont le contrat
+        // SIGNÉ attend la validation d'un Admin — alimente le KPI
+        // « contrats en attente » et l'action « valider le contrat » de
+        // sa page Dossier.
+        id: "client-demo-9", email: "sira.diallo.demo@exemple.sn", nom: "Sira Diallo", role: "proprietaire", pays: "Sénégal", langue: "fr", created_at: dans(-12),
+        pays_declare: "Sénégal", pays_ip: "SN", pays_paiement: null, grille_statut: "ok",
+        display_id: "CIM-000011", telephone: "+221 77 123 45 67", type_intention: "gestionnaire", statut_contrat: "signe_recu", dossier_complet: true,
+        abonnement: { plan: "pro", grille: "afrique", statut: "essai", debut_periode: dans(-2), fin_periode: dans(28), trial_ends_at: dans(28), echec_paiement: false, grace_ends_at: null },
       },
     ],
     rattachements: [
@@ -595,6 +661,111 @@ export function buildDemoDb(): DemoDb {
     ],
     journal: [],
     avis: [],
+    // v1.3 : demandes de rattachement par Display ID. Marc Dubois
+    // (CIM-000002, contrat « valide ») est le gestionnaire démo ; son
+    // identifiant de compte = celui de son invitation.
+    demandesRattachement: [
+      {
+        // Acceptée par Marc, EN ATTENTE de la validation Admin (KPI
+        // console + action dans le Dossier de Jean Bosco).
+        id: "demande-demo-1",
+        proprietaire_id: "client-demo-1",
+        proprietaire_email: "jean.bosco.demo@exemple.bi",
+        proprietaire_nom: "Jean Bosco Ndayisenga",
+        gestionnaire_id: "00000000-0000-4000-8000-000000000d01",
+        gestionnaire_email: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_nom: "Marc Dubois",
+        gestionnaire_display_id: "CIM-000002",
+        statut: "en_attente_admin",
+        created_at: dans(-2),
+        repondu_le: dans(-1),
+        valide_par: null,
+        valide_le: null,
+        rattachement_id: null,
+      },
+      {
+        // Adressée à Marc par le compte principal (Amina) : il peut
+        // l'accepter ou la refuser dans son espace gestionnaire.
+        id: "demande-demo-2",
+        proprietaire_id: OWNER_ID,
+        proprietaire_email: "demo@cizaimmo.com",
+        proprietaire_nom: "Amina Niyonzima",
+        gestionnaire_id: "00000000-0000-4000-8000-000000000d01",
+        gestionnaire_email: GESTIONNAIRE_DEMO_EMAIL,
+        gestionnaire_nom: "Marc Dubois",
+        gestionnaire_display_id: "CIM-000002",
+        statut: "en_attente_gestionnaire",
+        created_at: dans(-1),
+        repondu_le: null,
+        valide_par: null,
+        valide_le: null,
+        rattachement_id: null,
+      },
+    ],
+    // v1.3 : documents « compte » des personas hors compte principal.
+    documentsComptes: [
+      {
+        id: "doc-compte-marc-id",
+        owner_id: "00000000-0000-4000-8000-000000000d01",
+        type: "piece_identite",
+        entite_type: "compte",
+        entite_id: "00000000-0000-4000-8000-000000000d01",
+        nom_fichier: "piece-identite-marc-dubois.jpg",
+        storage_path: "demo:piece-identite-marc",
+        taille_octets: 88200,
+        mime_type: "image/jpeg",
+        ajoute_par: "00000000-0000-4000-8000-000000000d01",
+        created_at: dans(-30),
+        contenu: null,
+        contenu_non_conserve: true,
+      },
+      {
+        id: "doc-compte-marc-contrat",
+        owner_id: "00000000-0000-4000-8000-000000000d01",
+        type: "contrat",
+        entite_type: "compte",
+        entite_id: "00000000-0000-4000-8000-000000000d01",
+        nom_fichier: "contrat-gestionnaire-CIM-000002-signe.pdf",
+        storage_path: "demo:contrat-marc-signe",
+        taille_octets: 121400,
+        mime_type: "application/pdf",
+        ajoute_par: "00000000-0000-4000-8000-000000000d01",
+        created_at: dans(-28),
+        contenu: null,
+        contenu_non_conserve: true,
+      },
+      {
+        id: "doc-compte-sira-id",
+        owner_id: "client-demo-9",
+        type: "piece_identite",
+        entite_type: "compte",
+        entite_id: "client-demo-9",
+        nom_fichier: "piece-identite-sira-diallo.jpg",
+        storage_path: "demo:piece-identite-sira",
+        taille_octets: 91000,
+        mime_type: "image/jpeg",
+        ajoute_par: "client-demo-9",
+        created_at: dans(-12),
+        contenu: null,
+        contenu_non_conserve: true,
+      },
+      {
+        // Le contrat SIGNÉ de Sira — en attente de validation Admin.
+        id: "doc-compte-sira-contrat",
+        owner_id: "client-demo-9",
+        type: "contrat",
+        entite_type: "compte",
+        entite_id: "client-demo-9",
+        nom_fichier: "contrat-gestionnaire-CIM-000011-signe.pdf",
+        storage_path: "demo:contrat-sira-signe",
+        taille_octets: 118900,
+        mime_type: "application/pdf",
+        ajoute_par: "client-demo-9",
+        created_at: dans(-1),
+        contenu: null,
+        contenu_non_conserve: true,
+      },
+    ],
   };
 
   const finance: FinanceDemo = {
@@ -602,5 +773,5 @@ export function buildDemoDb(): DemoDb {
     parametres: { ...PARAMETRES_FINANCE_DEFAUT },
   };
 
-  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires, parcCizaGroup, plateforme, finance };
+  return { profil, abonnement, immeubles, appartements, locataires, baux, echeances, paiements, depenses, documents, alertes: [], activites, taux, gestionnaires, preferences, factures: [], paiementsMobileMoney: [], coproprietaires, parcCizaGroup, plateforme, finance, compteurDisplayId: 12 };
 }
