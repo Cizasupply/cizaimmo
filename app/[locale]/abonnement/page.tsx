@@ -12,12 +12,13 @@ import {
   getDataProvider,
   isDemoMode,
   estLectureSeule,
-  PRIX_PLANS,
   RANG_PLAN,
   GESTIONNAIRES_MAX,
   VITRINE_PAR_PLAN,
   INDIVISION_PAR_PLAN,
 } from "@/lib/data";
+import { TARIFS_SEED, construirePrixPlans } from "@/lib/tarifs";
+import type { PrixPlans } from "@/lib/data";
 import type {
   Abonnement,
   FactureAbonnement,
@@ -65,6 +66,9 @@ export default function AbonnementPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Prix DYNAMIQUES (v1.2) : lus depuis la plateforme (base/seed),
+  // jamais codés en dur — repli seed au premier rendu.
+  const [prixPlans, setPrixPlans] = useState<PrixPlans>(() => construirePrixPlans(TARIFS_SEED));
   const [planChoisi, setPlanChoisi] = useState<Plan | null>(null);
   const [aConfirmerDescente, setAConfirmerDescente] = useState<Plan | null>(null);
   const [aConfirmerAnnulation, setAConfirmerAnnulation] = useState(false);
@@ -84,18 +88,20 @@ export default function AbonnementPage() {
         router.push(`/${locale}/connexion`);
         return;
       }
-      const [pro, abo, lim, fac, mm] = await Promise.all([
+      const [pro, abo, lim, fac, mm, tarifs] = await Promise.all([
         p.getProfil(),
         p.getAbonnement(),
         p.getLimiteBlocs(),
         p.listerFactures(),
         p.listerPaiementsMobileMoney(),
+        p.getTarifsPlateforme().catch(() => TARIFS_SEED),
       ]);
       setProfil(pro);
       setAbonnement(abo);
       setLimite(lim);
       setFactures(fac);
       setPaiementsMm(mm);
+      setPrixPlans(construirePrixPlans(tarifs));
       try {
         const res = await fetch("/api/stripe/checkout");
         if (res.ok) setStripeConfig((await res.json()) as StripeConfig);
@@ -233,7 +239,11 @@ export default function AbonnementPage() {
         ? "statusActive"
         : abonnement?.statut === "lecture_seule"
           ? "statusReadOnly"
-          : "statusCancelled";
+          : abonnement?.statut === "en_attente"
+            ? "statusPendingApproval"
+            : abonnement?.statut === "suspendu"
+              ? "statusSuspended"
+              : "statusCancelled";
 
   return (
     <AppShell title={tp("subscription.title")}>
@@ -354,13 +364,13 @@ export default function AbonnementPage() {
                   <article key={plan} className="rounded-2xl bg-white p-5 shadow-sm">
                     <h3 className="text-lg font-bold text-navy">{ts(`plans.${plan}`)}</h3>
                     <p className="mt-2 text-2xl font-bold text-navy">
-                      {formatMoney(PRIX_PLANS[plan][abonnement.grille], "USD", locale)}
+                      {formatMoney(prixPlans[plan][abonnement.grille], "USD", locale)}
                       <span className="text-sm font-normal text-slate-500"> {ts("perMonth")}</span>
                     </p>
                     <p className="text-sm text-slate-500">
                       {abonnement.grille === "afrique" ? ts("gridAfrique") : ts("gridInternationale")}
                       {" · "}
-                      {formatMoney(PRIX_PLANS[plan][abonnement.grille === "afrique" ? "internationale" : "afrique"], "USD", locale)}
+                      {formatMoney(prixPlans[plan][abonnement.grille === "afrique" ? "internationale" : "afrique"], "USD", locale)}
                       {" "}
                       {abonnement.grille === "afrique" ? ts("gridInternationale") : ts("gridAfrique")}
                     </p>
@@ -407,7 +417,7 @@ export default function AbonnementPage() {
                 {ts("payTitle", { plan: ts(`plans.${planChoisi}`) })}
               </h2>
               <p className="mt-1 text-base text-slate-700">
-                {formatMoney(PRIX_PLANS[planChoisi][abonnement.grille], "USD", locale)} {ts("perMonth")} —{" "}
+                {formatMoney(prixPlans[planChoisi][abonnement.grille], "USD", locale)} {ts("perMonth")} —{" "}
                 {abonnement.grille === "afrique" ? ts("gridAfrique") : ts("gridInternationale")}
               </p>
               <div className="mt-4 flex flex-col gap-3">

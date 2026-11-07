@@ -2,18 +2,9 @@ import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
-import { PRIX_PLANS, GESTIONNAIRES_MAX, VITRINE_PAR_PLAN, INDIVISION_PAR_PLAN } from "@/lib/abonnement";
-import type { Plan } from "@/lib/data/types";
+import MiniGrilleTarifs from "@/components/MiniGrilleTarifs";
 
 const features = ["buildings", "roi", "currency", "reports"] as const;
-const plans: Plan[] = ["starter", "pro", "agence"];
-
-function libelleGestionnaires(t: (k: string, v?: Record<string, string>) => string, plan: Plan): string {
-  const max = GESTIONNAIRES_MAX[plan];
-  if (max === 0) return t("pricing.managersNone");
-  if (!Number.isFinite(max)) return t("pricing.managersUnlimited");
-  return t("pricing.managers", { count: String(max) });
-}
 
 export default async function LandingPage({
   params: { locale },
@@ -134,54 +125,7 @@ export default async function LandingPage({
           <p className="text-center font-semibold text-gold">{t("pricingTeaser")}</p>
           <h2 className="mt-3 text-center text-3xl font-bold">{t("pricing.title")}</h2>
           <p className="mt-3 text-center text-slate-300">{t("pricing.subtitle")}</p>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan}
-                className="rounded-2xl bg-navy p-6 border border-navy-light"
-              >
-                <h3 className="text-xl font-bold text-gold">
-                  {plan === "starter" ? "Starter" : plan === "pro" ? "Pro" : "Agence"}
-                </h3>
-                <p className="mt-2 text-slate-300">
-                  {plan === "agence"
-                    ? t("pricing.blocksUnlimited")
-                    : t("pricing.blocks", { count: String(plan === "starter" ? 1 : 5) })}
-                </p>
-                <p className="mt-4 text-2xl font-bold">
-                  ${PRIX_PLANS[plan].afrique.toFixed(2)}
-                  <span className="text-sm font-normal text-slate-300">
-                    {" "}{t("pricing.perMonth")} · {t("pricing.gridAfrique")}
-                  </span>
-                </p>
-                <p className="mt-1 text-2xl font-bold">
-                  ${PRIX_PLANS[plan].internationale.toFixed(2)}
-                  <span className="text-sm font-normal text-slate-300">
-                    {" "}{t("pricing.perMonth")} · {t("pricing.gridInternationale")}
-                  </span>
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                  <li>✓ {t("pricing.fullManagement")}</li>
-                  <li>✓ {t("pricing.reports")}</li>
-                  <li>✓ {libelleGestionnaires(t, plan)}</li>
-                  <li>
-                    {VITRINE_PAR_PLAN[plan] ? "✓ " : "— "}
-                    {VITRINE_PAR_PLAN[plan] ? t("pricing.vitrineYes") : t("pricing.vitrineNo")}
-                  </li>
-                  <li>
-                    {INDIVISION_PAR_PLAN[plan] ? "✓ " : "— "}
-                    {INDIVISION_PAR_PLAN[plan] ? t("pricing.indivisionYes") : t("pricing.indivisionNo")}
-                  </li>
-                </ul>
-                <Link
-                  href="/inscription"
-                  className="mt-6 block rounded-full bg-gold px-5 py-2.5 text-center font-semibold text-navy-dark hover:bg-gold-light"
-                >
-                  {t("pricing.cta")}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <MiniGrilleTarifs />
           <p className="mt-8 text-center text-slate-300">{t("pricing.trial")}</p>
           <p className="mt-2 text-center text-slate-300">{t("pricing.mobileMoney")}</p>
         </section>

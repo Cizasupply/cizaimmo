@@ -33,12 +33,14 @@ const TYPES_ALERTE: TypeAlerte[] = [
 export default function ParametresPage() {
   const t = useTranslations("crud");
   const ts = useTranslations("settings");
+  const tsub = useTranslations("subscription");
   const tp = useTranslations("pages");
   const tc = useTranslations("crud.common");
   const locale = useLocale();
   const router = useRouter();
 
   const [profil, setProfil] = useState<Profil | null>(null);
+  const [grilleCompte, setGrilleCompte] = useState<"afrique" | "internationale" | null>(null);
   const [immeubles, setImmeubles] = useState<Immeuble[]>([]);
   const [taux, setTaux] = useState<TauxChange[]>([]);
   const [prefs, setPrefs] = useState<PreferencesNotifications | null>(null);
@@ -96,6 +98,11 @@ export default function ParametresPage() {
       }
       setImmeubles(ims);
       setTaux(tx);
+      // Grille tarifaire du compte (v1.2, lecture seule ici) : elle est
+      // VERROUILLÉE à l'inscription — seul le support peut la corriger.
+      p.getAbonnement()
+        .then((abo) => setGrilleCompte(abo?.grille ?? prof?.grille_attribuee ?? null))
+        .catch(() => setGrilleCompte(prof?.grille_attribuee ?? null));
       setPrefs(pr);
       setSeuilVacance(String(pr.seuil_vacance_jours));
       setGestionnaires(gest);
@@ -352,6 +359,19 @@ export default function ParametresPage() {
               </button>
             </form>
           </section>
+
+          {/* Grille tarifaire du compte (v1.2 — anti-fraude, lecture seule) */}
+          {grilleCompte ? (
+            <section aria-labelledby="grille-titre" className="mt-6 rounded-2xl border border-gold/50 bg-gold/10 p-6 shadow-sm">
+              <h2 id="grille-titre" className="text-lg font-bold text-navy">{ts("pricingGridTitle")}</h2>
+              <p className="mt-2 text-base font-semibold text-navy">
+                {ts("pricingGridCurrent", {
+                  grid: grilleCompte === "afrique" ? tsub("gridAfrique") : tsub("gridInternationale"),
+                })}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">{ts("pricingGridInfo")}</p>
+            </section>
+          ) : null}
 
           {/* Taux de change manuels + automatiques (module 6, spec §9) */}
           <section aria-labelledby="taux-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
