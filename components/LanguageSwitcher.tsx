@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect } from "react";
@@ -34,30 +33,33 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
   }, [locale]);
 
   /**
-   * Le middleware next-intl (localePrefix "as-needed", defaultLocale "fr")
-   * résout la locale de "/" d'abord via le cookie NEXT_LOCALE, puis via
-   * Accept-Language. Sans ce cookie, un clic vers "/" depuis /en avec un
-   * navigateur en anglais était redirigé vers /en : la bascule ne
-   * fonctionnait pas. On pose donc le cookie (mêmes attributs que
-   * next-intl : max-age 1 an, SameSite=Lax) avant la navigation, dans
-   * les deux sens (FR→EN et EN→FR).
+   * Navigation PLEINE (rechargement complet), pas de navigation côté
+   * client : vérifié en live le 2026-11-06, le <Link> de Next.js ne
+   * bascule pas la locale dans le sens EN→FR (l'URL française n'a
+   * pas de préfixe avec localePrefix "as-needed", le routeur client
+   * reste sur /en et le middleware renvoie l'utilisateur sur la page
+   * anglaise — c'est le « retour en arrière » signalé). Avec une
+   * ancre <a> classique, le navigateur recharge la page entière et
+   * le middleware voit le cookie NEXT_LOCALE fraîchement posé :
+   * la bascule fonctionne dans les deux sens, sur la même page.
    */
   function handleClick() {
     try {
       document.cookie = `NEXT_LOCALE=${otherLocale}; path=/; max-age=31536000; SameSite=Lax`;
+      window.localStorage.setItem("cizaimmo-locale", otherLocale);
     } catch {
       // Cookie indisponible : la bascule par lien reste fonctionnelle.
     }
   }
 
   return (
-    <Link
+    <a
       href={switchPathForLocale(pathname ?? "/", otherLocale)}
       onClick={handleClick}
       aria-label={`${t("language")} : ${otherLocale === "fr" ? "Français" : "English"}`}
       className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold ${className}`}
     >
       {otherLocale === "fr" ? "Français" : "English"}
-    </Link>
+    </a>
   );
 }
