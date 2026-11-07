@@ -129,8 +129,9 @@ import {
  *
  * - Inscription : Supabase Auth avec métadonnées (nom, pays,
  *   devise_principale, langue). Le trigger SQL `handle_new_user`
- *   (supabase/schema.sql) crée alors le profil + l'abonnement d'essai
- *   (plan Pro, 30 jours, sans carte). En secours, si le trigger n'est pas
+ *   (supabase/schema.sql) crée alors le profil + l'abonnement
+ *   « en attente » (v1.4 : essai Starter de 30 jours à l'approbation,
+ *   sans carte). En secours, si le trigger n'est pas
  *   installé, getProfil() crée le profil et l'essai à la première lecture.
  * - L'essai démarre à la validation de l'e-mail (spec §3) : tant que
  *   l'e-mail n'est pas confirmé, Supabase refuse la connexion et signIn
@@ -337,10 +338,12 @@ export class RealProvider implements DataProvider {
       .single();
     if (insertError) throw new Error(insertError.message);
     if (role !== "coproprietaire") {
-      // Approbation manuelle (ajout n°3) : en_attente, sans dates d'essai.
+      // Approbation manuelle (ajout n°3) : en_attente, sans dates
+      // d'essai ; v1.4 : pack Starter (plan + pack de fin d'essai).
       await client.from("abonnements").insert({
         owner_id: session.id,
-        plan: "pro",
+        plan: "starter",
+        plan_apres_essai: "starter",
         grille: grilleMeta ?? "internationale",
         statut: "en_attente",
         debut_periode: new Date().toISOString(),
@@ -405,12 +408,12 @@ export class RealProvider implements DataProvider {
     return profil?.role ?? null;
   }
 
-  /** L'indivision exige le plan Pro ou Agence (l'essai = fonctions Pro). */
+  /** L'indivision exige le plan Pro ou Agence (v1.4 : l'essai est
+   * Starter, donc sans indivision — le plan en cours fait foi). */
   private async verifierPlanIndivision(): Promise<void> {
     const abo = await this.getAbonnement();
     if (!abo) throw err("ERR_NOT_FOUND");
-    const planEffectif = abo.statut === "essai" ? "pro" : abo.plan;
-    if (!INDIVISION_PAR_PLAN[planEffectif]) throw err("ERR_INDIVISION_PLAN");
+    if (!INDIVISION_PAR_PLAN[abo.plan]) throw err("ERR_INDIVISION_PLAN");
   }
 
   /** Un co-propriétaire ne voit jamais les coordonnées des locataires. */
@@ -2149,6 +2152,16 @@ export class RealProvider implements DataProvider {
     return maj;
   }
 
+  /** v1.4 : pack choisi pendant l'essai pour la fin de l'essai. */
+  async definirPlanApresEssai(plan: Plan): Promise<Abonnement> {
+    await this.requireSession();
+    if (!["starter", "pro", "agence"].includes(plan)) throw err("ERR_PLAN_INVALIDE");
+    const abo = await this.getAbonnement();
+    if (!abo) throw err("ERR_NOT_FOUND");
+    if (abo.statut !== "essai") return abo;
+    return this.majAbonnement(abo.id, { plan_apres_essai: plan });
+  }
+
   async annulerAbonnement(): Promise<Abonnement> {
     await this.requireSession();
     const abo = await this.getAbonnement();
@@ -2365,6 +2378,8 @@ export class RealProvider implements DataProvider {
             echec_paiement: abo.echec_paiement,
             grace_ends_at: abo.grace_ends_at,
             statut_pre_suspension: abo.statut_pre_suspension ?? null,
+            // v1.4 : pack choisi pour la fin de l'essai (vue console).
+            plan_apres_essai: abo.plan_apres_essai ?? "starter",
           }
         : null;
       return {
@@ -2480,19 +2495,23 @@ export class RealProvider implements DataProvider {
       .eq("id", compteId)
       .maybeSingle();
     if (!profil) throw err("ERR_INTROUVABLE");
-    const parametres = await this.getParametresFinance();
     const maintenant = new Date();
-    const finEssai = ajouterJours(maintenant.toISOString(), parametres.jours_essai);
-    // L'essai démarre À L'APPROBATION ; la grille affichée est confirmée.
-    await client
-      .from("abonnements")
-      .update({
-        statut: "essai",
-        debut_periode: maintenant.toISOString(),
-        trial_ends_at: finEssai,
-        fin_periode: finEssai,
-      })
-      .eq("id", abo.id);
+    // v1.4 — LA BASE DÉCIDE : la transition d'approbation est la
+    // fonction SQL public.approuver_compte (module-v14.sql). Elle
+    // vérifie le rôle plateforme en interne, démarre l'essai À
+    // L'APPROBATION avec la durée dynamique (parametres_finance) et
+    // force le pack STARTER ; elle retourne la fin d'essai posée.
+    const { data: finEssaiRpc, error: rpcError } = await client.rpc("approuver_compte", {
+      cible: compteId,
+    });
+    if (rpcError) {
+      if (rpcError.message.includes("COMPTE_NON_EN_ATTENTE")) throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      if (rpcError.message.includes("ADMIN_PLATEFORME_REQUIS")) throw err("ERR_ACCES_PLATEFORME");
+      if (rpcError.message.includes("ABONNEMENT_INTROUVABLE")) throw err("ERR_INTROUVABLE");
+      throw new Error(rpcError.message);
+    }
+    const finEssai = (finEssaiRpc as string | null) ?? maintenant.toISOString();
+    // La grille affichée est confirmée (sur le profil, ci-dessous).
     const estGestionnaire = profil.type_intention === "gestionnaire";
     await client
       .from("profils")

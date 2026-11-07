@@ -105,7 +105,7 @@
     "signupSubtitle": "Create your account and start your free trial.",
     "signupTitle": "Sign up",
     "tooManyAttempts": "Too many attempts. Wait a few minutes, then try again.",
-    "trialNote": "Free 30-day trial, Pro plan, no credit card. CizaImmo never collects rent: only declared payments are tracked."
+    "trialNote": "Free 30-day trial — Starter pack included, no credit card. At the end of the trial, you will choose the pack that suits you. CizaImmo never collects rent: only declared payments are tracked."
   },
   "brand": {
     "division": "A division of Ciza Group",
@@ -386,6 +386,7 @@
     "title": "Ciza Group Console",
     "trialDays": "Trial days (at approval)",
     "trialEndsLabel": "Trial ends",
+    "planAfterTrialLabel": "Pack after trial",
     "validate": "Validate",
     "validateContract": "Validate the agreement"
   },
@@ -1206,7 +1207,7 @@
       "reports": "Reports & ROI, Excel / PDF exports",
       "subtitle": "A subscription based on your blocks. Two pricings, shown separately: Africa or International, based on your account country at sign-up.",
       "title": "Pricing",
-      "trial": "30-day free trial, all Pro plan features, no card required.",
+      "trial": "30-day free trial — Starter pack included, no card required.",
       "vitrineNo": "“Apartments for rent” showcase not included",
       "vitrineYes": "“Apartments for rent” showcase included"
     },
@@ -1359,7 +1360,7 @@
     "paymentTitle": "How to pay your subscription",
     "subtitle": "A subscription based on your blocks. Two price lists, shown separately: Africa or International, depending on your account's country at sign-up.",
     "title": "Pricing",
-    "trialText": "All Pro plan features for 30 days, no bank card required. Every account is approved by our team: the trial starts when your sign-up is approved.",
+    "trialText": "The Starter pack for 30 days, no bank card required. Every account is approved by our team: the trial starts when your sign-up is approved. At the end of the trial, you will choose the pack that suits you.",
     "trialTitle": "Free 30-day trial"
   },
   "public": {
@@ -1599,6 +1600,10 @@
     "stripeNotConfigured": "Stripe not configured — test mode. Set the test keys in .env.local (see docs/stripe-test-setup.md) to enable card payment.",
     "stripeTestMode": "Stripe in TEST MODE: test cards only (4242 4242 4242 4242…), no real charge.",
     "trialEnds": "Trial ends",
+    "trialPackTitle": "Your pack at the end of the trial",
+    "trialPackText": "Your free trial runs on the Starter pack. Choose now which pack will take over when the trial ends: no payment today, and you can still change your mind before then.",
+    "trialPackSave": "Save this pack",
+    "trialPackSaved": "Choice saved — this pack will take over at the end of the trial.",
     "upgradeNow": "Immediate upgrade"
   },
   "tenantLink": {

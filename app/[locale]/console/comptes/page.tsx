@@ -366,6 +366,14 @@ export default function ConsoleComptesPage() {
                     {t("periodEndsLabel")} : {formatDate(compte.abonnement.fin_periode, locale)}
                   </>
                 ) : null}
+                {compte.abonnement?.plan_apres_essai &&
+                compte.abonnement.plan_apres_essai !== compte.abonnement.plan ? (
+                  <>
+                    {" · "}
+                    {t("planAfterTrialLabel")} :{" "}
+                    <strong>{t(`plan.${compte.abonnement.plan_apres_essai}` as "plan.pro")}</strong>
+                  </>
+                ) : null}
               </p>
 
               {/* File de revue : approbation / refus / grille (en attente). */}

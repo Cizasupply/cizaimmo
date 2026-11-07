@@ -411,6 +411,13 @@ export interface DataProvider {
    */
   changerPlan(plan: Plan): Promise<Abonnement>;
   /**
+   * v1.4 : pack choisi PENDANT l'essai pour la fin de l'essai
+   * (abonnements.plan_apres_essai ; défaut Starter). Simple préférence
+   * enregistrée — aucun paiement à ce stade ; l'essai reste Starter.
+   * Hors essai, le choix est sans effet (utiliser changerPlan).
+   */
+  definirPlanApresEssai(plan: Plan): Promise<Abonnement>;
+  /**
    * Annulation possible à tout moment, effective en fin de période ;
    * données conservées 90 jours en lecture seule ensuite (spec §12).
    */

@@ -86,6 +86,18 @@ else
   ECHEC=1
 fi
 
+# Extension v1.4 — la base est la source de vérité : garde
+# d'écriture SQL (politiques RLS), essai Starter forcé dans la base
+# (naissance + approbation), plan_apres_essai, inscription sans plan.
+echo ""
+echo "===== Extension v1.4 (Base source de vérité / Essai Starter) ====="
+if node "scripts/test-base-verite-v14.cjs"; then
+  echo "Extension v1.4 : OK"
+else
+  echo "Extension v1.4 : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Correctif e-mails (2026-11-07) : matcher middleware (exclusion « auth »,
 # 404 des liens de confirmation) + gabarit e-mail premium (lib/email.ts,
 # déjà dans le harnais).

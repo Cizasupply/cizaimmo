@@ -219,7 +219,11 @@ export default function InscriptionPage() {
           </p>
         ) : null}
 
-        <p className="rounded-xl bg-gold/15 px-3 py-2 text-sm text-slate-700">{t("trialNote")}</p>
+        {/* v1.4 : aucun choix de plan à l'inscription — l'essai est le
+            pack Starter ; le client choisira son pack à la fin. */}
+        <div className="rounded-xl border border-gold bg-gold/15 px-4 py-3">
+          <p className="text-sm font-medium text-slate-800">{t("trialNote")}</p>
+        </div>
 
         <button
           type="submit"

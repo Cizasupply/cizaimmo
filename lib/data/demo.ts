@@ -230,8 +230,10 @@ function loadDb(): DemoDb {
       if (rec.whatsapp_statut === undefined) { rec.whatsapp_statut = "non_configuré"; migre = true; }
     }
     // Migration douce (module 5) : nouveaux champs de l'abonnement.
+    // v1.4 : « plan_apres_essai » rejoint la liste (défaut repris de la
+    // seed fraîche pour les bases enregistrées avant la v1.4).
     const aboFrais = frais.abonnement;
-    for (const cle of ["plan_en_attente", "date_effet_plan", "resiliation_programmee", "echec_paiement", "grace_ends_at", "lecture_seule_jusqu_au"] as const) {
+    for (const cle of ["plan_en_attente", "date_effet_plan", "resiliation_programmee", "echec_paiement", "grace_ends_at", "lecture_seule_jusqu_au", "plan_apres_essai"] as const) {
       if ((db.abonnement as unknown as Record<string, unknown>)[cle] === undefined) {
         (db.abonnement as unknown as Record<string, unknown>)[cle] =
           (aboFrais as unknown as Record<string, unknown>)[cle];
@@ -493,7 +495,10 @@ export class DemoProvider implements DataProvider {
     db.abonnement = {
       ...db.abonnement,
       owner_id: db.profil.id,
-      plan: "pro",
+      // v1.4 : l'essai est le pack STARTER ; le pack de fin d'essai
+      // démarre lui aussi à Starter (le client choisira ensuite).
+      plan: "starter",
+      plan_apres_essai: "starter",
       grille: attribution.grille,
       // Approbation manuelle (ajout n°3) : en_attente, SANS dates
       // d'essai — l'essai démarrera à l'approbation par la console.
@@ -901,11 +906,11 @@ export class DemoProvider implements DataProvider {
     }
   }
 
-  /** L'indivision exige le plan Pro ou Agence (l'essai = fonctions Pro). */
+  /** L'indivision exige le plan Pro ou Agence (v1.4 : l'essai est
+   * Starter, donc sans indivision — le plan en cours fait foi). */
   private verifierPlanIndivision(db: DemoDb): void {
     const abo = this.chargerAbonnement(db);
-    const planEffectif = abo.statut === "essai" ? "pro" : abo.plan;
-    if (!INDIVISION_PAR_PLAN[planEffectif]) throw err("ERR_INDIVISION_PLAN");
+    if (!INDIVISION_PAR_PLAN[abo.plan]) throw err("ERR_INDIVISION_PLAN");
   }
 
   // ==========================================================================
@@ -2783,6 +2788,19 @@ export class DemoProvider implements DataProvider {
     return abo;
   }
 
+  /** v1.4 : pack choisi pendant l'essai pour la fin de l'essai. */
+  async definirPlanApresEssai(plan: Plan): Promise<Abonnement> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    if (!["starter", "pro", "agence"].includes(plan)) throw err("ERR_PLAN_INVALIDE");
+    const db = loadDb();
+    const abo = this.chargerAbonnement(db);
+    if (abo.statut !== "essai") return abo;
+    abo.plan_apres_essai = plan;
+    saveDb(db);
+    return abo;
+  }
+
   async annulerAbonnement(): Promise<Abonnement> {
     const session = await this.getSession();
     if (!session) throw err("ERR_NOT_FOUND");
@@ -3024,6 +3042,8 @@ export class DemoProvider implements DataProvider {
       echec_paiement: abo.echec_paiement,
       grace_ends_at: abo.grace_ends_at,
       statut_pre_suspension: abo.statut_pre_suspension ?? null,
+      // v1.4 : pack choisi pour la fin de l'essai (vue console).
+      plan_apres_essai: abo.plan_apres_essai ?? "starter",
     };
     return {
       id: db.profil.id,
@@ -3175,6 +3195,10 @@ export class DemoProvider implements DataProvider {
       const abo = db.abonnement;
       if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
       abo.statut = "essai";
+      // v1.4 : l'approbation force le pack STARTER (miroir de la
+      // fonction SQL public.approuver_compte).
+      abo.plan = "starter";
+      abo.plan_apres_essai = "starter";
       abo.debut_periode = maintenant;
       abo.trial_ends_at = finEssai;
       abo.fin_periode = finEssai;
@@ -3194,6 +3218,9 @@ export class DemoProvider implements DataProvider {
       const abo = cible.entree!.abonnement;
       if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
       abo.statut = "essai";
+      // v1.4 : essai Starter forcé à l'approbation (comme en réel).
+      abo.plan = "starter";
+      abo.plan_apres_essai = "starter";
       abo.debut_periode = maintenant;
       abo.trial_ends_at = finEssai;
       abo.fin_periode = finEssai;

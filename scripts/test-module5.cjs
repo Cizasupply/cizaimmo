@@ -84,12 +84,12 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
   check("facture CIM-ABO-2026-0002 après 0001", A.prochainNumeroFactureAbo(["CIM-ABO-2026-0001"], 2026) === "CIM-ABO-2026-0002");
   check("référence MM-XXXXXXXX", /^MM-[A-Z0-9]{8}$/.test(A.genererReferenceMobileMoney()));
 
-  console.log("== Inscription + approbation : essai Pro 30 jours, sans carte, grille par pays ==");
+  console.log("== Inscription + approbation : essai Starter 30 jours (v1.4), sans carte, grille par pays ==");
   const p = new DemoProvider();
   await p.signUp({ nom: "Test Canada", email: "test@exemple.ca", motDePasse: "motdepasse123", pays: "Canada", devisePrincipale: "CAD", langue: "fr" });
   await approuverInscription(p, "test@exemple.ca");
   let abo = await p.getAbonnement();
-  check("essai Pro, grille internationale (Canada)", abo && abo.statut === "essai" && abo.plan === "pro" && abo.grille === "internationale", JSON.stringify(abo));
+  check("essai Starter, grille internationale (Canada)", abo && abo.statut === "essai" && abo.plan === "starter" && abo.grille === "internationale", JSON.stringify(abo));
   check("essai 30 jours, sans carte", abo && abo.trial_ends_at && Math.round((new Date(abo.trial_ends_at).getTime() - Date.now()) / 86400000) === 30 && abo.stripe_customer_id === null, abo?.trial_ends_at);
   await p.signUp({ nom: "Test Burundi", email: "test@exemple.bi", motDePasse: "motdepasse123", pays: "Burundi", devisePrincipale: "BIF", langue: "fr" });
   await approuverInscription(p, "test@exemple.bi");
@@ -98,7 +98,7 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
 
   console.log("== Limites de blocs par plan ==");
   const lim = await p.getLimiteBlocs();
-  check("essai Pro : 2 utilisés / 5 autorisés (seed)", lim.utilises === 2 && lim.autorises === 5, JSON.stringify(lim));
+  check("essai Starter : 2 utilisés (seed) / 1 autorisé (limite Starter)", lim.utilises === 2 && lim.autorises === 1, JSON.stringify(lim));
 
   console.log("== Alertes essai J-7 / J-1 (branchement module 4) ==");
   const db = p.getDemoDb();
@@ -108,12 +108,14 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
   check("essai J-1 (fin 13 nov., le 12 nov.)", M4.genererAlertesCandidates({ ...baseAlertes, aujourdHui: auJour("2026-11-12") }).some((c) => c.type === "essai_abonnement" && c.dedup_key.includes(":J-1")));
 
   console.log("== Montée immédiate / descente en fin de période ==");
-  const e1 = await attendErreur(p.changerPlan("starter"), "ERR_DESCENTE_BLOQUEE");
-  check("descente vers Starter refusée (2 blocs > 1)", e1.levee && e1.code === "ERR_DESCENTE_BLOQUEE", JSON.stringify(e1));
+  // v1.4 : le compte est en essai STARTER — la montée Agence vient
+  // d'abord, puis la descente vers Starter est refusée (2 blocs > 1).
   abo = await p.changerPlan("agence");
-  check("montée Agence immédiate, actif, période 1 mois", abo.plan === "agence" && abo.statut === "actif" && abo.fin_periode !== null, JSON.stringify(abo));
+  check("montée Agence immédiate (depuis l'essai Starter), actif, période 1 mois", abo.plan === "agence" && abo.statut === "actif" && abo.fin_periode !== null, JSON.stringify(abo));
   let factures = await p.listerFactures();
   check("facture Agence Afrique 11,99 $ émise (DÉMO)", factures.length === 1 && factures[0].montant === 11.99 && factures[0].moyen === "demo" && factures[0].numero === "CIM-ABO-2026-0001", JSON.stringify(factures));
+  const e1 = await attendErreur(p.changerPlan("starter"), "ERR_DESCENTE_BLOQUEE");
+  check("descente vers Starter refusée (2 blocs > 1)", e1.levee && e1.code === "ERR_DESCENTE_BLOQUEE", JSON.stringify(e1));
   abo = await p.changerPlan("pro");
   check("descente Pro programmée (pas immédiate)", abo.plan === "agence" && abo.plan_en_attente === "pro" && abo.date_effet_plan === abo.fin_periode, JSON.stringify(abo));
   check("getAbonnement avant l'échéance : toujours Agence", (await p.getAbonnement()).plan === "agence");
@@ -140,7 +142,7 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
   await p.signUp({ nom: "Test Essai", email: "essai@exemple.bi", motDePasse: "motdepasse123", pays: "Burundi", devisePrincipale: "BIF", langue: "fr" });
   await approuverInscription(p, "essai@exemple.bi");
   abo = await p.getAbonnement();
-  check("nouvel essai Pro 30 jours", abo.statut === "essai" && abo.plan === "pro", JSON.stringify(abo?.statut));
+  check("nouvel essai Starter 30 jours", abo.statut === "essai" && abo.plan === "starter", JSON.stringify(abo?.statut));
   const db4 = p.getDemoDb();
   db4.abonnement.trial_ends_at = jours(-1);
   db4.abonnement.fin_periode = jours(-1);

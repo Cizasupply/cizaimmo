@@ -109,6 +109,8 @@ export interface CompteClientDemo {
     echec_paiement: boolean;
     grace_ends_at: string | null;
     statut_pre_suspension?: StatutAbonnement | null;
+    /** v1.4 : pack choisi pour la fin de l'essai (défaut Starter). */
+    plan_apres_essai?: Plan;
   };
 }
 
@@ -230,6 +232,9 @@ export function buildDemoDb(): DemoDb {
     echec_paiement: false,
     grace_ends_at: null,
     lecture_seule_jusqu_au: null,
+    // v1.4 : compte démo existant — son pack de fin d'essai suit son
+    // plan en cours (Pro) ; les NOUVEAUX comptes partent sur Starter.
+    plan_apres_essai: "pro",
   };
 
   const immeubles: Immeuble[] = [

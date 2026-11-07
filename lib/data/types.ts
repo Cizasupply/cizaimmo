@@ -124,6 +124,12 @@ export interface Abonnement {
   lecture_seule_jusqu_au: string | null;
   /** Extension v1.2 : statut à restaurer à la réactivation après suspension. */
   statut_pre_suspension?: StatutAbonnement | null;
+  /**
+   * v1.4 : pack choisi PENDANT l'essai pour la fin de l'essai
+   * (défaut « starter »). L'essai lui-même est toujours Starter ;
+   * ce choix ne change rien tant que l'essai court.
+   */
+  plan_apres_essai: Plan;
 }
 
 // --- MODULE 5 : factures d'abonnement + paiements mobile money (spec §12) ---
@@ -225,7 +231,7 @@ export type StatutBail = "actif" | "termine";
 export type CautionStatut =
   | "en_attente" | "recue" | "restituee" | "retenue_partielle";
 
-/** Limite de blocs par plan (spec §12). L'essai = fonctions Pro (5 blocs). */
+/** Limite de blocs par plan (spec §12). */
 export const LIMITE_BLOCS: Record<Plan, number> = {
   starter: 1,
   pro: 5,
@@ -235,7 +241,11 @@ export const LIMITE_BLOCS: Record<Plan, number> = {
 export function limiteBlocs(plan: Plan, statut: StatutAbonnement): number {
   // Extension v1.2 : en attente d'approbation ou suspendu = aucun bloc.
   if (statut === "en_attente" || statut === "suspendu") return 0;
-  return statut === "essai" ? LIMITE_BLOCS.pro : LIMITE_BLOCS[plan];
+  // v1.4 : l'essai EST le pack Starter — le plan de l'abonnement vaut
+  // « starter » pendant tout l'essai (forcé à l'approbation, dans la
+  // base), donc plus aucune fonction Pro offerte pendant l'essai :
+  // la limite suit simplement le plan en cours.
+  return LIMITE_BLOCS[plan];
 }
 
 export interface ImmeubleInput {
@@ -915,6 +925,8 @@ export interface ComptePlateforme {
     echec_paiement: boolean;
     grace_ends_at: string | null;
     statut_pre_suspension?: StatutAbonnement | null;
+    /** v1.4 : pack choisi pour la fin de l'essai (défaut Starter). */
+    plan_apres_essai?: Plan;
   } | null;
   /** Retard de paiement d'abonnement (échec ou grâce des paramètres dépassée). */
   en_retard: boolean;

@@ -70,6 +70,8 @@ export default function AbonnementPage() {
   // jamais codés en dur — repli seed au premier rendu.
   const [prixPlans, setPrixPlans] = useState<PrixPlans>(() => construirePrixPlans(TARIFS_SEED));
   const [planChoisi, setPlanChoisi] = useState<Plan | null>(null);
+  // v1.4 : pack choisi pour la fin de l'essai (défaut Starter).
+  const [packApresEssai, setPackApresEssai] = useState<Plan>("starter");
   const [aConfirmerDescente, setAConfirmerDescente] = useState<Plan | null>(null);
   const [aConfirmerAnnulation, setAConfirmerAnnulation] = useState(false);
   const [operateur, setOperateur] = useState<OperateurMobileMoney>("ecocash");
@@ -98,6 +100,7 @@ export default function AbonnementPage() {
       ]);
       setProfil(pro);
       setAbonnement(abo);
+      if (abo) setPackApresEssai(abo.plan_apres_essai ?? "starter");
       setLimite(lim);
       setFactures(fac);
       setPaiementsMm(mm);
@@ -135,6 +138,18 @@ export default function AbonnementPage() {
       return;
     }
     setPlanChoisi(plan);
+  }
+
+  /** v1.4 : enregistre le pack choisi pour la fin de l'essai. */
+  async function enregistrerPackApresEssai() {
+    try {
+      const maj = await getDataProvider().definirPlanApresEssai(packApresEssai);
+      setAbonnement(maj);
+      setMessage(ts("trialPackSaved"));
+      setErreur(null);
+    } catch (e) {
+      gererErreur(e);
+    }
   }
 
   async function confirmerDescente() {
@@ -352,6 +367,50 @@ export default function AbonnementPage() {
               </p>
             ) : null}
           </section>
+
+          {/* v1.4 : pack à la fin de l'essai — pendant l'essai seulement.
+              L'essai court sur Starter ; ce choix ne déclenche aucun
+              paiement, il est seulement enregistré (plan_apres_essai). */}
+          {abonnement.statut === "essai" ? (
+            <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-navy">{ts("trialPackTitle")}</h2>
+              <p className="mt-1 text-sm text-slate-600">{ts("trialPackText")}</p>
+              <div className="mt-4 space-y-2">
+                {PLANS.map((plan) => (
+                  <label
+                    key={plan}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-base text-slate-900 ${
+                      packApresEssai === plan
+                        ? "border-gold bg-gold/10 font-semibold"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="pack-apres-essai"
+                        value={plan}
+                        checked={packApresEssai === plan}
+                        onChange={() => setPackApresEssai(plan)}
+                        className="h-5 w-5 shrink-0 accent-[#1B2A4A]"
+                      />
+                      {ts(`plans.${plan}`)}
+                    </span>
+                    <span className="text-sm text-slate-600">
+                      {formatMoney(prixPlans[plan][abonnement.grille], "USD", locale)} {ts("perMonth")}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={enregistrerPackApresEssai}
+                className="mt-4 rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+              >
+                {ts("trialPackSave")}
+              </button>
+            </section>
+          ) : null}
 
           {/* Comparaison des plans */}
           <section className="mb-6">

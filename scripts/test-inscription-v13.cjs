@@ -224,6 +224,16 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.approuverCompte(profilProprio.id);
   await connecter("proprio.test@exemple.com");
+  // v1.4 : l'essai démarre en Starter (1 bloc) et le profil principal
+  // démo porte déjà les immeubles de la graine — le propriétaire active
+  // le pack Pro par mobile money (parcours standard) pour disposer de
+  // la capacité de créer l'immeuble du scénario.
+  const mmV13 = await p.demanderPaiementMobileMoney("ecocash", "+257 79 11 11 11", "pro");
+  await p.confirmerPaiementMobileMoney(mmV13.reference);
+  const aboV13 = await p.getAbonnement();
+  check("scénario : abonnement actif Pro (capacité de création)",
+    aboV13 && aboV13.statut === "actif" && aboV13.plan === "pro",
+    JSON.stringify(aboV13 && aboV13.plan));
   const immeubleNeuf = await p.creerImmeuble({
     nom: "Résidence Test V13", adresse: "Avenue Test N° 1", ville: "Bujumbura", pays: "Burundi",
     devise: "BIF", type: "immeuble", etages: null, photo_url: null, notes: null,
@@ -311,7 +321,7 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
     demandesAdmin.some((d) => d.id === demande.id && d.gestionnaire_display_id === "CIM-000002"));
 
   console.log(`\n=== v1.3 Inscription/Dossiers : ${ok} OK, ${ko} KO ===`);
-  if (ko > 0) process.exit(1);
+  process.exit(ko > 0 ? 1 : 0);
 })().catch((e) => {
   console.error("ERREUR FATALE", e);
   process.exit(1);

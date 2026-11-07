@@ -105,7 +105,7 @@
     "signupSubtitle": "Créez votre compte et démarrez votre essai gratuit.",
     "signupTitle": "Inscription",
     "tooManyAttempts": "Trop de tentatives. Attendez quelques minutes puis réessayez.",
-    "trialNote": "Essai gratuit de 30 jours, plan Pro, sans carte bancaire. CizaImmo n'encaisse jamais les loyers : seuls les paiements déclarés sont suivis."
+    "trialNote": "Essai gratuit de 30 jours — pack Starter inclus, sans carte bancaire. À la fin de l'essai, vous choisirez le pack qui vous convient. CizaImmo n'encaisse jamais les loyers : seuls les paiements déclarés sont suivis."
   },
   "brand": {
     "division": "Division de Ciza Group",
@@ -386,6 +386,7 @@
     "title": "Console Ciza Group",
     "trialDays": "Jours d'essai (à l'approbation)",
     "trialEndsLabel": "Fin d'essai",
+    "planAfterTrialLabel": "Pack après l'essai",
     "validate": "Valider",
     "validateContract": "Valider le contrat"
   },
@@ -1206,7 +1207,7 @@
       "reports": "Rapports & ROI, exports Excel / PDF",
       "subtitle": "Un abonnement selon vos blocs. Deux grilles, affichées séparément : Afrique ou Internationale, selon le pays de votre compte à l'inscription.",
       "title": "Tarifs",
-      "trial": "Essai gratuit de 30 jours, toutes les fonctions du plan Pro, sans carte bancaire.",
+      "trial": "Essai gratuit de 30 jours — pack Starter inclus, sans carte bancaire.",
       "vitrineNo": "Vitrine « appartements à louer » non incluse",
       "vitrineYes": "Vitrine « appartements à louer » incluse"
     },
@@ -1359,7 +1360,7 @@
     "paymentTitle": "Comment payer votre abonnement",
     "subtitle": "Un abonnement selon vos blocs. Deux grilles, affichées séparément : Afrique ou Internationale, selon le pays de votre compte à l'inscription.",
     "title": "Tarifs",
-    "trialText": "Toutes les fonctions du plan Pro pendant 30 jours, sans carte bancaire. Chaque compte est approuvé par notre équipe : l'essai démarre à l'approbation de votre inscription.",
+    "trialText": "Le pack Starter pendant 30 jours, sans carte bancaire. Chaque compte est approuvé par notre équipe : l'essai démarre à l'approbation de votre inscription. À la fin de l'essai, vous choisirez le pack qui vous convient.",
     "trialTitle": "Essai gratuit de 30 jours"
   },
   "public": {
@@ -1599,6 +1600,10 @@
     "stripeNotConfigured": "Stripe non configuré — mode test. Renseignez les clés test dans .env.local (voir docs/stripe-test-setup.md) pour activer le paiement par carte.",
     "stripeTestMode": "Stripe en MODE TEST : cartes de test uniquement (4242 4242 4242 4242…), aucun débit réel.",
     "trialEnds": "Fin de l'essai",
+    "trialPackTitle": "Votre pack à la fin de l'essai",
+    "trialPackText": "Votre essai gratuit court sur le pack Starter. Choisissez dès maintenant le pack qui prendra le relais à la fin de l'essai : aucun paiement aujourd'hui, et vous pourrez encore changer d'avis avant l'échéance.",
+    "trialPackSave": "Enregistrer ce pack",
+    "trialPackSaved": "Choix enregistré — ce pack prendra le relais à la fin de l'essai.",
     "upgradeNow": "Montée immédiate"
   },
   "tenantLink": {

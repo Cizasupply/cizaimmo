@@ -285,6 +285,13 @@ export default function ConsoleDossierPage({
                   <dd>{formatDate(compte.abonnement.trial_ends_at, locale)}</dd>
                 </div>
               ) : null}
+              {compte.abonnement.plan_apres_essai &&
+              compte.abonnement.plan_apres_essai !== compte.abonnement.plan ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="font-semibold">{t("planAfterTrialLabel")}</dt>
+                  <dd>{t(`plan.${compte.abonnement.plan_apres_essai}` as "plan.pro")}</dd>
+                </div>
+              ) : null}
             </dl>
           ) : (
             <p className="mt-3 text-sm text-slate-500">—</p>
