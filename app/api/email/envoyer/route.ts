@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!(await authentifie(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  let corps: { to?: unknown; subject?: unknown; text?: unknown; html?: unknown } = {};
+  let corps: { to?: unknown; subject?: unknown; text?: unknown; html?: unknown; langue?: unknown } = {};
   try {
     corps = await req.json();
   } catch {
@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
   const subject = typeof corps.subject === "string" ? corps.subject.trim() : "";
   const text = typeof corps.text === "string" ? corps.text.trim() : "";
   const html = typeof corps.html === "string" ? corps.html : undefined;
+  // Langue du destinataire (gabarit e-mail) : « fr » / « en » seulement,
+  // toute autre valeur est ignorée (gabarit bilingue par défaut).
+  const langue = corps.langue === "en" ? "en" : corps.langue === "fr" ? "fr" : undefined;
   if (!to || !subject || !text) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
@@ -57,6 +60,7 @@ export async function POST(req: NextRequest) {
     sujet: subject,
     texte: text,
     html,
+    langue,
   });
   return NextResponse.json(resultat);
 }

@@ -74,6 +74,18 @@ else
   ECHEC=1
 fi
 
+# Correctif e-mails (2026-11-07) : matcher middleware (exclusion « auth »,
+# 404 des liens de confirmation) + gabarit e-mail premium (lib/email.ts,
+# déjà dans le harnais).
+echo ""
+echo "===== Correctif e-mails (middleware auth + gabarit premium) ====="
+if node "scripts/test-email-gabarit.cjs"; then
+  echo "Correctif e-mails : OK"
+else
+  echo "Correctif e-mails : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

@@ -2106,6 +2106,7 @@ export class DemoProvider implements DataProvider {
             destinataire: db.profil.email,
             sujet: `CizaImmo — ${c.message}`,
             texte: c.message,
+            langue: db.profil.langue,
           });
           emailStatut = statutEmailDepuisResultat(resultat);
         } catch {
@@ -2908,10 +2909,11 @@ export class DemoProvider implements DataProvider {
   private async envoyerEmailPlateforme(
     destinataire: string,
     sujet: string,
-    texte: string
+    texte: string,
+    langue?: "fr" | "en"
   ): Promise<Avis["statut_envoi"]> {
     try {
-      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte });
+      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte, langue });
       return statutEmailDepuisResultat(resultat);
     } catch {
       return "echec";
@@ -3093,7 +3095,8 @@ export class DemoProvider implements DataProvider {
     const emailStatut = await this.envoyerEmailPlateforme(
       emailCible,
       bienvenue.sujet,
-      bienvenue.corps
+      bienvenue.corps,
+      langueCible
     );
     this.journaliserAudit(db, acteur, "compte_approuve", "compte", compteId, emailCible, {
       grille: grilleConfirmee,
@@ -3140,7 +3143,8 @@ export class DemoProvider implements DataProvider {
     const emailStatut = await this.envoyerEmailPlateforme(
       emailCible,
       rendu.sujet,
-      rendu.corps
+      rendu.corps,
+      langueCible
     );
     db.plateforme.avis.push({
       id: uid(),
@@ -3195,7 +3199,7 @@ export class DemoProvider implements DataProvider {
       ).slice(0, 10),
     };
     const rendu = rendreAvis(modele, variables, compte.langue);
-    const statut = await this.envoyerEmailPlateforme(compte.email, rendu.sujet, rendu.corps);
+    const statut = await this.envoyerEmailPlateforme(compte.email, rendu.sujet, rendu.corps, compte.langue);
     const avis: Avis = {
       id: uid(),
       modele,

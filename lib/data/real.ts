@@ -1525,6 +1525,7 @@ export class RealProvider implements DataProvider {
               destinataire: profil.email,
               sujet: `CizaImmo — ${c.message}`,
               texte: c.message,
+              langue: profil.langue === "en" ? "en" : "fr",
             });
             emailStatut = statutEmailDepuisResultat(resultat);
           } catch {
@@ -2279,10 +2280,11 @@ export class RealProvider implements DataProvider {
   private async envoyerEmailPlateforme(
     destinataire: string,
     sujet: string,
-    texte: string
+    texte: string,
+    langue?: "fr" | "en"
   ): Promise<Avis["statut_envoi"]> {
     try {
-      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte });
+      const resultat = await this.envoyerEmailAlerteFn({ destinataire, sujet, texte, langue });
       return statutEmailDepuisResultat(resultat);
     } catch {
       return "echec";
@@ -2463,7 +2465,8 @@ export class RealProvider implements DataProvider {
     const emailStatut = await this.envoyerEmailPlateforme(
       profil.email,
       bienvenue.sujet,
-      bienvenue.corps
+      bienvenue.corps,
+      profil.langue === "en" ? "en" : "fr"
     );
     await this.journaliserAudit(acteur, "compte_approuve", "compte", compteId, profil.email, {
       grille: abo.grille,
@@ -2496,7 +2499,8 @@ export class RealProvider implements DataProvider {
     const emailStatut = await this.envoyerEmailPlateforme(
       profil.email,
       rendu.sujet,
-      rendu.corps
+      rendu.corps,
+      langue
     );
     await client.from("avis").insert({
       modele: "inscription_refusee",
@@ -2551,7 +2555,7 @@ export class RealProvider implements DataProvider {
       date: (abo?.trial_ends_at ?? abo?.fin_periode ?? new Date().toISOString()).slice(0, 10),
     };
     const rendu = rendreAvis(modele, variables, profil.langue === "en" ? "en" : "fr");
-    const statut = await this.envoyerEmailPlateforme(profil.email, rendu.sujet, rendu.corps);
+    const statut = await this.envoyerEmailPlateforme(profil.email, rendu.sujet, rendu.corps, profil.langue === "en" ? "en" : "fr");
     const { data, error } = await client
       .from("avis")
       .insert({

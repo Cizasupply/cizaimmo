@@ -85,5 +85,8 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  // « auth » exclu : /auth/callback (confirmation d'e-mail, reset de mot
+  // de passe Supabase) est une route handler SANS préfixe de locale — si
+  // next-intl la réécrivait en /fr/auth/callback, elle aboutirait à un 404.
+  matcher: ["/((?!api|auth|_next|_vercel|.*\\..*).*)"],
 };
