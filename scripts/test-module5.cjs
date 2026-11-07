@@ -23,6 +23,23 @@ const BUILD = process.env.TEST_BUILD_DIR || "/tmp/m5test";
 const A = require(`${BUILD}/abonnement.js`);
 const M4 = require(`${BUILD}/module4.js`);
 const { DemoProvider } = require(`${BUILD}/data/demo.js`);
+const { SUPER_ADMIN_DEMO_EMAIL } = require(`${BUILD}/data/demo-seed.js`);
+
+// Extension v1.2 (ajout fondateur n°3) : chaque inscription passe par
+// l'APPROBATION manuelle d'un Admin / Super Admin — l'essai démarre à
+// l'approbation. Ce helper rejoue le geste console du Super Admin démo
+// puis rouvre la session du compte testé, pour que les scénarios
+// historiques ci-dessous (mécanique d'abonnement post-approbation)
+// restent vérifiés à l'identique.
+async function approuverInscription(p, email) {
+  await p.signIn(SUPER_ADMIN_DEMO_EMAIL, "motdepasse");
+  const comptes = await p.listerComptesPlateforme();
+  const cible = comptes.find((c) => c.email === email);
+  if (!cible) throw new Error(`Compte à approuver introuvable : ${email}`);
+  await p.approuverCompte(cible.id);
+  await p.signOut();
+  await p.signIn(email, "motdepasse123");
+}
 
 let ok = 0, ko = 0;
 function check(nom, cond, detail = "") {
@@ -67,13 +84,15 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
   check("facture CIM-ABO-2026-0002 après 0001", A.prochainNumeroFactureAbo(["CIM-ABO-2026-0001"], 2026) === "CIM-ABO-2026-0002");
   check("référence MM-XXXXXXXX", /^MM-[A-Z0-9]{8}$/.test(A.genererReferenceMobileMoney()));
 
-  console.log("== Inscription : essai Pro 30 jours, sans carte, grille par pays ==");
+  console.log("== Inscription + approbation : essai Pro 30 jours, sans carte, grille par pays ==");
   const p = new DemoProvider();
   await p.signUp({ nom: "Test Canada", email: "test@exemple.ca", motDePasse: "motdepasse123", pays: "Canada", devisePrincipale: "CAD", langue: "fr" });
+  await approuverInscription(p, "test@exemple.ca");
   let abo = await p.getAbonnement();
   check("essai Pro, grille internationale (Canada)", abo && abo.statut === "essai" && abo.plan === "pro" && abo.grille === "internationale", JSON.stringify(abo));
   check("essai 30 jours, sans carte", abo && abo.trial_ends_at && Math.round((new Date(abo.trial_ends_at).getTime() - Date.now()) / 86400000) === 30 && abo.stripe_customer_id === null, abo?.trial_ends_at);
   await p.signUp({ nom: "Test Burundi", email: "test@exemple.bi", motDePasse: "motdepasse123", pays: "Burundi", devisePrincipale: "BIF", langue: "fr" });
+  await approuverInscription(p, "test@exemple.bi");
   abo = await p.getAbonnement();
   check("réinscription Burundi -> grille afrique", abo && abo.grille === "afrique", JSON.stringify(abo?.grille));
 
@@ -119,6 +138,7 @@ const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString(
 
   console.log("== Essai 30 jours puis lecture seule ==");
   await p.signUp({ nom: "Test Essai", email: "essai@exemple.bi", motDePasse: "motdepasse123", pays: "Burundi", devisePrincipale: "BIF", langue: "fr" });
+  await approuverInscription(p, "essai@exemple.bi");
   abo = await p.getAbonnement();
   check("nouvel essai Pro 30 jours", abo.statut === "essai" && abo.plan === "pro", JSON.stringify(abo?.statut));
   const db4 = p.getDemoDb();

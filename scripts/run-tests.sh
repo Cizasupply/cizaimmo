@@ -22,6 +22,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   --esModuleInterop --skipLibCheck --moduleResolution node --rootDir lib \
   lib/loyers.ts lib/module4.ts lib/exports.ts lib/email.ts lib/format.ts \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
+  lib/grille.ts lib/tarifs.ts lib/avis.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -48,6 +49,17 @@ if node "scripts/test-correctifs.cjs"; then
   echo "Correctifs : OK"
 else
   echo "Correctifs : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Extension v1.2 — Admin / Super Admin, finances dynamiques,
+# anti-fraude tarifaire, approbation manuelle : même harnais.
+echo ""
+echo "===== Extension v1.2 (Admin / Finances / Anti-fraude / Approbation) ====="
+if node "scripts/test-admin-finance.cjs"; then
+  echo "Extension v1.2 : OK"
+else
+  echo "Extension v1.2 : ÉCHEC" >&2
   ECHEC=1
 fi
 
