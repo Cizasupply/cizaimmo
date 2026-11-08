@@ -24,6 +24,9 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
   lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts lib/guide.ts \
   lib/dossier-employe.ts \
+  lib/code128.ts \
+  lib/pack-employe.ts \
+  lib/contrat-employe.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -485,6 +488,24 @@ if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" &
   echo "Dossier employé : OK"
 else
   echo "Dossier employé : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Pack employé Admin (2026-11-08, pack VALIDÉ par le fondateur,
+# branché PAR-DESSUS le dossier employé) : contrat d'engagement à
+# DEUX VOIES (travail au Burundi / prestation hors Burundi — textes
+# générés, différences strictes, AUCUN « INSS » verrouillé), cycle
+# de signature complet (préparation + e-mail PDF, dépôt, refus à
+# motif, validation), charte de confidentialité acceptée et DATÉE,
+# carte employé à code-barres Code 128 conditionnée (dossier complet
+# + contrat validé), vérification contre la base (suspendu = NON
+# VALIDE), progression en 4 étapes ; parcours client inchangé.
+echo ""
+echo "===== Pack employé Admin (contrat 2 voies + charte + carte) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-pack-employe.cjs"; then
+  echo "Pack employé : OK"
+else
+  echo "Pack employé : ÉCHEC" >&2
   ECHEC=1
 fi
 

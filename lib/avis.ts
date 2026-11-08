@@ -372,3 +372,114 @@ export function rendreActivationGestionnaire(
       "L'équipe CizaImmo — Ciza Group",
   };
 }
+
+/**
+ * Pack employé (2026-11-08) — e-mail de MISE À DISPOSITION du
+ * contrat d'engagement : le Super Admin vient de préparer le
+ * contrat (voie travail ou prestation), le PDF personnalisé est en
+ * PIÈCE JOINTE. L'employé le signe et le redépose depuis « Mon
+ * dossier employé ». NON BLOQUANT : l'accès console reste ouvert.
+ */
+export function rendreMiseADispositionContratEmploye(
+  nom: string,
+  voie: "travail" | "prestation",
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet:
+        voie === "prestation"
+          ? "CizaImmo — your services agreement is ready to sign (attached)"
+          : "CizaImmo — your employment contract is ready to sign (attached)",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Your engagement agreement with Ciza Group is attached (PDF), already " +
+        "signed and stamped by the company. Please read it, sign it, and upload " +
+        "the signed copy from the “My employee file” page of the CizaImmo console.\n\n" +
+        "Your console access remains fully active in the meantime — nothing is " +
+        "blocked while your signature is pending.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet:
+      voie === "prestation"
+        ? "CizaImmo — votre contrat de prestation est prêt à signer (en pièce jointe)"
+        : "CizaImmo — votre contrat de travail est prêt à signer (en pièce jointe)",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Votre contrat d'engagement avec Ciza Group est en pièce jointe (PDF), déjà " +
+      "signé et cacheté par l'entreprise. Merci de le lire, de le signer, puis de " +
+      "téléverser la copie signée depuis la page « Mon dossier employé » de la " +
+      "console CizaImmo.\n\n" +
+      "Votre accès à la console reste entièrement actif en attendant — rien n'est " +
+      "bloqué pendant la signature.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
+ * Pack employé — e-mail de VALIDATION du contrat signé : le Super
+ * Admin a validé le contrat redéposé. Si le dossier employé est
+ * complet, la carte employé devient disponible dans « Mon dossier
+ * employé ».
+ */
+export function rendreValidationContratEmploye(
+  nom: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your signed engagement agreement is validated",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Your signed engagement agreement has been validated and filed in your " +
+        "employee record. If your employee file is complete, your employee card " +
+        "is now available from the “My employee file” page of the console.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre contrat d'engagement signé est validé",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Votre contrat d'engagement signé a été validé et versé à votre dossier " +
+      "employé. Si votre dossier employé est complet, votre carte employé est " +
+      "maintenant disponible depuis la page « Mon dossier employé » de la console.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
+ * Pack employé — e-mail de REFUS du contrat signé (motif
+ * obligatoire) : l'employé peut redéposer une copie corrigée.
+ */
+export function rendreRefusContratEmploye(
+  nom: string,
+  motif: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your signed agreement could not be validated",
+      corps:
+        `Hello ${nom},\n\n` +
+        "We could not validate the signed agreement you uploaded.\n" +
+        `Reason: ${motif}\n\n` +
+        "Please upload a corrected signed copy from the “My employee file” page " +
+        "of the console. Your access remains fully active in the meantime.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre contrat signé n'a pas pu être validé",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Nous n'avons pas pu valider le contrat signé que vous avez téléversé.\n" +
+      `Motif : ${motif}\n\n` +
+      "Vous pouvez téléverser une copie signée corrigée depuis la page « Mon " +
+      "dossier employé » de la console. Votre accès reste entièrement actif " +
+      "en attendant.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}

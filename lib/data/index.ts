@@ -122,9 +122,25 @@ export type {
   // Dossier employé des Admins (2026-11-08).
   DossierEmploye,
   DossierEmployePatch,
+  // Pack employé (2026-11-08) : contrat à deux voies, charte, carte.
+  PackEmploye,
+  VerificationEmploye,
 } from "./types";
 export type { ElementDossierEmploye } from "../dossier-employe";
 export { evaluerDossierEmploye } from "../dossier-employe";
+export type {
+  BlocageCarte,
+  EtapePack,
+  ParametresContratEmploye,
+  ProgressionPack,
+  StatutContratEmploye,
+  VoieContratEmploye,
+} from "../pack-employe";
+export {
+  carteEmployeEmise,
+  progressionPackEmploye,
+  verificationEmployeValide,
+} from "../pack-employe";
 export { CATEGORIES_DEPENSES, DEVISES, OPERATEURS_MOBILE_MONEY, TYPES_APPARTEMENT, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT_OCTETS, limiteBlocs, LIMITE_BLOCS } from "./types";
 export {
   ESSAI_JOURS,

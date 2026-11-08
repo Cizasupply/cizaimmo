@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PackEmployeAdmin from "@/components/PackEmployeAdmin";
 import { getDataProvider } from "@/lib/data";
 import type { CompteAdmin, DossierEmploye } from "@/lib/data";
 import type { MembreEquipe } from "@/lib/data/types";
@@ -21,6 +22,7 @@ export default function ConsoleAdminsPage() {
   const t = useTranslations("console");
   const t15 = useTranslations("v15");
   const td = useTranslations("dossierEmploye");
+  const tp = useTranslations("packEmploye");
   const tcom = useTranslations("common");
   const locale = useLocale();
   const [admins, setAdmins] = useState<CompteAdmin[]>([]);
@@ -139,6 +141,23 @@ export default function ConsoleAdminsPage() {
                 {membre ? (
                   <span className={`rounded-full px-2 py-1 text-xs font-bold ${membre.dossier_employe_complet ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
                     {td("statusLabel")} : {membre.dossier_employe_complet ? td("complete") : td("incomplete")}
+                  </span>
+                ) : null}
+                {/* Pack employé (2026-11-08) : contrat + charte + carte
+                    du membre, dans la même ligne de suivi. */}
+                {membre?.contrat_employe_statut ? (
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${membre.contrat_employe_statut === "valide" ? "bg-green-100 text-green-800" : membre.contrat_employe_statut === "refuse" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>
+                    {tp("teamContractLabel")} : {tp(`contratStatus.${membre.contrat_employe_statut}` as "contratStatus.valide")}
+                  </span>
+                ) : null}
+                {membre ? (
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${membre.charte_acceptee_le ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                    {tp("teamCharterLabel")} : {membre.charte_acceptee_le ? tp("charteAcceptedOn", { date: formatDate(membre.charte_acceptee_le, locale) }) : tp("chartePending")}
+                  </span>
+                ) : null}
+                {membre ? (
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${membre.carte_employe_emise ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
+                    {tp("teamCardLabel")} : {membre.carte_employe_emise ? tp("teamCardIssued") : tp("teamCardNotIssued")}
                   </span>
                 ) : null}
                 <span className="text-xs text-slate-400">
@@ -263,6 +282,9 @@ export default function ConsoleAdminsPage() {
                       )}
                     </div>
                   </div>
+                  {/* Pack employé : préparation du contrat à deux
+                      voies + revue du signé (Super Admin). */}
+                  <PackEmployeAdmin adminId={a.id} onChanged={() => void recharger()} />
                 </div>
               ) : null}
             </div>

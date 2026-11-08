@@ -12,11 +12,14 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { DossierEmploye } from "@/lib/data";
+import type { DossierEmploye, PackEmploye } from "@/lib/data";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
+import CarteEmploye from "@/components/CarteEmploye";
+import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
+import { formatDate } from "@/lib/format";
 
 function fichierVersDataUrl(fichier: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,7 +38,12 @@ const BOUTON_OR =
 
 export default function MonDossierEmployePage() {
   const t = useTranslations("dossierEmploye");
+  const tp = useTranslations("packEmploye");
+  const locale = useLocale();
   const [dossier, setDossier] = useState<DossierEmploye | null>(null);
+  const [pack, setPack] = useState<PackEmploye | null>(null);
+  const [fichierContrat, setFichierContrat] = useState<File | null>(null);
+  const [occupePack, setOccupePack] = useState(false);
   const [chargement, setChargement] = useState(true);
   const [fichierPhoto, setFichierPhoto] = useState<File | null>(null);
   const [fichierPiece, setFichierPiece] = useState<File | null>(null);
@@ -54,6 +62,12 @@ export default function MonDossierEmployePage() {
     try {
       const d = await getDataProvider().getMonDossierEmploye();
       setDossier(d);
+      // Pack employé (contrat / charte / carte) : chargé à part — un
+      // échec ici ne casse pas le dossier.
+      getDataProvider()
+        .getMonPackEmploye()
+        .then(setPack)
+        .catch(() => undefined);
       setForm({
         telephone: d.telephone ?? "",
         adresse: d.adresse ?? "",
@@ -146,6 +160,50 @@ export default function MonDossierEmployePage() {
     }
   }
 
+  async function telechargerMonContrat() {
+    if (!dossier) return;
+    setOccupePack(true);
+    setMessage(null);
+    setErreur(null);
+    try {
+      const res = await getDataProvider().genererContratEmploye(
+        dossier.compte_id
+      );
+      telechargerBase64Pdf(res.contenuBase64, res.nomFichier);
+    } catch {
+      setErreur(tp("errorGeneric"));
+    } finally {
+      setOccupePack(false);
+    }
+  }
+
+  async function envoyerContratSigne() {
+    if (!fichierContrat || !dossier) return;
+    setOccupePack(true);
+    setMessage(null);
+    setErreur(null);
+    try {
+      const contenu = await fichierVersDataUrl(fichierContrat);
+      await getDataProvider().televerserContratEmployeSigne({
+        entite_type: "compte",
+        entite_id: dossier.compte_id,
+        nom_fichier: fichierContrat.name,
+        taille_octets: fichierContrat.size,
+        mime_type: fichierContrat.type || null,
+        contenu,
+        type: "contrat",
+      });
+      const p = await getDataProvider().getMonPackEmploye();
+      setPack(p);
+      setFichierContrat(null);
+      setMessage(tp("contratSavedMsg"));
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setOccupePack(false);
+    }
+  }
+
   async function ouvrirPiece() {
     if (!dossier?.piece_identite) return;
     try {
@@ -212,6 +270,46 @@ export default function MonDossierEmployePage() {
               </p>
             ) : null}
           </section>
+
+          {/* Progression du pack employé : Dossier → Charte → Contrat → Carte. */}
+          {pack ? (
+            <section className={CARTE}>
+              <h2 className="text-base font-bold text-navy">
+                {tp("progressTitle")}
+              </h2>
+              <ol className="mt-3 grid gap-2 sm:grid-cols-4">
+                {pack.progression.map((etape) => (
+                  <li
+                    key={etape.etape}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                      etape.etat === "faite"
+                        ? "border-green-200 bg-green-50 text-green-800"
+                        : etape.etat === "en_cours"
+                          ? "border-gold/60 bg-cream text-navy"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
+                    }`}
+                  >
+                    <span className="mr-1.5">
+                      {etape.etat === "faite"
+                        ? "✓"
+                        : etape.etat === "en_cours"
+                          ? "●"
+                          : "○"}
+                    </span>
+                    {tp(
+                      etape.etape === "dossier"
+                        ? "stepDossier"
+                        : etape.etape === "charte"
+                          ? "stepCharte"
+                          : etape.etape === "contrat"
+                            ? "stepContrat"
+                            : "stepCarte"
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
 
           {/* Identité : photo + pièce d'identité (bucket privé). */}
           <section className={CARTE}>
@@ -359,6 +457,130 @@ export default function MonDossierEmployePage() {
               {occupe === "form" ? "…" : t("save")}
             </button>
           </section>
+
+          {pack ? (
+            <>
+              {/* Charte de confidentialité : statut de l'acceptation datée. */}
+              <section className={CARTE}>
+                <h2 className="text-base font-bold text-navy">
+                  {tp("charteSectionTitle")}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  {pack.charte_acceptee_le
+                    ? `✓ ${tp("charteAcceptedOn", {
+                        date: formatDate(pack.charte_acceptee_le, locale),
+                      })}`
+                    : tp("chartePending")}
+                </p>
+              </section>
+
+              {/* Contrat d'engagement : téléchargement + dépôt du signé. */}
+              <section className={CARTE}>
+                <h2 className="text-base font-bold text-navy">
+                  {tp("contratSectionTitle")}
+                </h2>
+                {pack.contrat_statut === "sans_objet" ? (
+                  <p className="mt-2 text-sm text-slate-600">
+                    {tp("contratNotPrepared")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                      <span className="rounded-full bg-cream px-2.5 py-0.5 text-xs font-bold text-navy">
+                        {tp(
+                          `contratStatus.${pack.contrat_statut}` as "contratStatus.valide"
+                        )}
+                      </span>
+                      {pack.contrat_parametres ? (
+                        <span>
+                          {tp(
+                            `contratWay.${pack.contrat_parametres.voie}` as "contratWay.travail"
+                          )}
+                        </span>
+                      ) : null}
+                      {pack.contrat_prepare_le ? (
+                        <span className="text-slate-500">
+                          {tp("contratPreparedOn", {
+                            date: formatDate(pack.contrat_prepare_le, locale),
+                          })}
+                        </span>
+                      ) : null}
+                    </p>
+                    {pack.contrat_statut === "refuse" && pack.contrat_motif ? (
+                      <p className="mt-2 text-sm font-semibold text-red-700">
+                        {tp("contratMotif", { motif: pack.contrat_motif })}
+                      </p>
+                    ) : null}
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        disabled={occupePack}
+                        onClick={telechargerMonContrat}
+                        className={BOUTON_MARINE}
+                      >
+                        {tp("contratDownload")}
+                      </button>
+                    </div>
+                    {pack.contrat_statut === "a_signer" ||
+                    pack.contrat_statut === "refuse" ? (
+                      <div className="mt-4">
+                        <DocumentUpload
+                          fichier={fichierContrat}
+                          onFichierChange={setFichierContrat}
+                          label={tp("contratUploadSigned")}
+                        />
+                        {fichierContrat ? (
+                          <button
+                            type="button"
+                            disabled={occupePack}
+                            onClick={envoyerContratSigne}
+                            className={`mt-2 ${BOUTON_OR}`}
+                          >
+                            {tp("contratSendSigned")}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {pack.contrat_document ? (
+                      <p className="mt-3 text-sm text-slate-600">
+                        {tp("contratStatus.signe_depose")} :{" "}
+                        <span className="break-all font-medium">
+                          {pack.contrat_document.nom_fichier}
+                        </span>
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </section>
+
+              {/* Carte employé à code-barres (dossier complet + contrat validé). */}
+              <section className={CARTE}>
+                <h2 className="text-base font-bold text-navy">
+                  {tp("carteSectionTitle")}
+                </h2>
+                {pack.carte_emise ? (
+                  <div className="mt-3">
+                    <CarteEmploye pack={pack} />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-2 text-sm font-semibold text-amber-800">
+                      {tp("carteNotIssued")}
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                      {pack.carte_blocages.map((b) => (
+                        <li key={b}>
+                          {b === "dossier"
+                            ? tp("carteBlockDossier")
+                            : tp("carteBlockContrat")}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </section>
+            </>
+          ) : null}
         </>
       ) : null}
     </div>

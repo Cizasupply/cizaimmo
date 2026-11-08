@@ -1,0 +1,204 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { encoderCode128B } from "@/lib/code128";
+import type { PackEmploye } from "@/lib/data";
+
+/**
+ * Carte employé à code-barres (pack employé, 2026-11-08) — badge
+ * Marine & Or au format carte (85,6 × 54 mm) : photo, nom, rôle
+ * « Admin — CizaImmo, division de Ciza Group », Display ID et
+ * code-barres Code 128 encodant le Display ID (vérifiable via la page
+ * console « Vérifier un employé », qui répond depuis la BASE).
+ * Rendu à l'écran + téléchargement PDF + impression.
+ */
+export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
+  const t = useTranslations("packEmploye");
+  const [occupe, setOccupe] = useState(false);
+  const displayId = pack.display_id ?? "";
+  const modules = useMemo(() => {
+    if (!displayId) return [];
+    try {
+      return encoderCode128B(displayId).modules;
+    } catch {
+      return [];
+    }
+  }, [displayId]);
+
+  // Barres : suites de modules pleins/vides fusionnées en segments.
+  const segments = useMemo(() => {
+    const out: { plein: boolean; n: number }[] = [];
+    for (const m of modules) {
+      const dernier = out[out.length - 1];
+      if (dernier && dernier.plein === m) dernier.n += 1;
+      else out.push({ plein: m, n: 1 });
+    }
+    return out;
+  }, [modules]);
+
+  async function telechargerPdf() {
+    setOccupe(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: [85.6, 54],
+      });
+      const W = 85.6;
+      const H = 54;
+      doc.setFillColor(27, 42, 74);
+      doc.rect(0, 0, W, H, "F");
+      doc.setFillColor(212, 175, 55);
+      doc.rect(0, 0, W, 1.6, "F");
+      doc.setFillColor(247, 245, 240);
+      doc.rect(0, H - 1.6, W, 1.6, "F");
+      // Photo (best effort : URL signée accessible en CORS).
+      let photoOk = false;
+      const urlPhoto = pack.dossier.photo_profil_url;
+      if (urlPhoto) {
+        try {
+          const reponse = await fetch(urlPhoto);
+          if (reponse.ok) {
+            const blob = await reponse.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const lecteur = new FileReader();
+              lecteur.onload = () => resolve(String(lecteur.result));
+              lecteur.onerror = reject;
+              lecteur.readAsDataURL(blob);
+            });
+            const format = dataUrl.includes("image/png") ? "PNG" : "JPEG";
+            doc.addImage(dataUrl, format, 5, 8, 18, 22, undefined, "FAST");
+            photoOk = true;
+          }
+        } catch {
+          photoOk = false;
+        }
+      }
+      if (!photoOk) {
+        doc.setFillColor(212, 175, 55);
+        doc.circle(14, 19, 9, "F");
+        doc.setTextColor(27, 42, 74);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(
+          (pack.nom || "?").trim().charAt(0).toUpperCase(),
+          14,
+          22.5,
+          { align: "center" }
+        );
+      }
+      doc.setTextColor(247, 245, 240);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.text(doc.splitTextToSize(pack.nom, 56), 26, 13);
+      doc.setTextColor(212, 175, 55);
+      doc.setFontSize(8.5);
+      doc.text(t("carteRole"), 26, 20);
+      doc.setTextColor(247, 245, 240);
+      doc.setFontSize(7.5);
+      doc.text(t("carteDivision"), 26, 24.5);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(displayId, 26, 30.5);
+      // Code-barres : bande blanche + modules noirs (zones de repos
+      // de 10 modules de chaque côté).
+      const bx = 5;
+      const by = 35;
+      const bw = W - 10;
+      const bh = 11;
+      doc.setFillColor(255, 255, 255);
+      doc.rect(bx, by, bw, bh + 4.5, "F");
+      const total = modules.length + 20;
+      const mw = bw / total;
+      doc.setFillColor(20, 20, 20);
+      modules.forEach((m, i) => {
+        if (m) doc.rect(bx + (i + 10) * mw, by + 1, mw + 0.05, bh - 2, "F");
+      });
+      doc.setTextColor(27, 42, 74);
+      doc.setFontSize(7);
+      doc.text(displayId, W / 2, by + bh + 3.2, { align: "center" });
+      doc.save(`carte-employe-${displayId}.pdf`);
+    } finally {
+      setOccupe(false);
+    }
+  }
+
+  return (
+    <div>
+      <div
+        className="relative w-full max-w-[430px] overflow-hidden rounded-2xl shadow-lg"
+        style={{ backgroundColor: "#1B2A4A", aspectRatio: "85.6 / 54" }}
+      >
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gold" />
+        <div className="flex h-full flex-col justify-between p-4 pb-3">
+          <div className="flex items-start gap-3">
+            {pack.dossier.photo_profil_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={pack.dossier.photo_profil_url}
+                alt={pack.nom}
+                className="h-16 w-14 shrink-0 rounded-lg border border-gold/50 object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-lg bg-gold text-xl font-bold text-navy">
+                {(pack.nom || "?").trim().charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-cream">
+                {pack.nom}
+              </p>
+              <p className="text-xs font-semibold text-gold">
+                {t("carteRole")}
+              </p>
+              <p className="text-[11px] text-cream/80">{t("carteDivision")}</p>
+              <p className="mt-1 whitespace-nowrap text-sm font-bold tracking-wide text-cream">
+                {displayId}
+              </p>
+            </div>
+          </div>
+          <div className="rounded-md bg-white px-2 pb-1 pt-1.5">
+            <div className="flex h-8 w-full items-stretch" aria-hidden>
+              <div style={{ flexGrow: 10 }} />
+              {segments.map((s, i) =>
+                s.plein ? (
+                  <div
+                    key={i}
+                    className="bg-neutral-900"
+                    style={{ flexGrow: s.n }}
+                  />
+                ) : (
+                  <div key={i} style={{ flexGrow: s.n }} />
+                )
+              )}
+              <div style={{ flexGrow: 10 }} />
+            </div>
+            <p className="text-center text-[10px] font-semibold tracking-[0.3em] text-navy">
+              {displayId}
+            </p>
+          </div>
+        </div>
+        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-cream" />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 print:hidden">
+        <button
+          type="button"
+          onClick={telechargerPdf}
+          disabled={occupe}
+          className="rounded-xl bg-navy px-4 py-2.5 text-sm font-bold text-cream transition hover:bg-navy-light disabled:opacity-50"
+        >
+          {t("carteDownload")}
+        </button>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="rounded-xl bg-gold px-4 py-2.5 text-sm font-bold text-navy transition hover:bg-gold-light"
+        >
+          {t("cartePrint")}
+        </button>
+      </div>
+    </div>
+  );
+}

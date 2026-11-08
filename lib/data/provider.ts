@@ -54,6 +54,7 @@ import type {
   ModeleAvis,
   MotifRefus,
   OperateurMobileMoney,
+  PackEmploye,
   Paiement,
   PaiementMobileMoney,
   ParametresFinance,
@@ -75,7 +76,9 @@ import type {
   TauxResultat,
   TypeAlerte,
   Devise,
+  VerificationEmploye,
 } from "./types";
+import type { ParametresContratEmploye } from "../pack-employe";
 
 /**
  * CizaImmo — interface UNIQUE du fournisseur de données (Module 1).
@@ -665,6 +668,79 @@ export interface DataProvider {
    * (documents avec liens signés, adresse) — page Équipe.
    */
   listerDossierEmploye(adminId: string): Promise<DossierEmploye>;
+
+  // ==========================================================================
+  // PACK EMPLOYÉ DES ADMINS (2026-11-08, pack VALIDÉ par le fondateur) :
+  // contrat d'engagement à deux voies + charte de confidentialité
+  // datée + carte employé à code-barres vérifiée contre la base.
+  // Voir docs/pack-employe-2026-11-08.md et
+  // supabase/module-pack-employe.sql. NON BLOQUANT : aucun état ne
+  // conditionne l'accès console. Nouveaux codes d'erreur :
+  //  ERR_PARAMETRES_CONTRAT — champs employeur incomplets/invalides.
+  //  ERR_STATUT_INVALIDE — transition impossible dans l'état courant
+  //    (patron des contrats clients).
+  // ==========================================================================
+
+  /**
+   * Le pack employé du compte plateforme CONNECTÉ (dossier + charte
+   * + contrat + carte + progression calculée).
+   */
+  getMonPackEmploye(): Promise<PackEmploye>;
+  /**
+   * SUPER ADMIN : le pack employé complet d'un membre de l'équipe
+   * (page Équipe : préparation, revue du contrat signé).
+   */
+  getPackEmploye(adminId: string): Promise<PackEmploye>;
+  /**
+   * Accepte la charte de confidentialité (première connexion
+   * console) : l'acceptation est DATÉE et conservée en base —
+   * idempotente, la première date posée n'est jamais réécrite.
+   * Journalisé.
+   */
+  accepterCharteEmploye(): Promise<PackEmploye>;
+  /**
+   * SUPER ADMIN : prépare (ou re-prépare) le contrat d'engagement
+   * d'un membre — fixe la voie et les champs employeur EN BASE,
+   * génère le PDF personnalisé (données pré-remplies depuis le
+   * dossier employé) et l'envoie par e-mail à l'employé → statut
+   * « a_signer ». Refusé si un contrat signé est en revue ou déjà
+   * validé (ERR_STATUT_INVALIDE). Journalisé.
+   */
+  preparerContratEmploye(
+    adminId: string,
+    parametres: ParametresContratEmploye
+  ): Promise<PackEmploye>;
+  /**
+   * Génère le PDF du contrat d'engagement d'un membre à partir des
+   * paramètres stockés en base — le membre lui-même ou le Super
+   * Admin. ERR_STATUT_INVALIDE si le contrat n'est pas préparé.
+   */
+  genererContratEmploye(
+    adminId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }>;
+  /**
+   * L'employé téléverse son contrat d'engagement SIGNÉ (PDF ou
+   * photo) → statut « signe_depose », en attente de revue Super
+   * Admin. Redépôt possible après un refus (le motif est effacé).
+   */
+  televerserContratEmployeSigne(input: DocumentInput): Promise<Document>;
+  /**
+   * SUPER ADMIN : valide le contrat d'engagement signé → « valide »,
+   * e-mail de confirmation à l'employé. Journalisé.
+   */
+  validerContratEmploye(adminId: string): Promise<void>;
+  /**
+   * SUPER ADMIN : refuse le contrat d'engagement signé → « refuse »
+   * + motif (obligatoire, ERR_MOTIF_REQUIS), e-mail à l'employé.
+   * Journalisé.
+   */
+  refuserContratEmploye(adminId: string, motif: string): Promise<void>;
+  /**
+   * Vérification d'un employé CONTRE LA BASE par son Display ID
+   * (celui du code-barres de la carte) — plateforme uniquement.
+   * Retourne null si aucun compte plateforme ne porte ce Display ID.
+   */
+  verifierEmploye(displayId: string): Promise<VerificationEmploye | null>;
   /**
    * Recherche publique minimale par Display ID (propriétaire) : retourne
    * UNIQUEMENT le nom + le Display ID du compte gestionnaire trouvé —

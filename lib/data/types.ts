@@ -92,6 +92,26 @@ export interface Profil {
   statut_contrat_proprietaire?: StatutContratProprietaire;
   /** Motif du refus du contrat propriétaire signé (si statut « refuse »). */
   motif_contrat_proprietaire?: string | null;
+  // --- Pack employé des Admins (2026-11-08, module-pack-employe.sql) :
+  // contrat d'engagement à deux voies + charte de confidentialité
+  // datée. Comptes admin / super_admin uniquement — jamais lus pour
+  // les clients.
+  statut_contrat_employe?: import("../pack-employe").StatutContratEmploye;
+  /** Motif du refus du contrat d'engagement signé (si « refuse »). */
+  motif_contrat_employe?: string | null;
+  contrat_employe_voie?: import("../pack-employe").VoieContratEmploye | null;
+  contrat_employe_type?: string | null;
+  contrat_employe_duree?: string | null;
+  contrat_employe_montant?: number | null;
+  contrat_employe_devise?: string | null;
+  contrat_employe_modalites?: string | null;
+  contrat_employe_lieu?: string | null;
+  contrat_employe_horaires?: string | null;
+  contrat_employe_date_debut?: string | null;
+  contrat_employe_periode_essai?: string | null;
+  contrat_employe_prepare_le?: string | null;
+  /** Acceptation datée de la charte de confidentialité (null = en attente). */
+  charte_acceptee_le?: string | null;
   // --- Extension v1.5 : suppression de compte, assignation, accès admin.
   /** Demande de suppression par le client (base) : date de la demande, null sinon. Échéance = demande + 30 jours. */
   suppression_demandee_le?: string | null;
@@ -1309,6 +1329,69 @@ export interface DossierEmploye {
   manquants: import("../dossier-employe").ElementDossierEmploye[];
 }
 
+/**
+ * PACK EMPLOYÉ d'un Admin / Super Admin (2026-11-08, pack validé
+ * par le fondateur) : par-dessus le dossier employé — contrat
+ * d'engagement à deux voies (« travail » Burundi / « prestation »
+ * hors Burundi), charte de confidentialité à acceptation datée, et
+ * carte employé à code-barres. Tout est SUIVI, rien n'est bloquant.
+ * La carte est CALCULÉE (dossier complet + contrat validé) — voir
+ * lib/pack-employe.ts.
+ */
+export interface PackEmploye {
+  /** Id du profil de l'employé. */
+  compte_id: string;
+  email: string;
+  nom: string;
+  display_id: string | null;
+  role: "admin" | "super_admin";
+  /** Le dossier employé complet (identité + adresse), calculé. */
+  dossier: DossierEmploye;
+  /** Charte acceptée le (ISO) — null = en attente d'acceptation. */
+  charte_acceptee_le: string | null;
+  /** Statut du contrat d'engagement. */
+  contrat_statut: import("../pack-employe").StatutContratEmploye;
+  /** Motif du refus du contrat signé (si statut « refuse »). */
+  contrat_motif: string | null;
+  /** Champs employeur stockés en base (null = pas encore préparé). */
+  contrat_parametres: import("../pack-employe").ParametresContratEmploye | null;
+  /** Date de préparation (mise à disposition) du contrat. */
+  contrat_prepare_le: string | null;
+  /** Dernier contrat SIGNÉ déposé par l'employé (revue Super Admin). */
+  contrat_document: Document | null;
+  /** Carte employé émise (calculé : dossier complet + contrat validé). */
+  carte_emise: boolean;
+  /** Ce qui bloque encore la carte (« dossier » et/ou « contrat »). */
+  carte_blocages: import("../pack-employe").BlocageCarte[];
+  /** Progression en 4 étapes : Dossier → Charte → Contrat → Carte. */
+  progression: import("../pack-employe").ProgressionPack[];
+}
+
+/**
+ * Résultat d'une VÉRIFICATION D'EMPLOYÉ contre la base (page console
+ * « Vérifier un employé », saisie du Display ID porté par la carte).
+ * « valide » = la carte « passe » : compte actif et accès console
+ * ouvert — un compte suspendu ressort visiblement NON VALIDE.
+ */
+export interface VerificationEmploye {
+  display_id: string;
+  nom: string;
+  email: string;
+  role: "admin" | "super_admin";
+  /** Lien signé temporaire vers la photo du dossier (si présente). */
+  photo_profil_url: string | null;
+  statut_compte: "actif" | "suspendu";
+  acces_console_actif: boolean;
+  dossier_complet: boolean;
+  dossier_manquants: import("../dossier-employe").ElementDossierEmploye[];
+  contrat_statut: import("../pack-employe").StatutContratEmploye;
+  contrat_voie: import("../pack-employe").VoieContratEmploye | null;
+  charte_acceptee_le: string | null;
+  carte_emise: boolean;
+  /** La carte passe la vérification (compte actif + accès ouvert). */
+  valide: boolean;
+}
+
 /** Champs texte modifiables du dossier employé (formulaire). */
 export interface DossierEmployePatch {
   telephone?: string | null;
@@ -1436,6 +1519,15 @@ export interface MembreEquipe {
   dossier_employe_complet: boolean;
   /** Éléments manquants du dossier employé (vide si complet). */
   dossier_employe_manquants: import("../dossier-employe").ElementDossierEmploye[];
+  /**
+   * Pack employé (2026-11-08) : statut du contrat d'engagement du
+   * membre (optionnel — absent des vues qui ne le chargent pas).
+   */
+  contrat_employe_statut?: import("../pack-employe").StatutContratEmploye;
+  /** Pack employé : acceptation datée de la charte (null = en attente). */
+  charte_acceptee_le?: string | null;
+  /** Pack employé : carte émise (dossier complet + contrat validé). */
+  carte_employe_emise?: boolean;
 }
 
 /** Résumé de supervision d'un gestionnaire rattaché (lecture, journalisée). */

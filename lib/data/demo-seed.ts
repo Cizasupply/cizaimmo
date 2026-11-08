@@ -150,6 +150,27 @@ export interface PlateformeDemo {
    * principal range les siens dans db.documents comme les autres.
    */
   documentsComptes: Document[];
+  /**
+   * Pack employé (2026-11-08) : état du pack par id de membre
+   * (charte datée, cycle du contrat d'engagement, champs employeur
+   * stockés) — miroir des colonnes profils du module SQL réel.
+   * Absent pour un membre = pack par défaut (rien d'accepté, contrat
+   * « sans_objet ») : la rétroactivité est donc naturelle.
+   */
+  packsEmployes: Record<string, PackEmployeStocke>;
+}
+
+/**
+ * État STOCKÉ du pack employé d'un membre (démo) : charte +
+ * contrat d'engagement. La carte et la progression restent
+ * CALCULÉES (lib/pack-employe.ts), comme en réel.
+ */
+export interface PackEmployeStocke {
+  charte_acceptee_le: string | null;
+  statut: import("../pack-employe").StatutContratEmploye;
+  motif: string | null;
+  parametres: import("../pack-employe").ParametresContratEmploye | null;
+  prepare_le: string | null;
 }
 
 /** Finances dynamiques démo (extension v1.2) : seed identique à la base réelle. */
@@ -755,6 +776,10 @@ export function buildDemoDb(): DemoDb {
     journal: [],
     avis: [],
     checklistsDossiers: {},
+    // Pack employé (2026-11-08) : aucun pack pré-rempli — chaque
+    // membre démarre « sans_objet » / charte en attente (défaut lu
+    // par le fournisseur), rétroactivité incluse.
+    packsEmployes: {},
     // v1.3 : demandes de rattachement par Display ID. Marc Dubois
     // (CIM-000002, contrat « valide ») est le gestionnaire démo ; son
     // identifiant de compte = celui de son invitation.

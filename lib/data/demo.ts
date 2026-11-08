@@ -53,6 +53,8 @@ import type {
   LocataireInput,
   LocatairePatch,
   MembreEquipe,
+  PackEmploye,
+  VerificationEmploye,
   MessageDirect,
   ModeleAvis,
   MotifRefus,
@@ -123,6 +125,7 @@ import {
   ADMIN_DEMO_EMAIL,
   type CompteClientDemo,
   type DemoDb,
+  type PackEmployeStocke,
   type ParcDemo,
 } from "./demo-seed";
 import {
@@ -132,13 +135,28 @@ import {
   rendreBienvenue,
   rendreBienvenueProprietaire,
   rendreDecisionGestionnaire,
+  rendreMiseADispositionContratEmploye,
+  rendreRefusContratEmploye,
   rendreRefusContratProprietaire,
+  rendreValidationContratEmploye,
   rendreValidationContratProprietaire,
 } from "../avis";
 import {
   genererContratGestionnairePdf,
   genererContratProprietairePdf,
 } from "../contrat";
+import {
+  genererContratEmployePdf,
+  type DonneesContratEmploye,
+} from "../contrat-employe";
+import {
+  blocagesCarteEmploye,
+  carteEmployeEmise,
+  progressionPackEmploye,
+  verificationEmployeValide,
+  type ParametresContratEmploye,
+  type StatutContratEmploye,
+} from "../pack-employe";
 import { piecesJointesAvecGuide } from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
 import {
@@ -2363,7 +2381,12 @@ export class DemoProvider implements DataProvider {
   async telechargerDocument(id: string): Promise<{ url: string; nomFichier: string }> {
     const db = loadDb();
     const parc = this.cols(db);
-    const doc = parc.documents.find((d) => d.id === id);
+    // Documents du parc actif, puis documents de COMPTE plateforme
+    // (documentsComptes : pièces et contrats des comptes, dont le
+    // contrat d'engagement signé d'un Admin promu — pack employé).
+    const doc =
+      parc.documents.find((d) => d.id === id) ??
+      db.plateforme.documentsComptes.find((d) => d.id === id);
     if (!doc) throw err("ERR_NOT_FOUND");
     if (!doc.contenu) throw err("ERR_DOCUMENT_CONTENU_ABSENT");
     return { url: doc.contenu, nomFichier: doc.nom_fichier };
@@ -5009,6 +5032,535 @@ export class DemoProvider implements DataProvider {
     return { complet: false, manquants: ["photo", "piece_identite", "telephone", "adresse"] };
   }
 
+  // ==========================================================================
+  // PACK EMPLOYÉ DES ADMINS (2026-11-08) — miroir démo du réel :
+  // l'état du pack (charte datée + cycle du contrat + champs
+  // employeur) vit dans db.plateforme.packsEmployes, indexé par
+  // l'identifiant du membre (entrée Admin, profil promu ou compte
+  // client promu — un seul identifiant par personne, posé à la
+  // promotion). Carte et progression CALCULÉES (lib/pack-employe.ts).
+  // ==========================================================================
+
+  /** Registre des packs (initialisation paresseuse, anciennes sauvegardes). */
+  private packsDe(db: DemoDb): Record<string, PackEmployeStocke> {
+    if (!db.plateforme.packsEmployes) db.plateforme.packsEmployes = {};
+    return db.plateforme.packsEmployes;
+  }
+
+  /** État stocké d'un membre — défaut « rien » (rétroactivité). */
+  private packStockeDe(db: DemoDb, id: string): PackEmployeStocke {
+    return (
+      this.packsDe(db)[id] ?? {
+        charte_acceptee_le: null,
+        statut: "sans_objet" as StatutContratEmploye,
+        motif: null,
+        parametres: null,
+        prepare_le: null,
+      }
+    );
+  }
+
+  /** Identité d'un membre de l'équipe, toutes représentations confondues. */
+  private resoudreMembre(
+    db: DemoDb,
+    id: string
+  ): {
+    id: string;
+    email: string;
+    nom: string;
+    role: "admin" | "super_admin";
+    langue: "fr" | "en";
+    display_id: string | null;
+    suspendu: boolean;
+    acces: boolean;
+  } | null {
+    const displayIdPour = (): string | null => {
+      if (db.profil.id === id) return db.profil.display_id ?? null;
+      const client = db.plateforme.comptesClients.find((c) => c.id === id);
+      return client?.display_id ?? null;
+    };
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === id);
+    if (entree) {
+      return {
+        id: entree.id,
+        email: entree.email,
+        nom: entree.nom,
+        role: entree.role,
+        langue: "fr",
+        display_id: displayIdPour(),
+        suspendu: entree.statut === "suspendu",
+        acces: this.resoudreAccesAdmin(db, entree),
+      };
+    }
+    if (
+      db.profil.id === id &&
+      (db.profil.role === "admin" || db.profil.role === "super_admin")
+    ) {
+      return {
+        id: db.profil.id,
+        email: db.profil.email,
+        nom: db.profil.nom,
+        role: db.profil.role,
+        langue: db.profil.langue,
+        display_id: db.profil.display_id ?? null,
+        suspendu: !!db.profil.suspendu,
+        acces: db.profil.acces_admin_actif ?? true,
+      };
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.id === id && (c.role === "admin" || c.role === "super_admin")
+    );
+    if (client) {
+      return {
+        id: client.id,
+        email: client.email,
+        nom: client.nom,
+        role: client.role === "super_admin" ? "super_admin" : "admin",
+        langue: client.langue,
+        display_id: client.display_id,
+        suspendu: client.abonnement.statut === "suspendu",
+        acces: client.acces_admin_actif ?? true,
+      };
+    }
+    return null;
+  }
+
+  /** Dossier employé d'un membre, quelle que soit sa représentation. */
+  private dossierPourMembre(db: DemoDb, id: string): DossierEmploye | null {
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === id);
+    if (entree) return this.dossierDepuisEntreeAdmin(db, entree);
+    if (
+      db.profil.id === id &&
+      (db.profil.role === "admin" || db.profil.role === "super_admin")
+    ) {
+      return this.dossierDepuisProfilPrincipal(db);
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) => c.id === id && (c.role === "admin" || c.role === "super_admin")
+    );
+    if (client) return this.dossierDepuisClientPlateforme(db, client);
+    return null;
+  }
+
+  /** Dernier contrat SIGNÉ déposé par le membre (revue Super Admin). */
+  private dernierContratDepose(db: DemoDb, id: string): Document | null {
+    const sources =
+      id === db.profil.id && !db.plateforme.comptesAdmins.some((a) => a.id === id)
+        ? db.documents
+        : db.plateforme.documentsComptes;
+    const docs = sources
+      .filter(
+        (d) =>
+          d.entite_type === "compte" && d.entite_id === id && d.type === "contrat"
+      )
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return docs[0] ?? null;
+  }
+
+  /** Assemble le pack complet d'un membre (ERR_INTROUVABLE sinon). */
+  private construirePackEmployeDemo(db: DemoDb, id: string): PackEmploye {
+    const membre = this.resoudreMembre(db, id);
+    const dossier = this.dossierPourMembre(db, id);
+    if (!membre || !dossier) throw err("ERR_INTROUVABLE");
+    const stocke = this.packStockeDe(db, id);
+    const carte = carteEmployeEmise(dossier.complet, stocke.statut);
+    return {
+      compte_id: id,
+      email: membre.email,
+      nom: membre.nom,
+      display_id: membre.display_id,
+      role: membre.role,
+      dossier,
+      charte_acceptee_le: stocke.charte_acceptee_le,
+      contrat_statut: stocke.statut,
+      contrat_motif: stocke.motif,
+      contrat_parametres: stocke.parametres,
+      contrat_prepare_le: stocke.prepare_le,
+      contrat_document: this.dernierContratDepose(db, id),
+      carte_emise: carte,
+      carte_blocages: blocagesCarteEmploye(dossier.complet, stocke.statut),
+      progression: progressionPackEmploye({
+        dossierComplet: dossier.complet,
+        charteAccepteeLe: stocke.charte_acceptee_le,
+        statutContrat: stocke.statut,
+        carteEmise: carte,
+      }),
+    };
+  }
+
+  /** Données de génération du PDF (dossier employé — la base fait foi). */
+  private donneesContratEmployeDemo(
+    db: DemoDb,
+    id: string,
+    parametres: ParametresContratEmploye
+  ): DonneesContratEmploye {
+    const membre = this.resoudreMembre(db, id);
+    const dossier = this.dossierPourMembre(db, id);
+    if (!membre || !dossier) throw err("ERR_INTROUVABLE");
+    const morceaux = [
+      dossier.adresse,
+      dossier.adresse_ville,
+      dossier.adresse_code_postal,
+      dossier.adresse_pays,
+    ].filter((m): m is string => !!m && m.trim() !== "");
+    return {
+      nom: membre.nom,
+      displayId: membre.display_id,
+      email: membre.email,
+      telephone: dossier.telephone,
+      adresse: morceaux.length > 0 ? morceaux.join(", ") : null,
+      pieceIdentite: dossier.piece_identite?.nom_fichier ?? null,
+      langue: membre.langue,
+      date: new Date().toISOString().slice(0, 10),
+      parametres,
+    };
+  }
+
+  /** Validation partagée des champs employeur (miroir du réel). */
+  private validerParametresContrat(
+    parametres: ParametresContratEmploye
+  ): ParametresContratEmploye {
+    const propre = (v: string | null | undefined): string =>
+      typeof v === "string" ? v.trim() : "";
+    const voie = parametres?.voie;
+    if (voie !== "travail" && voie !== "prestation") {
+      throw err("ERR_PARAMETRES_CONTRAT");
+    }
+    const type = propre(parametres.type);
+    const devise = propre(parametres.devise);
+    const modalites = propre(parametres.modalites_paiement);
+    const lieu = propre(parametres.lieu);
+    const horaires = propre(parametres.horaires);
+    const dateDebut = propre(parametres.date_debut);
+    if (
+      !type ||
+      !devise ||
+      !modalites ||
+      !lieu ||
+      !horaires ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(dateDebut)
+    ) {
+      throw err("ERR_PARAMETRES_CONTRAT");
+    }
+    return {
+      voie,
+      type,
+      duree: propre(parametres.duree) || null,
+      montant:
+        parametres.montant !== null &&
+        parametres.montant !== undefined &&
+        Number.isFinite(Number(parametres.montant))
+          ? Number(parametres.montant)
+          : null,
+      devise,
+      modalites_paiement: modalites,
+      lieu,
+      horaires,
+      date_debut: dateDebut,
+      periode_essai:
+        voie === "travail" ? propre(parametres.periode_essai) || null : null,
+    };
+  }
+
+  /** Identifiant « moi employé » de la session (null si pas plateforme). */
+  private idMoiEmploye(db: DemoDb): string | null {
+    const moi = this.moiEmploye(db);
+    if (!moi) return null;
+    return moi.kind === "entree" ? moi.entree.id : db.profil.id;
+  }
+
+  async getMonPackEmploye(): Promise<PackEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const id = this.idMoiEmploye(db);
+    if (!id) throw err("ERR_ACCES_PLATEFORME");
+    return this.construirePackEmployeDemo(db, id);
+  }
+
+  async getPackEmploye(adminId: string): Promise<PackEmploye> {
+    const db = loadDb();
+    this.acteurSuperAdmin(db);
+    return this.construirePackEmployeDemo(db, adminId);
+  }
+
+  async accepterCharteEmploye(): Promise<PackEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const id = this.idMoiEmploye(db);
+    if (!id) throw err("ERR_ACCES_PLATEFORME");
+    const membre = this.resoudreMembre(db, id);
+    if (!membre) throw err("ERR_INTROUVABLE");
+    const stocke = this.packStockeDe(db, id);
+    if (!stocke.charte_acceptee_le) {
+      const maintenant = new Date().toISOString();
+      this.packsDe(db)[id] = { ...stocke, charte_acceptee_le: maintenant };
+      this.journaliserAudit(
+        db,
+        { id: membre.id, email: membre.email, nom: membre.nom, role: membre.role },
+        "charte_acceptee",
+        "compte",
+        id,
+        membre.email,
+        { charte_acceptee_le: maintenant }
+      );
+      saveDb(db);
+    }
+    return this.construirePackEmployeDemo(loadDb(), id);
+  }
+
+  async preparerContratEmploye(
+    adminId: string,
+    parametres: ParametresContratEmploye
+  ): Promise<PackEmploye> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const nettoyes = this.validerParametresContrat(parametres);
+    const membre = this.resoudreMembre(db, adminId);
+    if (!membre) throw err("ERR_INTROUVABLE");
+    const stocke = this.packStockeDe(db, adminId);
+    if (stocke.statut === "signe_depose" || stocke.statut === "valide") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const maintenant = new Date().toISOString();
+    this.packsDe(db)[adminId] = {
+      ...stocke,
+      statut: "a_signer",
+      motif: null,
+      parametres: nettoyes,
+      prepare_le: maintenant,
+    };
+    const donnees = this.donneesContratEmployeDemo(db, adminId, nettoyes);
+    const pdf = await genererContratEmployePdf(donnees);
+    const mail = rendreMiseADispositionContratEmploye(
+      donnees.nom,
+      nettoyes.voie,
+      membre.langue
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      membre.email,
+      mail.sujet,
+      mail.corps,
+      membre.langue,
+      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }]
+    );
+    this.journaliserAudit(db, acteur, "contrat_employe_prepare", "compte", adminId, membre.email, {
+      display_id: membre.display_id,
+      voie: nettoyes.voie,
+      email_mise_a_disposition: emailStatut,
+    });
+    saveDb(db);
+    return this.construirePackEmployeDemo(loadDb(), adminId);
+  }
+
+  async genererContratEmploye(
+    adminId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const db = loadDb();
+    const idMoi = this.idMoiEmploye(db);
+    if (idMoi !== adminId) this.acteurSuperAdmin(db);
+    const stocke = this.packStockeDe(db, adminId);
+    if (!stocke.parametres) throw err("ERR_STATUT_INVALIDE");
+    const donnees = this.donneesContratEmployeDemo(db, adminId, stocke.parametres);
+    return genererContratEmployePdf(donnees);
+  }
+
+  async televerserContratEmployeSigne(
+    input: DocumentInput
+  ): Promise<Document> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const moi = this.moiEmploye(db);
+    if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    const id = moi.kind === "entree" ? moi.entree.id : db.profil.id;
+    const stocke = this.packStockeDe(db, id);
+    if (stocke.statut !== "a_signer" && stocke.statut !== "refuse") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    let document: Document;
+    if (moi.kind === "entree") {
+      const nom = this.validerTeleversementEmploye(input, [
+        "pdf",
+        "jpg",
+        "jpeg",
+        "png",
+      ]);
+      const entree = moi.entree;
+      if (
+        db.plateforme.documentsComptes.some(
+          (d) =>
+            d.entite_type === "compte" &&
+            d.entite_id === entree.id &&
+            d.type === "contrat" &&
+            d.nom_fichier.trim().toLowerCase() === nom.toLowerCase()
+        )
+      ) {
+        throw err("ERR_DOCUMENT_DOUBLON");
+      }
+      const taille = input.taille_octets ?? null;
+      const contenuConserve =
+        input.contenu && taille !== null && taille <= LIMITE_DEMO_CONTENU_OCTETS
+          ? input.contenu
+          : null;
+      document = {
+        id: uid(),
+        owner_id: entree.id,
+        type: "contrat",
+        entite_type: "compte",
+        entite_id: entree.id,
+        nom_fichier: nom,
+        storage_path: `demo:${uid()}`,
+        taille_octets: taille,
+        mime_type: input.mime_type ?? null,
+        ajoute_par: entree.id,
+        created_at: new Date().toISOString(),
+        contenu: contenuConserve,
+        contenu_non_conserve: Boolean(input.contenu) && !contenuConserve,
+      };
+      db.plateforme.documentsComptes.push(document);
+      this.packsDe(db)[id] = { ...stocke, statut: "signe_depose", motif: null };
+      const membre = this.resoudreMembre(db, id);
+      if (membre) {
+        this.journaliserAudit(
+          db,
+          { id: membre.id, email: membre.email, nom: membre.nom, role: membre.role },
+          "contrat_employe_signe_depose",
+          "compte",
+          id,
+          membre.email,
+          { display_id: membre.display_id }
+        );
+      }
+      saveDb(db);
+      return document;
+    }
+    // Profil principal : le document passe par le patron partagé
+    // (qui charge/sauve sa propre copie), puis l'état du pack est
+    // posé sur une copie fraîche.
+    document = await this.ajouterDocumentCompte("contrat", input);
+    const dbMaj = loadDb();
+    const stockeMaj = this.packStockeDe(dbMaj, id);
+    this.packsDe(dbMaj)[id] = {
+      ...stockeMaj,
+      statut: "signe_depose",
+      motif: null,
+    };
+    const membre = this.resoudreMembre(dbMaj, id);
+    if (membre) {
+      this.journaliserAudit(
+        dbMaj,
+        { id: membre.id, email: membre.email, nom: membre.nom, role: membre.role },
+        "contrat_employe_signe_depose",
+        "compte",
+        id,
+        membre.email,
+        { display_id: membre.display_id }
+      );
+    }
+    saveDb(dbMaj);
+    return document;
+  }
+
+  async validerContratEmploye(adminId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const membre = this.resoudreMembre(db, adminId);
+    if (!membre) throw err("ERR_INTROUVABLE");
+    const stocke = this.packStockeDe(db, adminId);
+    if (stocke.statut !== "signe_depose") throw err("ERR_STATUT_INVALIDE");
+    this.packsDe(db)[adminId] = { ...stocke, statut: "valide", motif: null };
+    const validation = rendreValidationContratEmploye(membre.nom, membre.langue);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      membre.email,
+      validation.sujet,
+      validation.corps,
+      membre.langue
+    );
+    this.journaliserAudit(db, acteur, "contrat_employe_valide", "compte", adminId, membre.email, {
+      display_id: membre.display_id,
+      email_validation: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  async refuserContratEmploye(adminId: string, motif: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const membre = this.resoudreMembre(db, adminId);
+    if (!membre) throw err("ERR_INTROUVABLE");
+    const stocke = this.packStockeDe(db, adminId);
+    if (stocke.statut !== "signe_depose") throw err("ERR_STATUT_INVALIDE");
+    this.packsDe(db)[adminId] = { ...stocke, statut: "refuse", motif: motifNet };
+    const refus = rendreRefusContratEmploye(membre.nom, motifNet, membre.langue);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      membre.email,
+      refus.sujet,
+      refus.corps,
+      membre.langue
+    );
+    this.journaliserAudit(db, acteur, "contrat_employe_refuse", "compte", adminId, membre.email, {
+      display_id: membre.display_id,
+      motif: motifNet,
+      email_refus: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  async verifierEmploye(
+    displayId: string
+  ): Promise<VerificationEmploye | null> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    const propre = (displayId ?? "").trim().toUpperCase();
+    if (!propre) return null;
+    let cibleId: string | null = null;
+    if (
+      (db.profil.display_id ?? "").toUpperCase() === propre &&
+      (db.profil.role === "admin" || db.profil.role === "super_admin")
+    ) {
+      cibleId = db.profil.id;
+    }
+    if (!cibleId) {
+      const client = db.plateforme.comptesClients.find(
+        (c) =>
+          c.display_id.toUpperCase() === propre &&
+          (c.role === "admin" || c.role === "super_admin")
+      );
+      if (client) cibleId = client.id;
+    }
+    if (!cibleId) return null;
+    const membre = this.resoudreMembre(db, cibleId);
+    const dossier = this.dossierPourMembre(db, cibleId);
+    if (!membre || !dossier) return null;
+    const stocke = this.packStockeDe(db, cibleId);
+    const statutCompte = membre.suspendu
+      ? ("suspendu" as const)
+      : ("actif" as const);
+    return {
+      display_id: propre,
+      nom: membre.nom,
+      email: membre.email,
+      role: membre.role,
+      photo_profil_url: dossier.photo_profil_url,
+      statut_compte: statutCompte,
+      acces_console_actif: membre.acces,
+      dossier_complet: dossier.complet,
+      dossier_manquants: dossier.manquants,
+      contrat_statut: stocke.statut,
+      contrat_voie: stocke.parametres?.voie ?? null,
+      charte_acceptee_le: stocke.charte_acceptee_le,
+      carte_emise: carteEmployeEmise(dossier.complet, stocke.statut),
+      valide: verificationEmployeValide({
+        statutCompte,
+        accesConsoleActif: membre.acces,
+      }),
+    };
+  }
+
   async listerDossier(compteId: string): Promise<DossierCompte> {
     const db = loadDb();
     this.acteurPlateforme(db);
@@ -6637,6 +7189,8 @@ export class DemoProvider implements DataProvider {
         .sort((a, b) => b.created_at.localeCompare(a.created_at));
       // Dossier employé (2026-11-08) : complétude CALCULÉE du membre.
       const evaluation = this.evaluationEquipe(db, id);
+      // Pack employé (2026-11-08) : contrat + charte + carte du membre.
+      const stocke = this.packStockeDe(db, id);
       return {
         id,
         email,
@@ -6649,6 +7203,9 @@ export class DemoProvider implements DataProvider {
         created_at: createdAt,
         dossier_employe_complet: evaluation.complet,
         dossier_employe_manquants: evaluation.manquants,
+        contrat_employe_statut: stocke.statut,
+        charte_acceptee_le: stocke.charte_acceptee_le,
+        carte_employe_emise: carteEmployeEmise(evaluation.complet, stocke.statut),
       };
     };
     for (const a of db.plateforme.comptesAdmins) {

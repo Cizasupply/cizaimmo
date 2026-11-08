@@ -71,6 +71,8 @@ import type {
   LocataireInput,
   LocatairePatch,
   MembreEquipe,
+  PackEmploye,
+  VerificationEmploye,
   MessageDirect,
   OperateurMobileMoney,
   Paiement,
@@ -97,13 +99,28 @@ import {
   rendreBienvenue,
   rendreBienvenueProprietaire,
   rendreDecisionGestionnaire,
+  rendreMiseADispositionContratEmploye,
+  rendreRefusContratEmploye,
   rendreRefusContratProprietaire,
+  rendreValidationContratEmploye,
   rendreValidationContratProprietaire,
 } from "../avis";
 import {
   genererContratGestionnairePdf,
   genererContratProprietairePdf,
 } from "../contrat";
+import {
+  genererContratEmployePdf,
+  type DonneesContratEmploye,
+} from "../contrat-employe";
+import {
+  blocagesCarteEmploye,
+  carteEmployeEmise,
+  progressionPackEmploye,
+  verificationEmployeValide,
+  type ParametresContratEmploye,
+  type StatutContratEmploye,
+} from "../pack-employe";
 import { piecesJointesAvecGuide } from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
@@ -4064,6 +4081,446 @@ export class RealProvider implements DataProvider {
     return this.construireDossierEmploye(data as Record<string, unknown>);
   }
 
+  // ==========================================================================
+  // PACK EMPLOYÉ DES ADMINS (2026-11-08, pack VALIDÉ par le fondateur) :
+  // contrat d'engagement à DEUX VOIES (travail / prestation), charte
+  // de confidentialité à acceptation DATÉE, carte employé CALCULÉE.
+  // Colonnes sur profils (module-pack-employe.sql) ; transitions
+  // applicatives journalisées dans journal_audit, patron des contrats
+  // clients. NON BLOQUANT : aucun état ne conditionne l'accès console.
+  // ==========================================================================
+
+  /** Colonnes profils du pack employé (+ base du dossier employé). */
+  private readonly colonnesPack =
+    "id,email,nom,role,langue,display_id,suspendu,acces_admin_actif," +
+    "telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays," +
+    "statut_contrat_employe,motif_contrat_employe,contrat_employe_voie," +
+    "contrat_employe_type,contrat_employe_duree,contrat_employe_montant," +
+    "contrat_employe_devise,contrat_employe_modalites,contrat_employe_lieu," +
+    "contrat_employe_horaires,contrat_employe_date_debut," +
+    "contrat_employe_periode_essai,contrat_employe_prepare_le,charte_acceptee_le";
+
+  /** Lit la ligne profils complète (pack) d'un compte plateforme. */
+  private async lignePack(id: string): Promise<Record<string, unknown>> {
+    const { data, error } = await this.client()
+      .from("profils")
+      .select(this.colonnesPack)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const ligne = data as unknown as Record<string, unknown> | null;
+    if (!ligne || (ligne.role !== "admin" && ligne.role !== "super_admin")) {
+      throw err("ERR_INTROUVABLE");
+    }
+    return ligne;
+  }
+
+  /** Paramètres employeur stockés -> forme typée (null si non préparé). */
+  private parametresDepuisLigne(
+    ligne: Record<string, unknown>
+  ): ParametresContratEmploye | null {
+    if (!ligne.contrat_employe_voie) return null;
+    const texte = (cle: string): string | null =>
+      typeof ligne[cle] === "string" && (ligne[cle] as string).trim() !== ""
+        ? (ligne[cle] as string)
+        : null;
+    return {
+      voie: ligne.contrat_employe_voie === "prestation" ? "prestation" : "travail",
+      type: texte("contrat_employe_type") ?? "",
+      duree: texte("contrat_employe_duree"),
+      montant:
+        ligne.contrat_employe_montant !== null &&
+        ligne.contrat_employe_montant !== undefined
+          ? Number(ligne.contrat_employe_montant)
+          : null,
+      devise: texte("contrat_employe_devise") ?? "",
+      modalites_paiement: texte("contrat_employe_modalites") ?? "",
+      lieu: texte("contrat_employe_lieu") ?? "",
+      horaires: texte("contrat_employe_horaires") ?? "",
+      date_debut: texte("contrat_employe_date_debut") ?? "",
+      periode_essai: texte("contrat_employe_periode_essai"),
+    };
+  }
+
+  /** Assemble le pack complet d'une ligne profils plateforme. */
+  private async construirePackEmploye(
+    ligne: Record<string, unknown>
+  ): Promise<PackEmploye> {
+    const id = String(ligne.id);
+    const dossier = await this.construireDossierEmploye(ligne);
+    const { data: docs } = await this.client()
+      .from("documents")
+      .select("*")
+      .eq("entite_type", "compte")
+      .eq("entite_id", id)
+      .eq("type", "contrat")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const statut = (ligne.statut_contrat_employe ??
+      "sans_objet") as StatutContratEmploye;
+    const charte = (ligne.charte_acceptee_le as string | null) ?? null;
+    const carte = carteEmployeEmise(dossier.complet, statut);
+    return {
+      compte_id: id,
+      email: typeof ligne.email === "string" ? ligne.email : "",
+      nom: typeof ligne.nom === "string" ? ligne.nom : "",
+      display_id:
+        typeof ligne.display_id === "string" ? ligne.display_id : null,
+      role: ligne.role === "super_admin" ? "super_admin" : "admin",
+      dossier,
+      charte_acceptee_le: charte,
+      contrat_statut: statut,
+      contrat_motif:
+        typeof ligne.motif_contrat_employe === "string"
+          ? ligne.motif_contrat_employe
+          : null,
+      contrat_parametres: this.parametresDepuisLigne(ligne),
+      contrat_prepare_le:
+        (ligne.contrat_employe_prepare_le as string | null) ?? null,
+      contrat_document:
+        docs && docs.length > 0 ? (docs[0] as Document) : null,
+      carte_emise: carte,
+      carte_blocages: blocagesCarteEmploye(dossier.complet, statut),
+      progression: progressionPackEmploye({
+        dossierComplet: dossier.complet,
+        charteAccepteeLe: charte,
+        statutContrat: statut,
+        carteEmise: carte,
+      }),
+    };
+  }
+
+  /** Données de génération du PDF : dossier employé (la base fait foi). */
+  private async donneesContratEmploye(
+    ligne: Record<string, unknown>,
+    parametres: ParametresContratEmploye
+  ): Promise<DonneesContratEmploye> {
+    const dossier = await this.construireDossierEmploye(ligne);
+    const morceaux = [
+      dossier.adresse,
+      dossier.adresse_ville,
+      dossier.adresse_code_postal,
+      dossier.adresse_pays,
+    ].filter((m): m is string => !!m && m.trim() !== "");
+    return {
+      nom: dossier.nom,
+      displayId: (ligne.display_id as string | null) ?? null,
+      email: dossier.email,
+      telephone: dossier.telephone,
+      adresse: morceaux.length > 0 ? morceaux.join(", ") : null,
+      pieceIdentite: dossier.piece_identite?.nom_fichier ?? null,
+      langue: ligne.langue === "en" ? "en" : "fr",
+      date: new Date().toISOString().slice(0, 10),
+      parametres,
+    };
+  }
+
+  async getMonPackEmploye(): Promise<PackEmploye> {
+    const acteur = await this.acteurPlateforme();
+    const ligne = await this.lignePack(acteur.id);
+    return this.construirePackEmploye(ligne);
+  }
+
+  async getPackEmploye(adminId: string): Promise<PackEmploye> {
+    await this.acteurSuperAdmin();
+    const ligne = await this.lignePack(adminId);
+    return this.construirePackEmploye(ligne);
+  }
+
+  async accepterCharteEmploye(): Promise<PackEmploye> {
+    const acteur = await this.acteurPlateforme();
+    const ligne = await this.lignePack(acteur.id);
+    if (!ligne.charte_acceptee_le) {
+      const maintenant = new Date().toISOString();
+      const { error } = await this.client()
+        .from("profils")
+        .update({ charte_acceptee_le: maintenant })
+        .eq("id", acteur.id);
+      if (error) throw new Error(error.message);
+      await this.journaliserAudit(
+        acteur,
+        "charte_acceptee",
+        "compte",
+        acteur.id,
+        acteur.email,
+        { charte_acceptee_le: maintenant }
+      );
+    }
+    return this.getMonPackEmploye();
+  }
+
+  async preparerContratEmploye(
+    adminId: string,
+    parametres: ParametresContratEmploye
+  ): Promise<PackEmploye> {
+    const acteur = await this.acteurSuperAdmin();
+    // Validation des champs employeur (la base stocke ce qui est
+    // validé ici ; le PDF est régénéré depuis ces valeurs).
+    const propre = (v: string | null | undefined): string =>
+      typeof v === "string" ? v.trim() : "";
+    const voie = parametres?.voie;
+    if (voie !== "travail" && voie !== "prestation") {
+      throw err("ERR_PARAMETRES_CONTRAT");
+    }
+    const type = propre(parametres.type);
+    const devise = propre(parametres.devise);
+    const modalites = propre(parametres.modalites_paiement);
+    const lieu = propre(parametres.lieu);
+    const horaires = propre(parametres.horaires);
+    const dateDebut = propre(parametres.date_debut);
+    if (
+      !type ||
+      !devise ||
+      !modalites ||
+      !lieu ||
+      !horaires ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(dateDebut)
+    ) {
+      throw err("ERR_PARAMETRES_CONTRAT");
+    }
+    const nettoyes: ParametresContratEmploye = {
+      voie,
+      type,
+      duree: propre(parametres.duree) || null,
+      montant:
+        parametres.montant !== null &&
+        parametres.montant !== undefined &&
+        Number.isFinite(Number(parametres.montant))
+          ? Number(parametres.montant)
+          : null,
+      devise,
+      modalites_paiement: modalites,
+      lieu,
+      horaires,
+      date_debut: dateDebut,
+      // Période d'essai : voie « travail » uniquement.
+      periode_essai:
+        voie === "travail" ? propre(parametres.periode_essai) || null : null,
+    };
+    const ligne = await this.lignePack(adminId);
+    const statutActuel = (ligne.statut_contrat_employe ??
+      "sans_objet") as StatutContratEmploye;
+    if (statutActuel === "signe_depose" || statutActuel === "valide") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const maintenant = new Date().toISOString();
+    const { error } = await this.client()
+      .from("profils")
+      .update({
+        statut_contrat_employe: "a_signer",
+        motif_contrat_employe: null,
+        contrat_employe_voie: nettoyes.voie,
+        contrat_employe_type: nettoyes.type,
+        contrat_employe_duree: nettoyes.duree,
+        contrat_employe_montant: nettoyes.montant,
+        contrat_employe_devise: nettoyes.devise,
+        contrat_employe_modalites: nettoyes.modalites_paiement,
+        contrat_employe_lieu: nettoyes.lieu,
+        contrat_employe_horaires: nettoyes.horaires,
+        contrat_employe_date_debut: nettoyes.date_debut,
+        contrat_employe_periode_essai: nettoyes.periode_essai,
+        contrat_employe_prepare_le: maintenant,
+      })
+      .eq("id", adminId);
+    if (error) throw new Error(error.message);
+    // PDF personnalisé + e-mail de mise à disposition (pièce jointe).
+    const ligneMaj = await this.lignePack(adminId);
+    const donnees = await this.donneesContratEmploye(ligneMaj, nettoyes);
+    const pdf = await genererContratEmployePdf(donnees);
+    const langue = ligneMaj.langue === "en" ? "en" : "fr";
+    const mail = rendreMiseADispositionContratEmploye(
+      donnees.nom,
+      nettoyes.voie,
+      langue
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      donnees.email,
+      mail.sujet,
+      mail.corps,
+      langue,
+      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }]
+    );
+    await this.journaliserAudit(
+      acteur,
+      "contrat_employe_prepare",
+      "compte",
+      adminId,
+      donnees.email,
+      {
+        display_id: donnees.displayId,
+        voie: nettoyes.voie,
+        email_mise_a_disposition: emailStatut,
+      }
+    );
+    return this.getPackEmploye(adminId);
+  }
+
+  async genererContratEmploye(
+    adminId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const session = await this.requireSession();
+    if (adminId !== session.id) await this.acteurSuperAdmin();
+    const ligne = await this.lignePack(adminId);
+    const parametres = this.parametresDepuisLigne(ligne);
+    if (!parametres) throw err("ERR_STATUT_INVALIDE");
+    const donnees = await this.donneesContratEmploye(ligne, parametres);
+    return genererContratEmployePdf(donnees);
+  }
+
+  async televerserContratEmployeSigne(
+    input: DocumentInput
+  ): Promise<Document> {
+    const acteur = await this.acteurPlateforme();
+    const ligne = await this.lignePack(acteur.id);
+    const statut = (ligne.statut_contrat_employe ??
+      "sans_objet") as StatutContratEmploye;
+    if (statut !== "a_signer" && statut !== "refuse") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const document = await this.soumettreDocumentCompte("contrat", input);
+    const { error } = await this.client()
+      .from("profils")
+      .update({
+        statut_contrat_employe: "signe_depose",
+        motif_contrat_employe: null,
+      })
+      .eq("id", acteur.id);
+    if (error) throw new Error(error.message);
+    await this.journaliserAudit(
+      acteur,
+      "contrat_employe_signe_depose",
+      "compte",
+      acteur.id,
+      acteur.email,
+      { display_id: (ligne.display_id as string | null) ?? null }
+    );
+    return document;
+  }
+
+  async validerContratEmploye(adminId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const ligne = await this.lignePack(adminId);
+    if (ligne.statut_contrat_employe !== "signe_depose") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const { error } = await this.client()
+      .from("profils")
+      .update({
+        statut_contrat_employe: "valide",
+        motif_contrat_employe: null,
+      })
+      .eq("id", adminId);
+    if (error) throw new Error(error.message);
+    const langue = ligne.langue === "en" ? "en" : "fr";
+    const validation = rendreValidationContratEmploye(
+      String(ligne.nom ?? ""),
+      langue
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      String(ligne.email ?? ""),
+      validation.sujet,
+      validation.corps,
+      langue
+    );
+    await this.journaliserAudit(
+      acteur,
+      "contrat_employe_valide",
+      "compte",
+      adminId,
+      String(ligne.email ?? ""),
+      {
+        display_id: (ligne.display_id as string | null) ?? null,
+        email_validation: emailStatut,
+      }
+    );
+  }
+
+  async refuserContratEmploye(adminId: string, motif: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const ligne = await this.lignePack(adminId);
+    if (ligne.statut_contrat_employe !== "signe_depose") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const { error } = await this.client()
+      .from("profils")
+      .update({
+        statut_contrat_employe: "refuse",
+        motif_contrat_employe: motifNet,
+      })
+      .eq("id", adminId);
+    if (error) throw new Error(error.message);
+    const langue = ligne.langue === "en" ? "en" : "fr";
+    const refus = rendreRefusContratEmploye(
+      String(ligne.nom ?? ""),
+      motifNet,
+      langue
+    );
+    const emailStatut = await this.envoyerEmailPlateforme(
+      String(ligne.email ?? ""),
+      refus.sujet,
+      refus.corps,
+      langue
+    );
+    await this.journaliserAudit(
+      acteur,
+      "contrat_employe_refuse",
+      "compte",
+      adminId,
+      String(ligne.email ?? ""),
+      {
+        display_id: (ligne.display_id as string | null) ?? null,
+        motif: motifNet,
+        email_refus: emailStatut,
+      }
+    );
+  }
+
+  async verifierEmploye(
+    displayId: string
+  ): Promise<VerificationEmploye | null> {
+    await this.acteurPlateforme();
+    const propre = (displayId ?? "").trim().toUpperCase();
+    if (!propre) return null;
+    const { data, error } = await this.client()
+      .from("profils")
+      .select(this.colonnesPack)
+      .eq("display_id", propre)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const ligne = data as unknown as Record<string, unknown> | null;
+    if (!ligne || (ligne.role !== "admin" && ligne.role !== "super_admin")) {
+      return null;
+    }
+    const dossier = await this.construireDossierEmploye(ligne);
+    const statutCompte = ligne.suspendu
+      ? ("suspendu" as const)
+      : ("actif" as const);
+    const acces = (ligne.acces_admin_actif as boolean | null) ?? true;
+    const statutContrat = (ligne.statut_contrat_employe ??
+      "sans_objet") as StatutContratEmploye;
+    return {
+      display_id: propre,
+      nom: dossier.nom,
+      email: dossier.email,
+      role: ligne.role === "super_admin" ? "super_admin" : "admin",
+      photo_profil_url: dossier.photo_profil_url,
+      statut_compte: statutCompte,
+      acces_console_actif: acces,
+      dossier_complet: dossier.complet,
+      dossier_manquants: dossier.manquants,
+      contrat_statut: statutContrat,
+      contrat_voie: this.parametresDepuisLigne(ligne)?.voie ?? null,
+      charte_acceptee_le: (ligne.charte_acceptee_le as string | null) ?? null,
+      carte_emise: carteEmployeEmise(dossier.complet, statutContrat),
+      valide: verificationEmployeValide({
+        statutCompte,
+        accesConsoleActif: acces,
+      }),
+    };
+  }
+
   async listerDossier(compteId: string): Promise<DossierCompte> {
     await this.acteurPlateforme();
     const client = this.client();
@@ -5316,7 +5773,7 @@ export class RealProvider implements DataProvider {
     const { data, error } = await client
       .from("profils")
       .select(
-        "id, email, nom, role, suspendu, acces_admin_actif, created_at, telephone, photo_profil_path, adresse, adresse_ville, adresse_pays"
+        "id, email, nom, role, suspendu, acces_admin_actif, created_at, telephone, photo_profil_path, adresse, adresse_ville, adresse_pays, statut_contrat_employe, charte_acceptee_le"
       )
       .in("role", ["admin", "super_admin"])
       .order("created_at", { ascending: true });
@@ -5334,6 +5791,8 @@ export class RealProvider implements DataProvider {
       adresse: string | null;
       adresse_ville: string | null;
       adresse_pays: string | null;
+      statut_contrat_employe: StatutContratEmploye | null;
+      charte_acceptee_le: string | null;
     }[] | null) ?? [];
     // Dossier employé (2026-11-08) : présence d'une pièce d'identité
     // par membre (un seul balayage des documents « compte »).
@@ -5420,6 +5879,14 @@ export class RealProvider implements DataProvider {
         created_at: m.created_at,
         dossier_employe_complet: evaluation.complet,
         dossier_employe_manquants: evaluation.manquants,
+        // Pack employé (2026-11-08) : contrat + charte + carte suivis
+        // par membre (carte CALCULÉE : dossier complet + contrat validé).
+        contrat_employe_statut: m.statut_contrat_employe ?? "sans_objet",
+        charte_acceptee_le: m.charte_acceptee_le ?? null,
+        carte_employe_emise: carteEmployeEmise(
+          evaluation.complet,
+          m.statut_contrat_employe ?? "sans_objet"
+        ),
       };
     });
   }

@@ -38,6 +38,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider, isDemoMode } from "@/lib/data";
 import type { Profil } from "@/lib/data";
 import IconeNav from "@/components/IconeNav";
+import CharteConfidentialite from "@/components/CharteConfidentialite";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const LIENS = [
@@ -48,6 +49,7 @@ const LIENS = [
   // Dossier employé (2026-11-08) : visible par les DEUX rôles
   // plateforme (admin ET super_admin remplissent leur dossier).
   { key: "myEmployeeFile", href: "/console/mon-dossier" },
+  { key: "verifyEmployee", href: "/console/verifier-employe" },
   { key: "messages", href: "/console/messages" },
   { key: "supervisedMessages", href: "/console/messages-supervises" },
   { key: "vitrine", href: "/console/vitrine" },
@@ -67,7 +69,7 @@ type CleLien = (typeof LIENS)[number]["key"];
  * groupe sans entrée visible n'est pas rendu.
  */
 const GROUPES: { cle: "groupManagement" | "groupSupervision" | "groupPlatform"; cles: CleLien[] }[] = [
-  { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles", "myEmployeeFile"] },
+  { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles", "myEmployeeFile", "verifyEmployee"] },
   { cle: "groupSupervision", cles: ["messages", "supervisedMessages", "vitrine", "journal"] },
   { cle: "groupPlatform", cles: ["suppressions", "admins", "finances"] },
 ];
@@ -414,6 +416,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
           « Plus » (barre inférieure) : TOUTES les entrées console
           groupées + retour site, langue, utilisateur et déconnexion.
           Téléphone seulement ; un seul mécanisme de menu complet. */}
+      {profil ? <CharteConfidentialite /> : null}
       {menuOuvert ? (
         <div id="menu-console-mobile" className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="flex h-full flex-col overflow-y-auto bg-navy p-6 text-white">
