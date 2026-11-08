@@ -16,6 +16,19 @@
 //
 // Test STATIQUE (lecture des sources). Il ÉCHOUE sur l'ancien code
 // et PASSE sur le code corrigé.
+//
+// ADAPTATION (2026-11-07, design « Marine & Or » validé par le
+// fondateur, passe tableau de bord) : les cartes KPI quittent les
+// fonds teintés (bg-green-50 / bg-red-50 / bg-amber-50) pour des
+// cartes BLANCHES avec barre d'accent métier de 4 px ; les
+// assertions du §2 visent donc le NOUVEAU patron (carte blanche
+// bordée + accent + couleurs métier conservées sur les VALEURS et
+// les accents) — l'assertion fonctionnelle « les couleurs métier
+// continuent de coder l'état » est préservée, seule sa forme
+// visuelle a changé. Le §4 couvre la passe design elle-même (fond
+// crème de l'AppShell, sidebar marine, carte héros, menu premium
+// mobile-first) et revérifie que TOUTES les destinations de
+// navigation historiques sont toujours présentes dans l'AppShell.
 const fs = require("fs");
 const path = require("path");
 
@@ -93,16 +106,24 @@ check("recensement : AUCUNE carte blanche/teintée sans bordure (hors squelettes
   cartesSansBordure.length === 0, cartesSansBordure.slice(0, 3).join(" | "));
 
 // ---------- 2. Tableau de bord : KPI + sections bordées ----------
+// Patron « Marine & Or » (voir l'en-tête) : cartes KPI blanches
+// bordées + barre d'accent métier de 4 px (w-1) par carte.
 const dash = lire("app/[locale]/dashboard/page.tsx");
-check("KPI collecté (vert) bordée", dash.includes("rounded-2xl border border-slate-200 bg-green-50"));
-check("KPI retard (rouge) bordée", dash.includes("rounded-2xl border border-slate-200 bg-red-50"));
-check("KPI vacants (ambre) bordée", dash.includes("rounded-2xl border border-slate-200 bg-amber-50"));
-check("KPI occupation (fond conditionnel) bordée",
-  /rounded-2xl border border-slate-200 p-4 shadow-sm \$\{indicateurs\.occupation/.test(dash));
+const CARTE_KPI = "overflow-hidden rounded-2xl border border-slate-200 bg-white";
+check("KPI : 4 cartes blanches bordées (patron Marine & Or)",
+  (dash.split(CARTE_KPI).length - 1) >= 4, `(${(dash.split(CARTE_KPI).length - 1)})`);
+check("KPI occupation : accent marine (barre 4 px)",
+  dash.includes('className="absolute inset-y-0 left-0 w-1 bg-navy"'));
+check("KPI collecté : accent vert (barre 4 px)",
+  dash.includes('className="absolute inset-y-0 left-0 w-1 bg-green-500"'));
+check("KPI retard : accent rouge (barre 4 px)",
+  dash.includes('className="absolute inset-y-0 left-0 w-1 bg-red-500"'));
+check("KPI vacants : accent ambre (barre 4 px)",
+  dash.includes('className="absolute inset-y-0 left-0 w-1 bg-amber-500"'));
 check("sections de contenu bordées (≥ 5 sections cartes)",
   (dash.match(/<section className="[^"]*rounded-2xl border border-slate-200/g) || []).length >= 5);
-check("couleurs des données inchangées (fonds vert/rouge/ambre toujours là)",
-  dash.includes("bg-green-50") && dash.includes("bg-red-50") && dash.includes("bg-amber-50"));
+check("couleurs des données inchangées (les valeurs gardent vert/rouge/ambre)",
+  dash.includes("text-green-700") && dash.includes("text-red-700") && dash.includes("text-amber-700"));
 
 // ---------- 3. Graphique réduit ----------
 check("graphique : viewBox réduit à 360×100", dash.includes('viewBox="0 0 360 100"'));
@@ -119,6 +140,47 @@ check("graphique : note de conversion toujours affichée",
   dash.includes('td("chartInCurrency"'));
 check("les 4 KPI toujours présents (occupation, collecté, retard, vacants)",
   ["occupancy", "collectedMonth", "lateAmount", "vacant"].every((k) => dash.includes(`td("${k}")`)));
+
+// ---------- 4. Design « Marine & Or » : cadre + héros + menu premium ----------
+const shell = lire("components/AppShell.tsx");
+check("design : fond général crème de l'espace connecté (bg-cream #F7F5F0)",
+  shell.includes("min-h-screen bg-cream") &&
+  lire("tailwind.config.ts").includes('cream: "#F7F5F0"'));
+check("design : barre latérale bureau marine (#1B2A4A = bg-navy)",
+  shell.includes("bg-navy p-6 text-white md:flex"));
+check("design : barre supérieure mobile marine",
+  shell.includes("bg-navy px-4 py-3 md:hidden"));
+check("design : menu complet mobile en panneau plein écran marine",
+  shell.includes('id="menu-mobile"') && shell.includes("h-full flex-col overflow-y-auto bg-navy"));
+check("design : barre inférieure mobile fixe + safe-area iPhone",
+  shell.includes("fixed inset-x-0 bottom-0 z-40") &&
+  shell.includes("pb-[env(safe-area-inset-bottom)]"));
+check("design : barre inférieure — zones tactiles ≥ 44 px (min-h-[3.5rem])",
+  // 2 patrons dans le source : celui des 4 liens (rendu par map) + le
+  // bouton « Plus » — soit 5 zones tactiles à l'écran.
+  (shell.split("min-h-[3.5rem]").length - 1) >= 2);
+check("design : actif en or (barre latérale + barre inférieure)",
+  shell.includes("text-gold shadow-[inset_4px_0_0_0_#D4AF37]") &&
+  shell.includes("h-0.5 rounded-full bg-gold"));
+check("design : icônes SVG du menu (IconeNav) présentes",
+  shell.includes("function IconeNav") && shell.includes("ICONES"));
+check("design : contenu jamais masqué par la barre inférieure (pb-28 mobile)",
+  shell.includes("px-6 pb-28 pt-6 md:ml-60"));
+check("héros : carte marine du tableau de bord (fond bg-navy, montant or)",
+  dash.includes("rounded-2xl bg-navy p-5 text-white shadow-sm") &&
+  dash.includes("text-3xl font-bold text-gold"));
+check("héros : taux de collecte affiché (clé dashboard.collectionRate)",
+  dash.includes('td("collectionRate")') && dash.includes("tauxCollecte"));
+check("actions rapides : primaire or, secondaires contour marine",
+  dash.includes("rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy") &&
+  (dash.split("border border-navy bg-white").length - 1) >= 2);
+// Aucune destination de navigation perdue dans la refonte du menu :
+// toutes les routes historiques restent présentes dans l'AppShell.
+for (const href of ["/dashboard", "/immeubles", "/appartements", "/locataires",
+  "/loyers", "/recus", "/depenses", "/documents", "/alertes", "/messages",
+  "/rapports", "/parametres", "/vitrine", "/abonnement", "/contrat"]) {
+  check(`navigation : destination toujours présente (${href})`, shell.includes(`"${href}"`));
+}
 
 console.log(`\nCorrectif cartes + graphique : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

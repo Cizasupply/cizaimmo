@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
@@ -31,6 +31,83 @@ const vitrineLinks = [{ key: "vitrine", href: "/vitrine" }] as const;
 
 /** L'abonnement n'est visible que par le propriétaire (spec §2, §12). */
 const ownerLinks = [{ key: "subscription", href: "/abonnement" }] as const;
+
+/**
+ * Barre de navigation inférieure mobile (design « Marine & Or »,
+ * 2026-11-07, demande du fondateur : menu premium, ultra mobile-first) :
+ * 4 destinations fréquentes + « Plus » qui ouvre le menu complet.
+ * Mêmes routes et mêmes libellés (nav.*) que la barre latérale.
+ */
+const barreMobile = [
+  { key: "dashboard", href: "/dashboard" },
+  { key: "buildings", href: "/immeubles" },
+  { key: "rents", href: "/loyers" },
+  { key: "tenants", href: "/locataires" },
+] as const;
+
+/**
+ * Jeu d'icônes de navigation — SVG inline uniformes (aucune librairie
+ * d'icônes dans l'app) : tracé 24×24, stroke currentColor, style
+ * « outline » cohérent pour toutes les entrées du menu.
+ */
+const ICONES: Record<string, string[]> = {
+  dashboard: ["M3 10.5 12 3l9 7.5", "M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"],
+  buildings: ["M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16", "M16 9h3a1 1 0 0 1 1 1v11", "M2.5 21h19", "M8 7h2", "M8 11h2", "M8 15h2"],
+  apartments: ["M4 4h7v7H4z", "M13 4h7v7h-7z", "M4 13h7v7H4z", "M13 13h7v7h-7z"],
+  tenants: ["M12 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "M5 20.5c.8-3.4 3.6-5.5 7-5.5s6.2 2.1 7 5.5"],
+  rents: ["M3 7h18v10H3z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"],
+  receipts: ["M6 3h12v18l-2-1.4-2 1.4-2-1.4L10 21l-2-1.4L6 21z", "M9 8h6", "M9 12h6"],
+  expenses: ["M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z", "M3 10h18"],
+  documents: ["M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M14 3v4h4"],
+  alerts: ["M6 9.8a6 6 0 0 1 12 0c0 3.8 1.4 5.2 1.4 5.2H4.6S6 13.6 6 9.8Z", "M10 19a2.2 2.2 0 0 0 4 0"],
+  messages: ["M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H12l-4.6 4.2v-4.2H5.5A1.5 1.5 0 0 1 4 14.5z"],
+  reports: ["M4 3v17a1 1 0 0 0 1 1h16", "M8.5 16v-5", "M12.5 16V8", "M16.5 16v-8"],
+  settings: ["M4 8h9.5", "M18.5 8H20", "M16 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z", "M4 16h3.5", "M12.5 16H20", "M10 18.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"],
+  vitrine: ["M5 4h14l1.2 5.2H3.8z", "M5.5 12.5V20h13v-7.5", "M10 20v-5h4v5"],
+  subscription: ["M3.5 8 7 11.5 12 5l5 6.5L20.5 8 19 17.5H5z", "M5 20.5h14"],
+  contract: ["M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M14 3v4h4", "m9.2 14.6 2 2 4-4.6"],
+  logout: ["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "M16 17l5-5-5-5", "M21 12H9"],
+};
+
+function IconeNav({ nom, className = "h-5 w-5" }: { nom: string; className?: string }) {
+  if (nom === "more") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+        <circle cx="5" cy="12" r="1.8" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+        <circle cx="19" cy="12" r="1.8" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {(ICONES[nom] ?? []).map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * Chemin courant sans préfixe de locale (localePrefix « as-needed » :
+ * FR sans préfixe, EN préfixé /en) — sert à marquer l'entrée active
+ * du menu (barre latérale, tiroir et barre inférieure mobile).
+ */
+function cheminSansLocale(p: string | null): string {
+  if (!p) return "";
+  const parties = p.split("/").filter(Boolean);
+  if (parties[0] === "fr" || parties[0] === "en") parties.shift();
+  return `/${parties.join("/")}`;
+}
 
 function AlertBell() {
   const t = useTranslations("alerts");
@@ -112,7 +189,7 @@ function SelecteurContexte({
         value={actifId ?? ""}
         disabled={enCours}
         onChange={(e) => changer(e.target.value)}
-        className="mt-1 w-full rounded-lg bg-navy px-2 py-1.5 text-sm font-semibold text-white"
+        className="mt-1 w-full rounded-lg bg-navy-light px-2 py-1.5 text-sm font-semibold text-white"
       >
         {rattachements.map((r) => (
           <option key={r.id} value={r.id}>
@@ -188,6 +265,7 @@ export default function AppShell({
   const ts = useTranslations("shell");
   const locale = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
   const [profil, setProfil] = useState<Profil | null>(null);
   const [abonnement, setAbonnement] = useState<Abonnement | null>(null);
   const [delaiApprobation, setDelaiApprobation] = useState<string>("");
@@ -288,54 +366,56 @@ export default function AppShell({
    * visibilité par rôle. Vitrine : jamais le co-propriétaire.
    * Abonnement : propriétaire seulement.
    */
+  const chemin = cheminSansLocale(pathname);
+  const estActif = (href: string) => chemin === href || chemin.startsWith(`${href}/`);
+
   function LiensNavigation({ onNavigate }: { onNavigate?: () => void }) {
+    const lien = (l: { key: string; href: string }) => {
+      const actif = estActif(l.href);
+      return (
+        <Link
+          key={l.key}
+          href={l.href}
+          onClick={onNavigate}
+          aria-current={actif ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+            actif
+              ? "bg-navy-light font-semibold text-gold shadow-[inset_4px_0_0_0_#D4AF37]"
+              : "text-slate-200 hover:bg-navy-light hover:text-gold"
+          }`}
+        >
+          <IconeNav nom={l.key} />
+          <span className="min-w-0 truncate">{t(l.key)}</span>
+        </Link>
+      );
+    };
+    // Regroupement visuel sobre (design « Marine & Or ») : mêmes routes
+    // et mêmes libellés qu'avant, aucune entrée supprimée — les
+    // Paramètres rejoignent le groupe « Compte » avec l'Abonnement et
+    // le Contrat ; la Vitrine reste dans « Gestion ».
+    const gestion: { key: string; href: string }[] = [
+      ...links.filter((l) => l.key !== "settings"),
+      ...(estCoproprietaire ? [] : vitrineLinks),
+    ];
+    const compte: { key: string; href: string }[] = [
+      ...(estProprietaire ? ownerLinks : []),
+      // v1.3 : espace gestionnaire (contrat + demandes) — comptes à
+      // intention gestionnaire et gestionnaires rattachés.
+      ...(profil?.type_intention === "gestionnaire" || role === "gestionnaire"
+        ? [{ key: "contract", href: "/contrat" }]
+        : []),
+      { key: "settings", href: "/parametres" },
+    ];
     return (
       <>
-        {links.map((l) => (
-          <Link
-            key={l.key}
-            href={l.href}
-            onClick={onNavigate}
-            className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-          >
-            {t(l.key)}
-          </Link>
-        ))}
-        {!estCoproprietaire
-          ? vitrineLinks.map((l) => (
-              <Link
-                key={l.key}
-                href={l.href}
-                onClick={onNavigate}
-                className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-              >
-                {t(l.key)}
-              </Link>
-            ))
-          : null}
-        {estProprietaire
-          ? ownerLinks.map((l) => (
-              <Link
-                key={l.key}
-                href={l.href}
-                onClick={onNavigate}
-                className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-              >
-                {t(l.key)}
-              </Link>
-            ))
-          : null}
-        {/* v1.3 : espace gestionnaire (contrat + demandes) — comptes à
-            intention gestionnaire et gestionnaires rattachés. */}
-        {profil?.type_intention === "gestionnaire" || role === "gestionnaire" ? (
-          <Link
-            href="/contrat"
-            onClick={onNavigate}
-            className="block rounded-lg px-3 py-2 text-sm hover:bg-navy-light hover:text-gold"
-          >
-            {t("contract")}
-          </Link>
-        ) : null}
+        <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          {t("groupManagement")}
+        </p>
+        <div className="space-y-1">{gestion.map(lien)}</div>
+        <p className="px-3 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          {t("groupAccount")}
+        </p>
+        <div className="space-y-1">{compte.map(lien)}</div>
       </>
     );
   }
@@ -390,11 +470,11 @@ export default function AppShell({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <aside className="fixed inset-y-0 left-0 w-60 bg-navy-dark text-white p-6 hidden md:block">
+    <div className="min-h-screen bg-cream">
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col bg-navy p-6 text-white md:flex">
         <Link
           href={`/${locale}/dashboard`}
-          className="mb-1 block"
+          className="mb-1 block shrink-0"
           aria-label="CizaImmo"
         >
           <Image
@@ -405,36 +485,32 @@ export default function AppShell({
             priority
           />
         </Link>
-        <p className="text-xs text-slate-400 mb-8">{tb("division")}</p>
-        <nav className="space-y-1">
+        <p className="mb-6 shrink-0 text-xs text-slate-400">{tb("division")}</p>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           <LiensNavigation />
         </nav>
-        {role === "gestionnaire" && rattachements.length > 1 ? (
-          <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
-        ) : null}
-        {profil ? <BlocUtilisateur profil={profil} /> : null}
-        <div className="mt-3">
-          <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        <div className="shrink-0">
+          {role === "gestionnaire" && rattachements.length > 1 ? (
+            <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
+          ) : null}
+          {profil ? <BlocUtilisateur profil={profil} /> : null}
+          <div className="mt-3">
+            <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-3 rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+          >
+            <IconeNav nom="logout" />
+            {tc("logout")}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-3 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
-        >
-          {tc("logout")}
-        </button>
       </aside>
-      <header className="flex items-center gap-3 bg-navy-dark px-4 py-3 md:hidden">
-        <button
-          type="button"
-          onClick={() => setMenuOuvert(true)}
-          aria-label="Menu"
-          aria-expanded={menuOuvert}
-          aria-controls="menu-mobile"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-xl text-white hover:border-gold hover:text-gold"
-        >
-          <span aria-hidden="true">☰</span>
-        </button>
+      {/* Barre supérieure mobile (design « Marine & Or ») : logo, langue,
+          cloche et avatar — le menu complet s'ouvre par « Plus » dans la
+          barre inférieure, il n'y a plus de bouton hamburger. */}
+      <header className="flex items-center gap-2 bg-navy px-4 py-3 md:hidden">
         <Link href={`/${locale}/dashboard`} aria-label="CizaImmo" className="min-w-0 shrink-0">
           <Image
             src="/cizaimmo-logo-compact.png"
@@ -448,19 +524,28 @@ export default function AppShell({
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
             {prenomDe(profil.nom)}
           </span>
+        ) : (
+          <span className="flex-1" />
+        )}
+        <LanguageSwitcher className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        <AlertBell />
+        {profil ? (
+          <Link
+            href="/parametres"
+            aria-label={t("settings")}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-bold text-navy-dark"
+          >
+            {(profil.nom.trim()[0] ?? "?").toUpperCase()}
+          </Link>
         ) : null}
       </header>
-      {/* Tiroir mobile — téléphone seulement, jamais sur ordinateur. */}
+      {/* Menu complet mobile — panneau PLEIN ÉCRAN marine, ouvert par
+          « Plus » (barre inférieure) : TOUTES les entrées de navigation
+          + compte et déconnexion. Téléphone seulement. */}
       {menuOuvert ? (
         <div id="menu-mobile" className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button
-            type="button"
-            aria-label="Menu"
-            onClick={() => setMenuOuvert(false)}
-            className="absolute inset-0 h-full w-full cursor-default bg-navy-dark/60"
-          />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-navy-dark p-6 text-white shadow-xl">
-            <div className="mb-1 flex items-start justify-between gap-2">
+          <div className="flex h-full flex-col overflow-y-auto bg-navy p-6 text-white">
+            <div className="mb-1 flex shrink-0 items-start justify-between gap-2">
               <Link
                 href={`/${locale}/dashboard`}
                 onClick={() => setMenuOuvert(false)}
@@ -484,30 +569,39 @@ export default function AppShell({
                 <span aria-hidden="true">✕</span>
               </button>
             </div>
-            <p className="text-xs text-slate-400 mb-8">{tb("division")}</p>
-            <nav className="space-y-1">
+            <p className="mb-6 shrink-0 text-xs text-slate-400">{tb("division")}</p>
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
               <LiensNavigation onNavigate={() => setMenuOuvert(false)} />
             </nav>
-            {role === "gestionnaire" && rattachements.length > 1 ? (
-              <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
-            ) : null}
-            {profil ? <BlocUtilisateur profil={profil} /> : null}
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-3 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
-            >
-              {tc("logout")}
-            </button>
+            <div className="shrink-0">
+              {role === "gestionnaire" && rattachements.length > 1 ? (
+                <SelecteurContexte rattachements={rattachements} actifId={contexteActifId} />
+              ) : null}
+              {profil ? <BlocUtilisateur profil={profil} /> : null}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-3 flex w-full items-center gap-3 rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+              >
+                <IconeNav nom="logout" />
+                {tc("logout")}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
-      <main className="md:ml-60 p-6 md:p-10">
+      <main className="px-6 pb-28 pt-6 md:ml-60 md:p-10">
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
           <div className="flex shrink-0 items-center gap-2">
-            <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
-            <AlertBell />
+            {/* Sur mobile, langue et cloche vivent dans la barre
+                supérieure marine — pas de doublon dans le titre. */}
+            <span className="hidden md:inline-flex">
+              <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
+            </span>
+            <span className="hidden md:inline-flex">
+              <AlertBell />
+            </span>
             <button
               type="button"
               onClick={handleLogout}
@@ -519,6 +613,49 @@ export default function AppShell({
         </div>
         {children}
       </main>
+      {/* Barre de navigation inférieure mobile — style application :
+          4 destinations fréquentes + « Plus » (menu complet plein
+          écran). Zones tactiles ≥ 44 px, safe-area iPhone respectée,
+          état actif en or avec indicateur. */}
+      <nav
+        aria-label="Navigation principale"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {barreMobile.map((l) => {
+            const actif = estActif(l.href);
+            return (
+              <Link
+                key={l.key}
+                href={l.href}
+                aria-current={actif ? "page" : undefined}
+                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+                  actif ? "text-gold" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {actif ? (
+                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
+                ) : null}
+                <IconeNav nom={l.key} className="h-6 w-6" />
+                <span className="max-w-full truncate">{t(l.key)}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(true)}
+            aria-label={t("more")}
+            aria-expanded={menuOuvert}
+            aria-controls="menu-mobile"
+            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <IconeNav nom="more" className="h-6 w-6" />
+            <span className="max-w-full truncate">{t("more")}</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

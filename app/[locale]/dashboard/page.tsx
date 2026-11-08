@@ -167,6 +167,16 @@ export default function DashboardPage() {
     [indicateurs, deviseAffichage, taux]
   );
 
+  // Taux de collecte du mois (carte héros) : simple rapport des deux
+  // totaux DÉJÀ convertis ci-dessus — aucun nouveau calcul métier.
+  // Null si un taux de change manque ou si rien n'est attendu.
+  const tauxCollecte =
+    collectesConv.totalConverti !== null &&
+    attendusConv.totalConverti !== null &&
+    attendusConv.totalConverti > 0
+      ? collectesConv.totalConverti / attendusConv.totalConverti
+      : null;
+
   const feed = useMemo(() => {
     if (!filtreImmeubleFeed) return activites;
     const aptIds = new Set(appartements.filter((a) => a.immeuble_id === filtreImmeubleFeed).map((a) => a.id));
@@ -248,7 +258,7 @@ export default function DashboardPage() {
         </div>
       ) : immeubles.filter((i) => i.statut === "actif").length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-bold text-navy">{td("starterTitle")}</h2>
+          <h2 className="text-lg font-semibold text-navy">{td("starterTitle")}</h2>
           <p className="mt-2 text-slate-600">{td("starterText")}</p>
           <ol className="mt-4 space-y-3">
             <li className="flex gap-3">
@@ -287,20 +297,49 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-600">{td("converterNote")}</p>
           </div>
 
+          {/* Carte héros marine (design « Marine & Or ») — synthèse du
+              mois dans la devise d'affichage : collecté en or, attendu
+              et taux de collecte, à partir des totaux déjà convertis. */}
+          <section className="mb-4 rounded-2xl bg-navy p-5 text-white shadow-sm sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">{td("collectedMonth")}</p>
+            <p className="mt-1 break-all text-3xl font-bold text-gold sm:text-4xl">
+              {collectesConv.totalConverti !== null
+                ? formatMoney(collectesConv.totalConverti, deviseAffichage, locale)
+                : collectesConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
+            </p>
+            <p className="mt-2 text-sm text-slate-200">
+              {td("expectedMonth")} :{" "}
+              <span className="font-semibold text-white">
+                {attendusConv.totalConverti !== null
+                  ? formatMoney(attendusConv.totalConverti, deviseAffichage, locale)
+                  : attendusConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
+              </span>
+              {tauxCollecte !== null ? (
+                <>
+                  {" · "}
+                  {td("collectionRate")} :{" "}
+                  <span className="font-bold text-gold">{formatPct(tauxCollecte, locale)}</span>
+                </>
+              ) : null}
+            </p>
+          </section>
+
           {/* 4 chiffres clés — code couleur : vert = ok / collecté, rouge = en retard,
               marine = attendu (à venir), ambre = vacant / attention. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className={`min-w-0 rounded-2xl border border-slate-200 p-4 shadow-sm ${indicateurs.occupation === null ? "bg-white" : indicateurs.occupation >= 0.8 ? "bg-green-50" : "bg-amber-50"}`}>
+            <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-navy" />
               <p className="text-sm font-semibold text-slate-600">{td("occupancy")}</p>
-              <p className={`mt-1 text-2xl font-bold ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
+              <p className={`mt-1 text-3xl font-bold ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
                 {indicateurs.occupation === null ? "—" : formatPct(indicateurs.occupation, locale)}
               </p>
               <p className="break-words text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-green-50 p-4 shadow-sm">
+            <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-green-500" />
               <p className="text-sm font-semibold text-slate-600">{td("collectedMonth")}</p>
               {collectesConv.lignes.map((l) => (
-                <p key={l.devise} className="mt-1 break-all text-lg font-bold text-green-700">
+                <p key={l.devise} className="mt-1 break-all text-2xl font-bold text-green-700">
                   {formatMoney(l.total, l.devise, locale)}
                   {l.converti !== null && l.devise !== deviseAffichage ? (
                     <span className="block text-sm font-normal text-green-700">
@@ -314,13 +353,14 @@ export default function DashboardPage() {
                 {td("expectedMonth")}: {attendusConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
               </p>
             </div>
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-red-50 p-4 shadow-sm">
+            <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-500" />
               <p className="text-sm font-semibold text-slate-600">{td("lateAmount")}</p>
               {retardsConv.lignes.length === 0 ? (
-                <p className="mt-1 text-2xl font-bold text-green-700">0</p>
+                <p className="mt-1 text-3xl font-bold text-green-700">0</p>
               ) : (
                 retardsConv.lignes.map((l) => (
-                  <p key={l.devise} className="mt-1 break-all text-lg font-bold text-red-700">
+                  <p key={l.devise} className="mt-1 break-all text-2xl font-bold text-red-700">
                     {formatMoney(l.total, l.devise, locale)}
                     {l.converti !== null && l.devise !== deviseAffichage ? (
                       <span className="block text-sm font-normal text-red-700">
@@ -333,9 +373,10 @@ export default function DashboardPage() {
               )}
               <p className="break-words text-sm text-slate-600">{td("lateCount", { count: indicateurs.retards.length })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-amber-50 p-4 shadow-sm">
+            <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-amber-500" />
               <p className="text-sm font-semibold text-slate-600">{td("vacant")}</p>
-              <p className="mt-1 text-2xl font-bold text-amber-700">{indicateurs.nbVacants}</p>
+              <p className="mt-1 text-3xl font-bold text-amber-700">{indicateurs.nbVacants}</p>
               <p className="text-sm text-slate-600">{td("vacantHint")}</p>
             </div>
           </div>
@@ -349,14 +390,14 @@ export default function DashboardPage() {
 
           {/* Actions rapides */}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/loyers" className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy-light">{td("quickDeclare")}</Link>
-            <Link href="/depenses" className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-navy hover:border-gold">{td("quickExpense")}</Link>
-            <Link href="/immeubles/nouveau" className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-navy hover:border-gold">{td("quickBuilding")}</Link>
+            <Link href="/loyers" className="rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy hover:bg-gold-light">{td("quickDeclare")}</Link>
+            <Link href="/depenses" className="rounded-full border border-navy bg-white px-5 py-2.5 text-sm font-semibold text-navy hover:bg-navy/5">{td("quickExpense")}</Link>
+            <Link href="/immeubles/nouveau" className="rounded-full border border-navy bg-white px-5 py-2.5 text-sm font-semibold text-navy hover:bg-navy/5">{td("quickBuilding")}</Link>
           </div>
 
           {/* Retards */}
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-navy">{td("lateList")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{td("lateList")}</h2>
             {indicateurs.retards.length === 0 ? (
               <p className="mt-2 text-slate-600">{td("noLate")}</p>
             ) : (
@@ -384,7 +425,7 @@ export default function DashboardPage() {
           {/* Fins de bail + dépenses du mois */}
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-navy">{td("leasesEnding")}</h2>
+              <h2 className="text-lg font-semibold text-navy">{td("leasesEnding")}</h2>
               {indicateurs.finsDeBail60j.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noLeaseEnding")}</p>
               ) : (
@@ -403,7 +444,7 @@ export default function DashboardPage() {
               )}
             </section>
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-navy">{td("expensesMonth")}</h2>
+              <h2 className="text-lg font-semibold text-navy">{td("expensesMonth")}</h2>
               {indicateurs.depensesMois.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noExpenseMonth")}</p>
               ) : (
@@ -422,7 +463,7 @@ export default function DashboardPage() {
 
           {/* Graphique collecte 6 mois */}
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-navy">{td("collectionChart")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{td("collectionChart")}</h2>
             <p className="text-sm text-slate-600">{td("chartInCurrency", { currency: deviseAffichage })}</p>
             <div className="mx-auto mt-4 max-w-[560px] overflow-x-auto">
               <svg viewBox="0 0 360 100" className="w-full min-w-[320px]" role="img" aria-label={td("collectionChart")}>
@@ -452,7 +493,7 @@ export default function DashboardPage() {
           {/* Fil d'actualité */}
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-navy">{td("feedTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy">{td("feedTitle")}</h2>
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 {td("feedFilterBuilding")}
                 <select

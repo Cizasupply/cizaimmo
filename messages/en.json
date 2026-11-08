@@ -1021,6 +1021,7 @@
     "chartInCurrency": "Amounts converted to {currency} (dated rates).",
     "collectedMonth": "Rent collected this month",
     "collectionChart": "Collection over the last 6 months",
+    "collectionRate": "Collection rate",
     "converterNote": "Original amounts stay visible; converted totals carry their rate date.",
     "displayCurrency": "Display currency",
     "expectedMonth": "Expected",
@@ -1369,6 +1370,8 @@
     "dashboard": "Dashboard",
     "documents": "Documents",
     "expenses": "Expenses",
+    "groupAccount": "Account",
+    "groupManagement": "Management",
     "home": "Home",
     "legalNotice": "Legal notice",
     "pricing": "Pricing",
@@ -1381,7 +1384,8 @@
     "tenants": "Tenants",
     "terms": "Terms of use",
     "vitrine": "“For rent” showcase",
-    "messages": "Messages"
+    "messages": "Messages",
+    "more": "More"
   },
   "pages": {
     "alerts": {

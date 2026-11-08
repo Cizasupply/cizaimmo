@@ -19,6 +19,10 @@ const config: Config = {
           light: "#E8C86E",
           dark: "#A8862A",
         },
+        // Fond général de l'espace connecté (design « Marine & Or »,
+        // 2026-11-07) : blanc crème chaud, les cartes blanches
+        // ressortent sans contours artificiels.
+        cream: "#F7F5F0",
       },
     },
   },
