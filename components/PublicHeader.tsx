@@ -9,7 +9,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  * En-tête commun des pages publiques (spec §4) : logo, navigation
  * (Tarifs, Appartements à louer, Contact), connexion / essai gratuit,
  * bascule de langue toujours visible. UN SEUL en-tête pour toutes les
- * pages publiques (accueil, tarifs, a-louer, contact, légales).
+ * pages publiques (accueil, tarifs, a-louer, a-propos, contact, légales).
  *
  * Mise en page — mobile et tablette (< xl) : trois lignes ordonnées,
  * sans flex-wrap désordonné : (1) logo + langue, (2) navigation,
@@ -23,12 +23,12 @@ export default function PublicHeader({
   masquerEssai = false,
 }: {
   /**
-   * Page d'accueil uniquement (2026-11-08, règle du fondateur :
-   * aucun doublon de CTA) : le bouton « Essai gratuit » de
-   * l'en-tête y est masqué car le héros porte LE bouton d'essai
-   * unique de la page (« Commencer l'essai gratuit de 30 jours »,
-   * primaire or). Toutes les autres pages publiques gardent
-   * l'en-tête complet, inchangé par défaut.
+   * Pages dont le héros / le corps porte déjà LE bouton d'essai
+   * unique (2026-11-08, règle du fondateur : aucun doublon de
+   * CTA) : l'accueil (bouton du héros) et la page À propos
+   * (CTA final). Sur ces pages, le bouton « Essai gratuit » de
+   * l'en-tête est masqué. Toutes les autres pages publiques
+   * gardent l'en-tête complet, inchangé par défaut.
    */
   masquerEssai?: boolean;
 } = {}) {
@@ -55,6 +55,9 @@ export default function PublicHeader({
           </Link>
           <Link href="/a-louer" className="rounded px-1 py-2 hover:text-gold">
             {t("navRent")}
+          </Link>
+          <Link href="/a-propos" className="rounded px-1 py-2 hover:text-gold">
+            {tn("about")}
           </Link>
           <Link href="/contact" className="rounded px-1 py-2 hover:text-gold">
             {tn("contact")}

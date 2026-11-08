@@ -392,6 +392,22 @@ else
   ECHEC=1
 fi
 
+# Page publique « À propos » (2026-11-08, « Apropos aussi ») :
+# TEXTE VALIDÉ MOT POUR MOT par le fondateur (namespace « about »,
+# égalité exacte verrouillée en FR, parité FR/EN), photo du
+# FONDATEUR en carte encadrée dans le héros avec légende
+# (décision finale — pas de photo de résidence sur cette page),
+# lien « À propos » dans l'en-tête et le pied publics, CTA final
+# unique (même règle anti-doublon que l'accueil).
+echo ""
+echo "===== Page À propos (texte validé + photo fondateur) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-page-a-propos.cjs"; then
+  echo "Page À propos : OK"
+else
+  echo "Page À propos : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

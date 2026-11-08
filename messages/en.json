@@ -1,4 +1,27 @@
 {
+    "about": {
+      "commitmentText": "CizaImmo <gras>never collects your rents</gras>: our only revenue is the subscription. The platform records the payments you declare — your money stays in your hands. Every account is verified by our team before it is activated, and your data remains yours.",
+      "commitmentTitle": "Our commitment",
+      "companyLine": "CizaImmo, a division of CIZA GROUP SURL — Bujumbura, Burundi · infos@cizagroup.com · WhatsApp +1 514 502 9503",
+      "founderCaption": "Ciza Misigaro — Founder & CEO, Ciza Group",
+      "heroPhotoAlt": "Ciza Misigaro, founder and CEO of Ciza Group, at his office",
+      "items": {
+        "item1": "Buildings and units",
+        "item2": "Tenants and leases",
+        "item3": "Rent tracking and PDF receipts",
+        "item4": "Late payment alerts",
+        "item5": "Expenses and profitability of each property",
+        "item6": "Documents kept on file",
+        "item7": "12 currencies, including the Burundian franc, the euro and the dollar",
+        "item8": "Verified listings for properties to rent"
+      },
+      "platformTitle": "What the platform does",
+      "problemText": "Managing properties by hand — notebooks, scattered receipts, late payments discovered too late — wastes time and money. And when you live far from your buildings, everything gets more complicated. CizaImmo brings order to management: every building, every unit, every lease and every payment in one place, with alerts before problems arise.",
+      "problemTitle": "The problem we solve",
+      "title": "About CizaImmo",
+      "whoText": "CizaImmo is Ciza Group's property management platform. We help owners and managers track their buildings, their tenants and their rents from one single place — at the office, at home or from abroad. The platform works in French and in English, in several currencies, on phone and on computer alike.",
+      "whoTitle": "Who we are"
+    },
   "alerts": {
     "activeTitle": "Active alerts ({count})",
     "bellLabel": "{count, plural, =0 {Alerts: no active alerts} =1 {Alerts: 1 active alert} other {Alerts: # active alerts}}",
@@ -1365,6 +1388,7 @@
     }
   },
   "nav": {
+    "about": "About",
     "alerts": "Alerts",
     "apartments": "Units",
     "buildings": "Buildings",

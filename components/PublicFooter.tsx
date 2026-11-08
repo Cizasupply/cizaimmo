@@ -86,6 +86,11 @@ export default function PublicFooter() {
                 </a>
               </li>
               <li>
+                <Link href="/a-propos" className="rounded px-1 py-2 hover:text-gold">
+                  {tn("about")}
+                </Link>
+              </li>
+              <li>
                 <Link href="/contact" className="rounded px-1 py-2 hover:text-gold">
                   {tn("contact")}
                 </Link>

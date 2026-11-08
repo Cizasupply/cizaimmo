@@ -1,4 +1,27 @@
 {
+    "about": {
+      "commitmentText": "CizaImmo <gras>n'encaisse jamais vos loyers</gras> : notre seul revenu, c'est l'abonnement. La plateforme enregistre les paiements que vous déclarez — votre argent reste entre vos mains. Chaque compte est vérifié par notre équipe avant son activation, et vos données restent les vôtres.",
+      "commitmentTitle": "Notre engagement",
+      "companyLine": "CizaImmo, division de CIZA GROUP SURL — Bujumbura, Burundi · infos@cizagroup.com · WhatsApp +1 514 502 9503",
+      "founderCaption": "Ciza Misigaro — Fondateur & CEO, Ciza Group",
+      "heroPhotoAlt": "Ciza Misigaro, fondateur et CEO de Ciza Group, à son bureau",
+      "items": {
+        "item1": "Immeubles et appartements",
+        "item2": "Locataires et baux",
+        "item3": "Suivi des loyers et reçus PDF",
+        "item4": "Alertes de retard",
+        "item5": "Dépenses et rentabilité de chaque bien",
+        "item6": "Documents conservés au dossier",
+        "item7": "12 devises, dont le franc burundais, l'euro et le dollar",
+        "item8": "Annonces vérifiées pour les biens à louer"
+      },
+      "platformTitle": "Ce que fait la plateforme",
+      "problemText": "Gérer des biens à la main — cahiers, reçus éparpillés, retards découverts trop tard — fait perdre du temps et de l'argent. Et quand on vit loin de ses immeubles, tout devient plus compliqué. CizaImmo met de l'ordre dans la gestion : chaque immeuble, chaque porte, chaque bail et chaque paiement au même endroit, avec des alertes avant que les problèmes n'arrivent.",
+      "problemTitle": "Le problème que nous réglons",
+      "title": "À propos de CizaImmo",
+      "whoText": "CizaImmo est la plateforme de gestion immobilière de Ciza Group. Nous aidons les propriétaires et les gestionnaires à suivre leurs immeubles, leurs locataires et leurs loyers depuis un seul endroit — au bureau, à la maison ou depuis l'étranger. La plateforme fonctionne en français et en anglais, en plusieurs devises, sur téléphone comme sur ordinateur.",
+      "whoTitle": "Qui sommes-nous"
+    },
   "alerts": {
     "activeTitle": "Alertes actives ({count})",
     "bellLabel": "{count, plural, =0 {Alertes : aucune alerte active} =1 {Alertes : 1 alerte active} other {Alertes : # alertes actives}}",
@@ -1365,6 +1388,7 @@
     }
   },
   "nav": {
+    "about": "À propos",
     "alerts": "Alertes",
     "apartments": "Appartements",
     "buildings": "Immeubles",
