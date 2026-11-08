@@ -121,7 +121,7 @@ import {
   blocagesCarteEmploye,
   carteEmployeEmise,
   progressionPackEmploye,
-  verificationEmployeValide,
+  verdictVerificationEmploye,
   type ParametresContratEmploye,
   type StatutContratEmploye,
 } from "../pack-employe";
@@ -4510,6 +4510,12 @@ export class RealProvider implements DataProvider {
     const acces = (ligne.acces_admin_actif as boolean | null) ?? true;
     const statutContrat = (ligne.statut_contrat_employe ??
       "sans_objet") as StatutContratEmploye;
+    const carte = carteEmployeEmise(dossier.complet, statutContrat);
+    const verdict = verdictVerificationEmploye({
+      statutCompte,
+      accesConsoleActif: acces,
+      carteEmise: carte,
+    });
     return {
       display_id: propre,
       nom: dossier.nom,
@@ -4523,11 +4529,9 @@ export class RealProvider implements DataProvider {
       contrat_statut: statutContrat,
       contrat_voie: this.parametresDepuisLigne(ligne)?.voie ?? null,
       charte_acceptee_le: (ligne.charte_acceptee_le as string | null) ?? null,
-      carte_emise: carteEmployeEmise(dossier.complet, statutContrat),
-      valide: verificationEmployeValide({
-        statutCompte,
-        accesConsoleActif: acces,
-      }),
+      carte_emise: carte,
+      verdict,
+      valide: verdict === "valide",
     };
   }
 

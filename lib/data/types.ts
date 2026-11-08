@@ -1388,7 +1388,13 @@ export interface VerificationEmploye {
   contrat_voie: import("../pack-employe").VoieContratEmploye | null;
   charte_acceptee_le: string | null;
   carte_emise: boolean;
-  /** La carte passe la vérification (compte actif + accès ouvert). */
+  /**
+   * Verdict en trois états (2026-11-08) : « non_valide » (suspendu /
+   * accès fermé), « valide » (en règle ET carte émise),
+   * « carte_non_emise » (en règle mais aucune carte émise).
+   */
+  verdict: import("../pack-employe").VerdictVerificationEmploye;
+  /** Vrai seulement si le verdict est « valide » (carte émise comprise). */
   valide: boolean;
 }
 

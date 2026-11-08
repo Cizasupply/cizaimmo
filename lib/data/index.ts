@@ -153,11 +153,13 @@ export type {
   ParametresContratEmploye,
   ProgressionPack,
   StatutContratEmploye,
+  VerdictVerificationEmploye,
   VoieContratEmploye,
 } from "../pack-employe";
 export {
   carteEmployeEmise,
   progressionPackEmploye,
+  verdictVerificationEmploye,
   verificationEmployeValide,
 } from "../pack-employe";
 export { CATEGORIES_DEPENSES, DEVISES, OPERATEURS_MOBILE_MONEY, TYPES_APPARTEMENT, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT_OCTETS, limiteBlocs, LIMITE_BLOCS } from "./types";

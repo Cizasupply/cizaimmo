@@ -12,7 +12,9 @@ import { formatDate } from "@/lib/format";
  * ID porté par la carte → identité, photo, rôle, statut du compte,
  * dossier, contrat, charte et émission de la carte, lus en direct.
  * Un compte suspendu (ou un accès console fermé) ressort VISIBLEMENT
- * comme NON VALIDE : la carte ne « passe » plus.
+ * comme NON VALIDE : la carte ne « passe » plus. Verdict en trois
+ * états (2026-11-08) : vert seulement si la carte est ÉMISE ; ambre
+ * « CARTE NON ÉMISE » si le compte est en règle sans carte émise.
  * Console plateforme (Admin et Super Admin).
  */
 export default function PageVerifierEmploye() {
@@ -91,12 +93,23 @@ export default function PageVerifierEmploye() {
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div
             className={`px-5 py-3 text-center text-sm font-bold tracking-wide ${
-              resultat.valide
+              resultat.verdict === "valide"
                 ? "bg-emerald-600 text-white"
-                : "bg-red-700 text-white"
+                : resultat.verdict === "carte_non_emise"
+                  ? "bg-amber-400 text-navy"
+                  : "bg-red-700 text-white"
             }`}
           >
-            {resultat.valide ? t("verifyValid") : t("verifyInvalid")}
+            {resultat.verdict === "valide"
+              ? t("verifyValid")
+              : resultat.verdict === "carte_non_emise"
+                ? t("verifyCardNotIssued")
+                : t("verifyInvalid")}
+            {resultat.verdict === "carte_non_emise" ? (
+              <p className="mt-0.5 text-xs font-semibold normal-case tracking-normal">
+                {t("verifyCardNotIssuedHint")}
+              </p>
+            ) : null}
           </div>
           <div className="p-5">
             <div className="flex items-center gap-4">

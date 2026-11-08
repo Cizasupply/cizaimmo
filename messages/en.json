@@ -1359,6 +1359,8 @@
     "verifyNotFound": "No employee carries this Display ID.",
     "verifyValid": "VALID CARD — employee in good standing",
     "verifyInvalid": "NOT VALID — suspended account or closed access",
+    "verifyCardNotIssued": "CARD NOT ISSUED",
+    "verifyCardNotIssuedHint": "The account is in good standing, but no employee card has been issued yet.",
     "verifyAccountStatus": "Account status",
     "verifyAccess": "Console access",
     "verifyAccessOpen": "Open",

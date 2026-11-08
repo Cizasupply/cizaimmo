@@ -1359,6 +1359,8 @@
     "verifyNotFound": "Aucun employé ne porte ce Display ID.",
     "verifyValid": "CARTE VALIDE — employé en règle",
     "verifyInvalid": "NON VALIDE — compte suspendu ou accès fermé",
+    "verifyCardNotIssued": "CARTE NON ÉMISE",
+    "verifyCardNotIssuedHint": "Le compte est en règle, mais aucune carte employé n'a encore été émise.",
     "verifyAccountStatus": "Statut du compte",
     "verifyStatusActive": "Actif",
     "verifyStatusSuspended": "Suspendu",

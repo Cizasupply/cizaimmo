@@ -157,7 +157,7 @@ import {
   blocagesCarteEmploye,
   carteEmployeEmise,
   progressionPackEmploye,
-  verificationEmployeValide,
+  verdictVerificationEmploye,
   type ParametresContratEmploye,
   type StatutContratEmploye,
 } from "../pack-employe";
@@ -5550,6 +5550,12 @@ export class DemoProvider implements DataProvider {
     const statutCompte = membre.suspendu
       ? ("suspendu" as const)
       : ("actif" as const);
+    const carte = carteEmployeEmise(dossier.complet, stocke.statut);
+    const verdict = verdictVerificationEmploye({
+      statutCompte,
+      accesConsoleActif: membre.acces,
+      carteEmise: carte,
+    });
     return {
       display_id: propre,
       nom: membre.nom,
@@ -5563,11 +5569,9 @@ export class DemoProvider implements DataProvider {
       contrat_statut: stocke.statut,
       contrat_voie: stocke.parametres?.voie ?? null,
       charte_acceptee_le: stocke.charte_acceptee_le,
-      carte_emise: carteEmployeEmise(dossier.complet, stocke.statut),
-      valide: verificationEmployeValide({
-        statutCompte,
-        accesConsoleActif: membre.acces,
-      }),
+      carte_emise: carte,
+      verdict,
+      valide: verdict === "valide",
     };
   }
 

@@ -133,3 +133,30 @@ export function verificationEmployeValide(entrees: {
 }): boolean {
   return entrees.statutCompte === "actif" && entrees.accesConsoleActif;
 }
+
+/**
+ * Verdict de vérification en TROIS états (2026-11-08, décision du
+ * fondateur après son test réel : le bandeau vert « CARTE VALIDE »
+ * s'affichait pour Barros, actif mais SANS carte émise) :
+ *  - « non_valide »      : compte suspendu ou accès console fermé —
+ *                          la carte ne passe pas, point ;
+ *  - « valide »          : compte en règle ET carte employé ÉMISE —
+ *                          seul cas où le bandeau vert s'affiche ;
+ *  - « carte_non_emise » : compte en règle mais AUCUNE carte encore
+ *                          émise — bandeau ambre distinct, pour ne
+ *                          jamais laisser croire qu'une carte
+ *                          inexistante a été validée.
+ */
+export type VerdictVerificationEmploye =
+  | "valide"
+  | "non_valide"
+  | "carte_non_emise";
+
+export function verdictVerificationEmploye(entrees: {
+  statutCompte: "actif" | "suspendu";
+  accesConsoleActif: boolean;
+  carteEmise: boolean;
+}): VerdictVerificationEmploye {
+  if (!verificationEmployeValide(entrees)) return "non_valide";
+  return entrees.carteEmise ? "valide" : "carte_non_emise";
+}

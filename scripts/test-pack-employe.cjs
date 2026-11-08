@@ -13,6 +13,11 @@
 // - carte conditionnée : dossier COMPLET + contrat VALIDÉ ;
 // - vérification contre la base : un employé SUSPENDU ressort
 //   NON VALIDE ; un Display ID inconnu -> null ;
+// - correctifs 2026-11-08 (soir) : verdict de vérification en
+//   TROIS états (vert seulement si la carte est ÉMISE ; ambre
+//   « CARTE NON ÉMISE » si le compte est en règle sans carte) et
+//   logo de la maison mère CIZA GROUP sur la carte employé
+//   (écran + PDF, PNG transparent verrouillé) ;
 // - surfaces par rôle : le client est refusé (ERR_ACCES_PLATEFORME),
 //   la préparation/revue sont réservées au Super Admin ;
 // - parcours client inchangé.
@@ -138,6 +143,12 @@ const PARAMS_B = {
     PE.verificationEmployeValide({ statutCompte: "suspendu", accesConsoleActif: true }) === false &&
     PE.verificationEmployeValide({ statutCompte: "actif", accesConsoleActif: false }) === false &&
     PE.verificationEmployeValide({ statutCompte: "actif", accesConsoleActif: true }) === true);
+  check("verdict TROIS états : suspendu/fermé -> non_valide ; actif + carte émise -> valide ; actif SANS carte -> carte_non_emise",
+    PE.verdictVerificationEmploye({ statutCompte: "suspendu", accesConsoleActif: true, carteEmise: true }) === "non_valide" &&
+    PE.verdictVerificationEmploye({ statutCompte: "actif", accesConsoleActif: false, carteEmise: true }) === "non_valide" &&
+    PE.verdictVerificationEmploye({ statutCompte: "suspendu", accesConsoleActif: true, carteEmise: false }) === "non_valide" &&
+    PE.verdictVerificationEmploye({ statutCompte: "actif", accesConsoleActif: true, carteEmise: true }) === "valide" &&
+    PE.verdictVerificationEmploye({ statutCompte: "actif", accesConsoleActif: true, carteEmise: false }) === "carte_non_emise");
 
   console.log("== Textes générés : deux voies, différences strictes, aucun INSS ==");
   const donneesBase = {
@@ -224,6 +235,35 @@ const PARAMS_B = {
   const pageVerif = lire("app/[locale]/console/verifier-employe/page.tsx");
   check("page Vérifier : saisie Display ID + bannière NON VALIDE",
     pageVerif.includes("verifierEmploye") && pageVerif.includes("verifyInvalid"));
+  check("page Vérifier : verdict TROIS états (vert si carte émise, ambre « CARTE NON ÉMISE », rouge sinon)",
+    pageVerif.includes("resultat.verdict") &&
+    pageVerif.includes("carte_non_emise") &&
+    pageVerif.includes("verifyCardNotIssued") &&
+    pageVerif.includes("verifyCardNotIssuedHint") &&
+    pageVerif.includes("bg-amber-400"));
+  check("fournisseurs (réel + démo) : verdict calculé par la fonction pure, « valide » = verdict « valide »",
+    lire("lib/data/real.ts").includes("verdictVerificationEmploye") &&
+    lire("lib/data/demo.ts").includes("verdictVerificationEmploye") &&
+    lire("lib/data/real.ts").includes('valide: verdict === "valide"') &&
+    lire("lib/data/demo.ts").includes('valide: verdict === "valide"'));
+
+  console.log("== Carte employé : logo Ciza Group (maison mère) ==");
+  const assetLogo = path.join(RACINE, "public", "cizagroup-logo-transparent.png");
+  check("asset public présent : public/cizagroup-logo-transparent.png",
+    fs.existsSync(assetLogo));
+  const octetsLogo = fs.readFileSync(assetLogo);
+  check("asset = PNG à canal alpha (type couleur 6, aucun fond blanc) et signature PNG",
+    octetsLogo.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) &&
+    octetsLogo[25] === 6,
+    `type=${octetsLogo[25]}`);
+  const composantCarte = lire("components/CarteEmploye.tsx");
+  check("carte : logo référencé à l'ÉCRAN (img) et dans le PDF (addImage), même asset",
+    composantCarte.includes('"/cizagroup-logo-transparent.png"') &&
+    composantCarte.includes("LOGO_GROUPE_URL") &&
+    (composantCarte.match(/LOGO_GROUPE_URL/g) ?? []).length >= 3 &&
+    composantCarte.includes('alt="Ciza Group"') &&
+    composantCarte.slice(composantCarte.indexOf("telechargerPdf"))
+      .includes("addImage(dataUrlLogo"));
   check("parcours client INCHANGÉ : aucun élément du pack côté client",
     !lire("components/DossierBloc.tsx").includes("packEmploye") &&
     !lire("components/AppShell.tsx").includes("CharteConfidentialite"));
@@ -270,6 +310,12 @@ const PARAMS_B = {
     /^CIM-\d{6}$/.test(packDepart.display_id ?? ""),
     String(packDepart.display_id));
   const displayId = packDepart.display_id;
+  const verifSansCarte = await p.verifierEmploye(displayId);
+  check("vérification AVANT émission : compte actif mais verdict « carte_non_emise » (JAMAIS « valide » sans carte)",
+    !!verifSansCarte && verifSansCarte.verdict === "carte_non_emise" &&
+    verifSansCarte.valide === false && verifSansCarte.carte_emise === false &&
+    verifSansCarte.statut_compte === "actif",
+    verifSansCarte && JSON.stringify({ v: verifSansCarte.verdict, c: verifSansCarte.carte_emise }));
 
   console.log("== Charte : acceptation datée, idempotente ==");
   await connecter("employe.pack@exemple.com", "motdepasse123");
@@ -396,21 +442,22 @@ const PARAMS_B = {
 
   console.log("== Vérification contre la base : actif, suspendu, inconnu ==");
   const verifOk = await p.verifierEmploye(displayId.toLowerCase());
-  check("vérification (casse libre) : employé trouvé, VALIDE",
-    !!verifOk && verifOk.valide === true &&
+  check("vérification (casse libre) : employé trouvé, VALIDE (carte émise -> verdict « valide »)",
+    !!verifOk && verifOk.valide === true && verifOk.verdict === "valide" &&
     verifOk.statut_compte === "actif" && verifOk.carte_emise === true &&
     verifOk.contrat_statut === "valide" && !!verifOk.charte_acceptee_le,
     verifOk && JSON.stringify({ v: verifOk.valide, s: verifOk.statut_compte }));
   await p.suspendreAdmin(membre.id);
   const verifSuspendu = await p.verifierEmploye(displayId);
-  check("employé SUSPENDU : ressort NON VALIDE, visiblement suspendu",
+  check("employé SUSPENDU : verdict « non_valide », visiblement suspendu (même avec une carte émise)",
     !!verifSuspendu && verifSuspendu.valide === false &&
+    verifSuspendu.verdict === "non_valide" &&
     verifSuspendu.statut_compte === "suspendu",
     verifSuspendu && JSON.stringify({ v: verifSuspendu.valide, s: verifSuspendu.statut_compte }));
   await p.reactiverAdmin(membre.id);
   const verifRe = await p.verifierEmploye(displayId);
-  check("réactivé : la vérification repasse VALIDE",
-    !!verifRe && verifRe.valide === true);
+  check("réactivé : la vérification repasse VALIDE (verdict « valide »)",
+    !!verifRe && verifRe.valide === true && verifRe.verdict === "valide");
   const verifInconnu = await p.verifierEmploye("CIM-999999");
   check("Display ID inconnu -> null", verifInconnu === null);
 

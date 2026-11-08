@@ -11,8 +11,25 @@ import type { PackEmploye } from "@/lib/data";
  * « Admin — CizaImmo, division de Ciza Group », Display ID et
  * code-barres Code 128 encodant le Display ID (vérifiable via la page
  * console « Vérifier un employé », qui répond depuis la BASE).
+ * Logo de la maison mère CIZA GROUP en haut à droite (2026-11-08,
+ * demande du fondateur) : version or sur fond TRANSPARENT, adaptée
+ * au fond marine — asset public/cizagroup-logo-transparent.png,
+ * copie à l'identique du fichier de marque (aucun fond blanc).
  * Rendu à l'écran + téléchargement PDF + impression.
  */
+
+/** Logo Ciza Group (maison mère), version transparente pour fonds sombres. */
+const LOGO_GROUPE_URL = "/cizagroup-logo-transparent.png";
+
+/** Blob -> data URL (photo et logo du PDF). */
+function blobVersDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onload = () => resolve(String(lecteur.result));
+    lecteur.onerror = reject;
+    lecteur.readAsDataURL(blob);
+  });
+}
 export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
   const t = useTranslations("packEmploye");
   const [occupe, setOccupe] = useState(false);
@@ -54,6 +71,19 @@ export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
       doc.rect(0, 0, W, 1.6, "F");
       doc.setFillColor(247, 245, 240);
       doc.rect(0, H - 1.6, W, 1.6, "F");
+      // Logo Ciza Group (maison mère) : PNG transparent (or), coin
+      // supérieur droit — le canevas source est carré et le visuel
+      // réel y est centré ; la taille posée tient compte de cette
+      // marge transparente pour un rendu bien visible.
+      try {
+        const reponseLogo = await fetch(LOGO_GROUPE_URL);
+        if (reponseLogo.ok) {
+          const dataUrlLogo = await blobVersDataUrl(await reponseLogo.blob());
+          doc.addImage(dataUrlLogo, "PNG", W - 15, 2.6, 11, 11);
+        }
+      } catch {
+        // Best effort : la carte reste générée sans le logo.
+      }
       // Photo (best effort : URL signée accessible en CORS).
       let photoOk = false;
       const urlPhoto = pack.dossier.photo_profil_url;
@@ -62,12 +92,7 @@ export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
           const reponse = await fetch(urlPhoto);
           if (reponse.ok) {
             const blob = await reponse.blob();
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-              const lecteur = new FileReader();
-              lecteur.onload = () => resolve(String(lecteur.result));
-              lecteur.onerror = reject;
-              lecteur.readAsDataURL(blob);
-            });
+            const dataUrl = await blobVersDataUrl(blob);
             const format = dataUrl.includes("image/png") ? "PNG" : "JPEG";
             doc.addImage(dataUrl, format, 5, 8, 18, 22, undefined, "FAST");
             photoOk = true;
@@ -92,7 +117,7 @@ export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
       doc.setTextColor(247, 245, 240);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11.5);
-      doc.text(doc.splitTextToSize(pack.nom, 56), 26, 13);
+      doc.text(doc.splitTextToSize(pack.nom, 40), 26, 13);
       doc.setTextColor(212, 175, 55);
       doc.setFontSize(8.5);
       doc.text(t("carteRole"), 26, 20);
@@ -132,8 +157,17 @@ export default function CarteEmploye({ pack }: { pack: PackEmploye }) {
         style={{ backgroundColor: "#1B2A4A", aspectRatio: "85.6 / 54" }}
       >
         <div className="absolute inset-x-0 top-0 h-[3px] bg-gold" />
+        {/* Logo Ciza Group (maison mère), or sur transparent — le
+            canevas carré contient le visuel centré ; la boîte de
+            44 px donne un visuel réel d'environ 30 px de haut. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={LOGO_GROUPE_URL}
+          alt="Ciza Group"
+          className="absolute right-3 top-2 h-11 w-11 object-contain"
+        />
         <div className="flex h-full flex-col justify-between p-4 pb-3">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 pr-12">
             {pack.dossier.photo_profil_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
