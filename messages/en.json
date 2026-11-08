@@ -127,6 +127,9 @@
     "search": "Search"
   },
   "console": {
+    "groupManagement": "Management",
+    "groupSupervision": "Supervision",
+    "groupPlatform": "Platform",
     "accounts": "Accounts",
     "accountsSubtitle": "Review queue (approvals + anti-fraud), suspension, template notices and pricing grid. Every action is logged.",
     "accountsTitle": "Client accounts",

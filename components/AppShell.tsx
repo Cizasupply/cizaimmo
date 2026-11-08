@@ -9,6 +9,7 @@ import { getDataProvider } from "@/lib/data";
 import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
 import { prenomDe } from "@/lib/nom";
 import DossierBloc from "@/components/DossierBloc";
+import IconeNav from "@/components/IconeNav";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const links = [
@@ -46,56 +47,12 @@ const barreMobile = [
 ] as const;
 
 /**
- * Jeu d'icônes de navigation — SVG inline uniformes (aucune librairie
- * d'icônes dans l'app) : tracé 24×24, stroke currentColor, style
- * « outline » cohérent pour toutes les entrées du menu.
+ * Jeu d'icônes de navigation : composant partagé `IconeNav`
+ * (components/IconeNav.tsx) — extrait d'ici lors du traitement
+ * « Marine & Or » de la console (2026-11-07) pour que l'espace
+ * client et la console utilisent EXACTEMENT le même jeu, étendu
+ * aux entrées console.
  */
-const ICONES: Record<string, string[]> = {
-  dashboard: ["M3 10.5 12 3l9 7.5", "M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"],
-  buildings: ["M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16", "M16 9h3a1 1 0 0 1 1 1v11", "M2.5 21h19", "M8 7h2", "M8 11h2", "M8 15h2"],
-  apartments: ["M4 4h7v7H4z", "M13 4h7v7h-7z", "M4 13h7v7H4z", "M13 13h7v7h-7z"],
-  tenants: ["M12 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "M5 20.5c.8-3.4 3.6-5.5 7-5.5s6.2 2.1 7 5.5"],
-  rents: ["M3 7h18v10H3z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"],
-  receipts: ["M6 3h12v18l-2-1.4-2 1.4-2-1.4L10 21l-2-1.4L6 21z", "M9 8h6", "M9 12h6"],
-  expenses: ["M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z", "M3 10h18"],
-  documents: ["M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M14 3v4h4"],
-  alerts: ["M6 9.8a6 6 0 0 1 12 0c0 3.8 1.4 5.2 1.4 5.2H4.6S6 13.6 6 9.8Z", "M10 19a2.2 2.2 0 0 0 4 0"],
-  messages: ["M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H12l-4.6 4.2v-4.2H5.5A1.5 1.5 0 0 1 4 14.5z"],
-  reports: ["M4 3v17a1 1 0 0 0 1 1h16", "M8.5 16v-5", "M12.5 16V8", "M16.5 16v-8"],
-  settings: ["M4 8h9.5", "M18.5 8H20", "M16 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z", "M4 16h3.5", "M12.5 16H20", "M10 18.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"],
-  vitrine: ["M5 4h14l1.2 5.2H3.8z", "M5.5 12.5V20h13v-7.5", "M10 20v-5h4v5"],
-  subscription: ["M3.5 8 7 11.5 12 5l5 6.5L20.5 8 19 17.5H5z", "M5 20.5h14"],
-  contract: ["M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z", "M14 3v4h4", "m9.2 14.6 2 2 4-4.6"],
-  logout: ["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "M16 17l5-5-5-5", "M21 12H9"],
-};
-
-function IconeNav({ nom, className = "h-5 w-5" }: { nom: string; className?: string }) {
-  if (nom === "more") {
-    return (
-      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-        <circle cx="5" cy="12" r="1.8" fill="currentColor" />
-        <circle cx="12" cy="12" r="1.8" fill="currentColor" />
-        <circle cx="19" cy="12" r="1.8" fill="currentColor" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      {(ICONES[nom] ?? []).map((d, i) => (
-        <path key={i} d={d} />
-      ))}
-    </svg>
-  );
-}
 
 /**
  * Chemin courant sans préfixe de locale (localePrefix « as-needed » :

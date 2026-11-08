@@ -166,9 +166,12 @@ export default function ConsoleComptesPage() {
       <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("accountsTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("accountsSubtitle")}</p>
 
-      {/* v1.5 : KPI dossiers non assignés (aucun Admin responsable). */}
+      {/* v1.5 : KPI dossiers non assignés (aucun Admin responsable).
+          Design « Marine & Or » console : accent métier ambre 4 px,
+          même patron que les KPI de la Vue d'ensemble. */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-amber-500" />
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t15("statUnassigned")}
           </p>
@@ -419,7 +422,7 @@ export default function ConsoleComptesPage() {
                       onClick={() =>
                         agir(compte.id, () => getDataProvider().approuverCompte(compte.id), t("approvedMsg"))
                       }
-                      className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                      className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50"
                     >
                       ✓ {t("approve")}
                     </button>
@@ -519,7 +522,7 @@ export default function ConsoleComptesPage() {
                         await getDataProvider().envoyerAvis(compte.id, modele);
                       }, t("noticeSentMsg"))
                     }
-                    className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50"
+                    className="rounded-full border border-navy bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-navy/5 disabled:opacity-50"
                   >
                     {t("sendNotice")}
                   </button>

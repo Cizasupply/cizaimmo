@@ -8,6 +8,24 @@
  * latérale marine/or, navigation console. Les liens « Admins » et
  * « Finances » n'apparaissent que pour le Super Admin (décisions
  * verrouillées : création d'Admins et paramètres = fondateur seul).
+ *
+ * Design « Marine & Or premium » (2026-11-07, ordre du fondateur :
+ * « Même chose pour Admin ») : la console reçoit le MÊME traitement
+ * que l'espace client validé le même soir —
+ *  - bureau : barre latérale marine, icônes SVG uniformes (jeu
+ *    partagé `IconeNav`), libellés, actif en or (fond marine clair +
+ *    liseré or), regroupements Gestion / Supervision / Plateforme,
+ *    bloc utilisateur + déconnexion en pied ;
+ *  - mobile : barre supérieure marine (logo, titre, langue,
+ *    déconnexion) + barre inférieure fixe style application —
+ *    Vue d'ensemble, Comptes, Messages (pastille or des non-lus
+ *    plateforme), Journal, « Plus » qui ouvre le menu complet en
+ *    panneau plein écran marine (un seul mécanisme : l'ancien tiroir
+ *    hamburger disparaît). Zones tactiles ≥ 44 px, safe-area iPhone,
+ *    contenu avec padding bas adapté.
+ * La LOGIQUE du badge Messages (compteur plateforme recalculé à
+ * chaque navigation) est strictement inchangée : seule sa
+ * présentation s'étend à la barre inférieure mobile.
  */
 
 import Image from "next/image";
@@ -17,6 +35,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider, isDemoMode } from "@/lib/data";
 import type { Profil } from "@/lib/data";
+import IconeNav from "@/components/IconeNav";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const LIENS = [
@@ -33,8 +52,73 @@ const LIENS = [
   { key: "finances", href: "/console/finances", superSeul: true },
 ] as const;
 
+type CleLien = (typeof LIENS)[number]["key"];
+
+/**
+ * Regroupement visuel sobre de la barre latérale et du panneau
+ * mobile (même patron que l'espace client) : mêmes routes et mêmes
+ * libellés, aucune entrée supprimée. Le groupe « Plateforme » est
+ * réservé au Super Admin (ses trois entrées sont superSeul) ; un
+ * groupe sans entrée visible n'est pas rendu.
+ */
+const GROUPES: { cle: "groupManagement" | "groupSupervision" | "groupPlatform"; cles: CleLien[] }[] = [
+  { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles"] },
+  { cle: "groupSupervision", cles: ["messages", "supervisedMessages", "vitrine", "journal"] },
+  { cle: "groupPlatform", cles: ["suppressions", "admins", "finances"] },
+];
+
+/**
+ * Barre de navigation inférieure mobile (menu premium, ultra
+ * mobile-first) : 4 destinations fréquentes + « Plus » qui ouvre le
+ * menu complet. Mêmes routes et mêmes libellés (console.*) que la
+ * barre latérale ; l'entrée Messages porte la pastille des non-lus.
+ */
+const barreMobile = [
+  { key: "overview", href: "/console" },
+  { key: "accounts", href: "/console/comptes" },
+  { key: "messages", href: "/console/messages" },
+  { key: "journal", href: "/console/journal" },
+] as const;
+
+/**
+ * Chemin courant sans préfixe de locale (localePrefix « as-needed » :
+ * FR sans préfixe, EN préfixé /en) — sert à marquer l'entrée active
+ * du menu (barre latérale, panneau et barre inférieure mobile).
+ * Même helper que l'AppShell client.
+ */
+function cheminSansLocale(p: string | null): string {
+  if (!p) return "";
+  const parties = p.split("/").filter(Boolean);
+  if (parties[0] === "fr" || parties[0] === "en") parties.shift();
+  return `/${parties.join("/")}`;
+}
+
+/** Bloc utilisateur : initiale + nom complet + rôle · e-mail, tronqués. */
+function BlocUtilisateur({
+  profil,
+  roleLabel,
+}: {
+  profil: Profil;
+  roleLabel: string;
+}) {
+  return (
+    <div className="mt-8 flex min-w-0 items-center gap-3 rounded-xl border border-slate-600 px-3 py-2.5">
+      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-bold text-navy-dark">
+        {(profil.nom.trim()[0] ?? "?").toUpperCase()}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-white">{profil.nom}</span>
+        <span className="block truncate text-xs text-slate-400">
+          {roleLabel} · {profil.email}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export default function ConsoleShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("console");
+  const tn = useTranslations("nav");
   const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -83,7 +167,24 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     };
   }, [profil, pathname]);
 
+  // Panneau mobile plein écran : Échap le ferme et la page ne
+  // défile pas derrière (même patron que l'AppShell client).
+  useEffect(() => {
+    if (!menuOuvert) return;
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOuvert(false);
+    };
+    document.addEventListener("keydown", surTouche);
+    const precedent = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      document.body.style.overflow = precedent;
+    };
+  }, [menuOuvert]);
+
   async function handleLogout() {
+    setMenuOuvert(false);
     await getDataProvider().signOut();
     router.push(`/${locale}/connexion`);
     router.refresh();
@@ -97,36 +198,53 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     return true;
   });
 
+  const chemin = cheminSansLocale(pathname);
+  const estActif = (href: string) =>
+    chemin === href || (href !== "/console" && chemin.startsWith(`${href}/`));
+
   function LiensNavigation({ onNavigate }: { onNavigate?: () => void }) {
-    return (
-      <>
-        {liensVisibles.map((l) => {
-          const href = `/${locale}${l.href}`;
-          const actif = pathname === href;
-          const pastille =
-            l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
-          return (
-            <Link
-              key={l.key}
-              href={href}
-              onClick={onNavigate}
-              className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${
-                actif
-                  ? "bg-gold font-bold text-navy-dark"
-                  : "hover:bg-navy-light hover:text-gold"
+    const lien = (l: (typeof LIENS)[number]) => {
+      const actif = estActif(l.href);
+      const pastille =
+        l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
+      return (
+        <Link
+          key={l.key}
+          href={l.href}
+          onClick={onNavigate}
+          aria-current={actif ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+            actif
+              ? "bg-navy-light font-semibold text-gold shadow-[inset_4px_0_0_0_#D4AF37]"
+              : "text-slate-200 hover:bg-navy-light hover:text-gold"
+          }`}
+        >
+          <IconeNav nom={l.key} />
+          <span className="min-w-0 flex-1 truncate">{t(l.key)}</span>
+          {pastille !== null ? (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                actif ? "bg-navy-dark text-gold" : "bg-gold text-navy-dark"
               }`}
             >
-              <span>{t(l.key)}</span>
-              {pastille !== null ? (
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
-                    actif ? "bg-navy-dark text-gold" : "bg-gold text-navy-dark"
-                  }`}
-                >
-                  {pastille}
-                </span>
-              ) : null}
-            </Link>
+              {pastille}
+            </span>
+          ) : null}
+        </Link>
+      );
+    };
+    return (
+      <>
+        {GROUPES.map((g) => {
+          const membres = liensVisibles.filter((l) => g.cles.includes(l.key));
+          if (membres.length === 0) return null;
+          return (
+            <div key={g.cle}>
+              <p className="px-3 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400 first:pt-0">
+                {t(g.cle)}
+              </p>
+              <div className="space-y-1">{membres.map(lien)}</div>
+            </div>
           );
         })}
       </>
@@ -139,114 +257,182 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-cream">
-      <aside className="fixed inset-y-0 left-0 hidden w-60 bg-navy-dark p-6 text-white md:block">
-        <Link href={`/${locale}/console`} className="mb-1 block" aria-label="CizaImmo Console">
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col bg-navy p-6 text-white md:flex">
+        <Link href={`/${locale}/console`} className="mb-1 block shrink-0" aria-label="CizaImmo Console">
           <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={170} height={54} priority />
         </Link>
-        <p className="mb-8 text-xs font-semibold uppercase tracking-wide text-gold">
-          {t("title")}
-        </p>
-        <nav className="space-y-1">
+        <p className="mb-6 shrink-0 text-xs text-slate-400">{t("title")}</p>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           <LiensNavigation />
         </nav>
-        {profil ? (
-          <div className="mt-8 flex min-w-0 items-center gap-3 rounded-xl border border-slate-600 px-3 py-2.5">
-            <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-bold text-navy-dark">
-              {(profil.nom.trim()[0] ?? "?").toUpperCase()}
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-white">{profil.nom}</span>
-              <span className="block truncate text-xs text-slate-400">
-                {estSuper ? t("roleSuperAdmin") : t("roleAdmin")} · {profil.email}
-              </span>
-            </span>
+        <div className="shrink-0">
+          {profil ? (
+            <BlocUtilisateur profil={profil} roleLabel={estSuper ? t("roleSuperAdmin") : t("roleAdmin")} />
+          ) : null}
+          <Link
+            href={`/${locale}`}
+            className="mt-3 block rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200 hover:border-gold hover:text-gold"
+          >
+            {t("backToSite")}
+          </Link>
+          {/* Correctif bilingue 2026-11-07 : sélecteur de langue dans la
+              console (il n'existait que sur les pages publiques). */}
+          <div className="mt-3">
+            <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
           </div>
-        ) : null}
-        <Link
-          href={`/${locale}`}
-          className="mt-3 block rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200 hover:border-gold hover:text-gold"
-        >
-          {t("backToSite")}
-        </Link>
-        {/* Correctif bilingue 2026-11-07 : sélecteur de langue dans la
-            console (il n'existait que sur les pages publiques). */}
-        <div className="mt-3">
-          <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-3 rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+          >
+            <IconeNav nom="logout" />
+            {tc("logout")}
+          </button>
+          {isDemoMode() ? (
+            <p className="mt-4 rounded-lg bg-gold/15 px-3 py-2 text-xs font-semibold text-gold">
+              {t("demoBadge")}
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-3 w-full rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
-        >
-          {tc("logout")}
-        </button>
-        {isDemoMode() ? (
-          <p className="mt-4 rounded-lg bg-gold/15 px-3 py-2 text-xs font-semibold text-gold">
-            {t("demoBadge")}
-          </p>
-        ) : null}
       </aside>
 
-      <header className="flex items-center gap-3 bg-navy-dark px-4 py-3 md:hidden">
-        <button
-          type="button"
-          onClick={() => setMenuOuvert(true)}
-          aria-label="Menu"
-          aria-expanded={menuOuvert}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-xl text-white hover:border-gold hover:text-gold"
-        >
-          <span aria-hidden="true">☰</span>
-        </button>
-        <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-gold">
+      {/* Barre supérieure mobile (design « Marine & Or ») : logo,
+          titre console, langue et déconnexion — le menu complet
+          s'ouvre par « Plus » dans la barre inférieure, il n'y a
+          plus de bouton hamburger. */}
+      <header className="flex items-center gap-2 bg-navy px-4 py-3 md:hidden">
+        <Link href={`/${locale}/console`} aria-label="CizaImmo Console" className="min-w-0 shrink-0">
+          <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={120} height={38} priority />
+        </Link>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
           {t("title")}
         </span>
-        <LanguageSwitcher className="shrink-0 border-slate-500 px-3 text-slate-200 hover:border-gold hover:text-gold" />
+        <LanguageSwitcher className="shrink-0 border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
         <button
           type="button"
           onClick={handleLogout}
-          className="rounded-full border border-slate-500 px-4 py-2 text-sm font-semibold text-white"
+          className="shrink-0 rounded-full border border-slate-500 px-4 py-2 text-sm font-semibold text-white"
         >
           {tc("logout")}
         </button>
       </header>
+
+      {/* Menu complet mobile — panneau PLEIN ÉCRAN marine, ouvert par
+          « Plus » (barre inférieure) : TOUTES les entrées console
+          groupées + retour site, langue, utilisateur et déconnexion.
+          Téléphone seulement ; un seul mécanisme de menu complet. */}
       {menuOuvert ? (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button
-            type="button"
-            aria-label="Menu"
-            onClick={() => setMenuOuvert(false)}
-            className="absolute inset-0 h-full w-full cursor-default bg-navy-dark/60"
-          />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-navy-dark p-6 text-white shadow-xl">
-            <div className="mb-8 flex items-start justify-between gap-2">
-              <span className="text-sm font-bold uppercase tracking-wide text-gold">{t("title")}</span>
+        <div id="menu-console-mobile" className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="flex h-full flex-col overflow-y-auto bg-navy p-6 text-white">
+            <div className="mb-1 flex shrink-0 items-start justify-between gap-2">
+              <Link
+                href={`/${locale}/console`}
+                onClick={() => setMenuOuvert(false)}
+                aria-label="CizaImmo Console"
+                className="min-w-0"
+              >
+                <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={170} height={54} priority />
+              </Link>
               <button
                 type="button"
                 onClick={() => setMenuOuvert(false)}
                 aria-label="Menu"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-lg text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-500 text-lg text-white hover:border-gold hover:text-gold"
               >
                 <span aria-hidden="true">✕</span>
               </button>
             </div>
-            <nav className="space-y-1">
+            <p className="mb-6 shrink-0 text-xs text-slate-400">{t("title")}</p>
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
               <LiensNavigation onNavigate={() => setMenuOuvert(false)} />
             </nav>
-            <Link
-              href={`/${locale}`}
-              onClick={() => setMenuOuvert(false)}
-              className="mt-6 block rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200"
-            >
-              {t("backToSite")}
-            </Link>
-            <div className="mt-3">
-              <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+            <div className="shrink-0">
+              {profil ? (
+                <BlocUtilisateur profil={profil} roleLabel={estSuper ? t("roleSuperAdmin") : t("roleAdmin")} />
+              ) : null}
+              <Link
+                href={`/${locale}`}
+                onClick={() => setMenuOuvert(false)}
+                className="mt-3 block rounded-lg border border-slate-500 px-3 py-2 text-sm text-slate-200 hover:border-gold hover:text-gold"
+              >
+                {t("backToSite")}
+              </Link>
+              <div className="mt-3">
+                <LanguageSwitcher className="w-full border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-3 flex w-full items-center gap-3 rounded-lg border border-slate-500 px-3 py-2 text-left text-sm text-slate-200 hover:border-gold hover:text-gold"
+              >
+                <IconeNav nom="logout" />
+                {tc("logout")}
+              </button>
+              {isDemoMode() ? (
+                <p className="mt-4 rounded-lg bg-gold/15 px-3 py-2 text-xs font-semibold text-gold">
+                  {t("demoBadge")}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
       ) : null}
 
-      <main className="p-6 md:ml-60 md:p-10">{children}</main>
+      <main className="px-6 pb-28 pt-6 md:ml-60 md:p-10">{children}</main>
+
+      {/* Barre de navigation inférieure mobile — style application :
+          Vue d'ensemble, Comptes, Messages (pastille or des non-lus
+          plateforme, même compteur que la barre latérale), Journal,
+          « Plus » (menu complet plein écran). Zones tactiles ≥ 44 px,
+          safe-area iPhone respectée, état actif en or. */}
+      <nav
+        aria-label="Navigation console"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {barreMobile.map((l) => {
+            const actif = estActif(l.href);
+            const pastille =
+              l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
+            return (
+              <Link
+                key={l.key}
+                href={l.href}
+                aria-current={actif ? "page" : undefined}
+                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+                  actif ? "text-gold" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {actif ? (
+                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
+                ) : null}
+                <span className="relative">
+                  <IconeNav nom={l.key} className="h-6 w-6" />
+                  {pastille !== null ? (
+                    <span className="absolute -right-3 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-navy-dark">
+                      {pastille > 99 ? "99+" : pastille}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="max-w-full truncate">{t(l.key)}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(true)}
+            aria-label={tn("more")}
+            aria-expanded={menuOuvert}
+            aria-controls="menu-console-mobile"
+            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <IconeNav nom="more" className="h-6 w-6" />
+            <span className="max-w-full truncate">{tn("more")}</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

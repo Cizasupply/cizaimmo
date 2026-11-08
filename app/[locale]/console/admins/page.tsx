@@ -201,7 +201,7 @@ export default function ConsoleAdminsPage() {
             placeholder={t("emailPlaceholder")}
             className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
           />
-          <button type="submit" disabled={occupe} className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50">
+          <button type="submit" disabled={occupe} className="rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5 disabled:opacity-50">
             {t("promoteButton")}
           </button>
         </form>
@@ -236,7 +236,7 @@ export default function ConsoleAdminsPage() {
             placeholder={t("emailPlaceholder")}
             className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
           />
-          <button type="submit" disabled={occupe} className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50">
+          <button type="submit" disabled={occupe} className="rounded-full bg-gold px-5 py-2 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50">
             {t("createAdminButton")}
           </button>
         </form>

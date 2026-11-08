@@ -202,7 +202,7 @@ export default function ConsoleFinancesPage() {
           <button
             type="submit"
             disabled={occupe}
-            className="rounded-full bg-navy px-6 py-3 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50"
+            className="rounded-full bg-gold px-6 py-3 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50"
           >
             {t("saveFinances")}
           </button>

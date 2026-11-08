@@ -269,7 +269,7 @@ export default function ConsoleDossierPage({
               type="button"
               disabled={occupe || !checklistComplete}
               onClick={() => agir(() => getDataProvider().approuverCompte(compte.id), t("approvedMsg"))}
-              className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
             >
               ✓ {t("approve")}
             </button>
@@ -641,7 +641,7 @@ export default function ConsoleDossierPage({
                                   t17("validatedMsg")
                                 )
                               }
-                              className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                              className="rounded-full border border-navy bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:bg-navy/5 disabled:opacity-50"
                             >
                               {t17("validateBuilding")}
                             </button>

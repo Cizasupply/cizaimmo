@@ -242,7 +242,7 @@ export default function ConsoleJournalPage() {
             <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-slate-200 bg-cream text-xs font-semibold uppercase tracking-wide text-navy">
                     <th className="px-4 py-3">{t("colDate")}</th>
                     <th className="px-4 py-3">{t("colActor")}</th>
                     <th className="px-4 py-3">{t("colAction")}</th>

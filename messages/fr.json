@@ -127,6 +127,9 @@
     "search": "Rechercher"
   },
   "console": {
+    "groupManagement": "Gestion",
+    "groupSupervision": "Supervision",
+    "groupPlatform": "Plateforme",
     "accounts": "Comptes",
     "accountsSubtitle": "File de revue (approbations + anti-fraude), suspension, avis par modèle et grille tarifaire. Chaque action est journalisée.",
     "accountsTitle": "Comptes clients",

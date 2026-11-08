@@ -93,21 +93,27 @@ export default function ConsoleAccueilPage() {
     .filter((c) => (c.non_lus ?? 0) > 0)
     .slice(0, 3);
 
+  // Design « Marine & Or » console (2026-11-07) : chaque carte KPI
+  // blanche bordée porte une barre d'accent métier de 4 px, alignée
+  // sur la couleur de sa valeur (attente = ambre, retard = rouge,
+  // actif/MRR = vert, neutre = marine) — même patron que le tableau
+  // de bord client.
   const cartes = [
-    { label: t("statAccounts"), valeur: comptes.length, couleur: "text-navy" },
-    { label: t("statPending"), valeur: enAttente.length, couleur: "text-amber-600" },
-    { label: t("statToVerify"), valeur: aVerifier.length, couleur: "text-amber-600" },
-    { label: t("statLate"), valeur: enRetard.length, couleur: "text-red-600" },
-    { label: t("statActive"), valeur: actifs.length, couleur: "text-green-700" },
-    { label: t("statTrials"), valeur: enEssai.length, couleur: "text-navy" },
-    { label: t("statIncompleteFiles"), valeur: dossiersIncomplets.length, couleur: "text-amber-600" },
-    { label: t("statContractsPending"), valeur: contratsEnAttente.length, couleur: "text-amber-600" },
-    { label: t("statLinkRequestsPending"), valeur: demandesEnAttenteAdmin.length, couleur: "text-amber-600" },
-    { label: t("statVitrinePending"), valeur: vitrineAValider.length, couleur: "text-amber-600" },
+    { label: t("statAccounts"), valeur: comptes.length, couleur: "text-navy", accent: "bg-navy" },
+    { label: t("statPending"), valeur: enAttente.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("statToVerify"), valeur: aVerifier.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("statLate"), valeur: enRetard.length, couleur: "text-red-600", accent: "bg-red-500" },
+    { label: t("statActive"), valeur: actifs.length, couleur: "text-green-700", accent: "bg-green-500" },
+    { label: t("statTrials"), valeur: enEssai.length, couleur: "text-navy", accent: "bg-navy" },
+    { label: t("statIncompleteFiles"), valeur: dossiersIncomplets.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("statContractsPending"), valeur: contratsEnAttente.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("statLinkRequestsPending"), valeur: demandesEnAttenteAdmin.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("statVitrinePending"), valeur: vitrineAValider.length, couleur: "text-amber-600", accent: "bg-amber-500" },
     {
       label: t("statMrr"),
       valeur: formatMoney(mrr, "USD", locale),
       couleur: "text-green-700",
+      accent: "bg-green-500",
     },
   ];
 
@@ -116,9 +122,38 @@ export default function ConsoleAccueilPage() {
       <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("overviewTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("overviewSubtitle")}</p>
 
+      {/* Carte « héros » marine (design « Marine & Or » console,
+          2026-11-07) : synthèse plateforme construite UNIQUEMENT
+          à partir des compteurs déjà calculés par la page —
+          dossiers en attente, comptes, messages non lus — chiffres
+          en or, aucun nouveau calcul métier. */}
+      <section className="mt-6 rounded-2xl bg-navy p-5 text-white shadow-sm">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="min-w-0">
+            <p className="text-3xl font-bold text-gold">{enAttente.length}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
+              {t("statPending")}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-3xl font-bold text-gold">{comptes.length}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
+              {t("statAccounts")}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-3xl font-bold text-gold">{totalMessagesNonLus}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
+              {t("unreadMessagesTitle")}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cartes.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+            <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${c.accent}`} />
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{c.label}</p>
             <p className={`mt-1 text-2xl font-bold ${c.couleur}`}>{c.valeur}</p>
           </div>
@@ -183,7 +218,7 @@ export default function ConsoleAccueilPage() {
         )}
         <Link
           href={`/${locale}/console/messages`}
-          className="mt-4 inline-block rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light"
+          className="mt-4 inline-block rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5"
         >
           {t("viewInbox")}
         </Link>
@@ -211,7 +246,7 @@ export default function ConsoleAccueilPage() {
           </ul>
           <Link
             href={`/${locale}/console/comptes`}
-            className="mt-4 inline-block rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light"
+            className="mt-4 inline-block rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5"
           >
             {t("reviewQueueCta")}
           </Link>

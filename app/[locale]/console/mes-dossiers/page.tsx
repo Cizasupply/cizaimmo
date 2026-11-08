@@ -63,11 +63,14 @@ export default function ConsoleMesDossiersPage() {
   const contrats = dossiers.filter((c) => c.statut_contrat === "signe_recu");
   const suppressions = dossiers.filter(suppressionEchue);
 
-  const actions: { label: string; valeur: number; couleur: string }[] = [
-    { label: t("pendingApprovals"), valeur: approbations.length, couleur: "text-amber-600" },
-    { label: t("pendingContracts"), valeur: contrats.length, couleur: "text-amber-600" },
-    { label: t("expiredDeletions"), valeur: suppressions.length, couleur: "text-red-600" },
-    { label: t("unreadThreads"), valeur: filsNonLus.length, couleur: "text-navy" },
+  // Design « Marine & Or » console (2026-11-07) : barre d'accent
+  // métier de 4 px alignée sur la couleur de chaque valeur (même
+  // patron que les KPI de la Vue d'ensemble et du tableau de bord).
+  const actions: { label: string; valeur: number; couleur: string; accent: string }[] = [
+    { label: t("pendingApprovals"), valeur: approbations.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("pendingContracts"), valeur: contrats.length, couleur: "text-amber-600", accent: "bg-amber-500" },
+    { label: t("expiredDeletions"), valeur: suppressions.length, couleur: "text-red-600", accent: "bg-red-500" },
+    { label: t("unreadThreads"), valeur: filsNonLus.length, couleur: "text-navy", accent: "bg-navy" },
   ];
 
   return (
@@ -88,7 +91,8 @@ export default function ConsoleMesDossiersPage() {
         </h2>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {actions.map((a) => (
-            <div key={a.label} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div key={a.label} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+              <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${a.accent}`} />
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {a.label}
               </p>

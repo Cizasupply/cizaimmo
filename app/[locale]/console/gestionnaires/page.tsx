@@ -218,7 +218,7 @@ export default function ConsoleGestionnairesPage() {
             </fieldset>
           ) : null}
           <div className="md:col-span-2">
-            <button type="submit" disabled={occupe} className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50">
+            <button type="submit" disabled={occupe} className="rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5 disabled:opacity-50">
               {t("createAttachmentButton")}
             </button>
           </div>

@@ -308,6 +308,23 @@ else
   ECHEC=1
 fi
 
+# Design « Marine & Or » de la CONSOLE (2026-11-07, soir, ordre
+# du fondateur : « Même chose pour Admin ») : menu premium console
+# en parité avec l'AppShell client (sidebar à icônes partagées
+# components/IconeNav, actif or, groupes ; barre inférieure mobile
+# + panneau « Plus » plein écran ; pastille Messages étendue à la
+# barre inférieure, logique du compteur inchangée), héros marine de
+# la Vue d'ensemble (compteurs existants), KPI à accents métier,
+# primaire or unique par page console, en-têtes de tableaux crème.
+echo ""
+echo "===== Design console (menu premium + héros + primaires or) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-design-console.cjs"; then
+  echo "Design console : OK"
+else
+  echo "Design console : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

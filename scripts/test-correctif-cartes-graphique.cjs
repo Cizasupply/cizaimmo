@@ -162,8 +162,16 @@ check("design : barre inférieure — zones tactiles ≥ 44 px (min-h-[3.5rem])"
 check("design : actif en or (barre latérale + barre inférieure)",
   shell.includes("text-gold shadow-[inset_4px_0_0_0_#D4AF37]") &&
   shell.includes("h-0.5 rounded-full bg-gold"));
+// ADAPTATION (2026-11-07, design console « Marine & Or ») : le jeu
+// d'icônes a été EXTRAIT de l'AppShell vers le composant partagé
+// components/IconeNav.tsx (étendu aux entrées console) pour que les
+// deux shells utilisent exactement le même jeu. L'assertion vise
+// donc le composant partagé + son import par l'AppShell — l'intention
+// (« le menu possède un jeu d'icônes SVG uniforme ») est inchangée.
+const iconesPartagees = lire("components/IconeNav.tsx");
 check("design : icônes SVG du menu (IconeNav) présentes",
-  shell.includes("function IconeNav") && shell.includes("ICONES"));
+  iconesPartagees.includes("function IconeNav") && iconesPartagees.includes("ICONES") &&
+  shell.includes('from "@/components/IconeNav"'));
 check("design : contenu jamais masqué par la barre inférieure (pb-28 mobile)",
   shell.includes("px-6 pb-28 pt-6 md:ml-60"));
 check("héros : carte marine du tableau de bord (fond bg-navy, montant or)",

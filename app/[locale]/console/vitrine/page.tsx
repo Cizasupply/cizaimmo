@@ -236,7 +236,7 @@ export default function ConsoleVitrinePage() {
                       <button
                         type="button"
                         onClick={() => approuver(annonce)}
-                        className="rounded-full bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800"
+                        className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light"
                       >
                         {t("approveButton")}
                       </button>

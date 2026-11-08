@@ -90,7 +90,7 @@ export default function ConsoleSuppressionsPage() {
       <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-slate-200 bg-cream text-xs font-semibold uppercase tracking-wide text-navy">
               <th className="px-4 py-3">{t("colName")}</th>
               <th className="px-4 py-3">{t("colDisplayId")}</th>
               <th className="px-4 py-3">{t("colEmail")}</th>
