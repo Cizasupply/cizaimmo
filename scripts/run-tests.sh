@@ -240,6 +240,24 @@ else
   ECHEC=1
 fi
 
+# Correctif « journal d'audit » (2026-11-07, soir, demandes du
+# fondateur après son test réel) : (1) détails lisibles — l'ancien
+# rendu String(v) affichait « [object Object] » pour les objets /
+# tableaux imbriqués du jsonb (« Tarifs modifiés », « Paramètres
+# finance modifiés ») ; formateur partagé formatDetailsAudit
+# (lib/format.ts). (2) Filtre intelligent : recherche libre sur le
+# texte lisible + Action / Acteur / Période, compteur, reset.
+# (3) Organisation : filtres en carte, tableau bureau sans
+# débordement, cartes mobile (patron de l'app connectée).
+echo ""
+echo "===== Correctif journal (détails lisibles + filtre + organisation) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-journal-details.cjs"; then
+  echo "Correctif journal : OK"
+else
+  echo "Correctif journal : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."
