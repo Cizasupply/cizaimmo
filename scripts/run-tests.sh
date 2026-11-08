@@ -335,6 +335,12 @@ fi
 # montants nowrap + taille responsive, client ET console ; héros
 # sans break-all ; (4) héros console : libellés collés en 3
 # colonnes étroites -> empilés sur mobile. Design uniquement.
+# Lot additionnel du même jour (3 captures EN, compte Kaneza) :
+# (C) détail locataire — e-mail insécable hors de la carte Contact ;
+# (D) page Messages entière plus large que l'écran (grille sans
+# colonne mobile explicite) ; (E) champ DATE des formulaires plus
+# large que les autres (largeur intrinsèque WebKit iOS) — Field,
+# champs bruts et garde-fou global globals.css.
 echo ""
 echo "===== Correctifs mobile (annotations du fondateur) ====="
 if node "scripts/test-correctif-mobile-annotations.cjs"; then
@@ -346,12 +352,13 @@ fi
 
 # Correctif « ligne au scroll + tuiles statistiques » (2026-11-08,
 # preuves du fondateur) : (A) vidéo du tableau de bord — une bande
-# marine translucide traversait l'écran pendant le défilement iOS :
-# la barre inférieure fixe des coques, seul élément fixe visible au
-# scroll mobile, était repeinte par WebKit à une position périmée
-# faute de couche de composition propre -> classe .barre-fixe-ios
-# (translateZ(0), globals.css) sur les deux barres, fond plein,
-# hauteurs/safe-area inchangés. (B) Capture passeport Kaneza Home :
+# marine traversait l'écran pendant le défilement iOS. PASSE 1
+# (couche de composition .barre-fixe-ios / translateZ(0)) jugée
+# INSUFFISANTE par le fondateur sur son iPhone réel (« la barre
+# passe toujours ») -> PASSE 2 STRUCTURELLE : le mécanisme est
+# supprimé — coques mobiles en colonne flex h-dvh, zone défilante
+# interne (overflow-y-auto), barre inférieure DANS LE FLUX, pb-28
+# retiré, bureau inchangé (md:contents). (B) Capture passeport Kaneza Home :
 # « 300 000 000 BIF » débordait de sa tuile (montant = jeton
 # insécable, ~146 px à text-xl pour ~107 px utiles) -> tuiles
 # statistiques de toute l'app au patron KPI : whitespace-nowrap +

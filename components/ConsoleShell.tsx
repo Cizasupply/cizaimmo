@@ -17,12 +17,14 @@
  *    liseré or), regroupements Gestion / Supervision / Plateforme,
  *    bloc utilisateur + déconnexion en pied ;
  *  - mobile : barre supérieure marine (logo, titre, langue,
- *    déconnexion) + barre inférieure fixe style application —
+ *    déconnexion) + barre inférieure style application —
  *    Vue d'ensemble, Comptes, Messages (pastille or des non-lus
  *    plateforme), Journal, « Plus » qui ouvre le menu complet en
  *    panneau plein écran marine (un seul mécanisme : l'ancien tiroir
- *    hamburger disparaît). Zones tactiles ≥ 44 px, safe-area iPhone,
- *    contenu avec padding bas adapté.
+ *    hamburger disparaît). Zones tactiles ≥ 44 px, safe-area iPhone.
+ *    Correctif structurel « bande au scroll » (2026-11-08, passe 2) :
+ *    colonne h-dvh, zone défilante interne, barre inférieure DANS LE
+ *    FLUX (plus de barre fixe au-dessus du contenu qui défile).
  * La LOGIQUE du badge Messages (compteur plateforme recalculé à
  * chaque navigation) est strictement inchangée : seule sa
  * présentation s'étend à la barre inférieure mobile.
@@ -30,7 +32,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider, isDemoMode } from "@/lib/data";
@@ -126,6 +128,9 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   const [profil, setProfil] = useState<Profil | null>(null);
   const [refuse, setRefuse] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  // Zone défilante interne mobile (correctif structurel 2026-11-08,
+  // même patron que l'AppShell) : verrouillée panneau ouvert.
+  const zoneDefilanteRef = useRef<HTMLDivElement | null>(null);
   // Badge « Messages » (2026-11-07) : messages clients non lus par
   // la plateforme, TOUS fils plateforme confondus (assignés ou non).
   const [nonLusMessages, setNonLusMessages] = useState(0);
@@ -169,6 +174,9 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
 
   // Panneau mobile plein écran : Échap le ferme et la page ne
   // défile pas derrière (même patron que l'AppShell client).
+  // Correctif structurel 2026-11-08 : sur mobile, le défilement vit
+  // dans la zone interne — on la verrouille AUSSI quand le panneau
+  // est ouvert, sinon le contenu continuerait de défiler dessous.
   useEffect(() => {
     if (!menuOuvert) return;
     const surTouche = (e: KeyboardEvent) => {
@@ -177,9 +185,13 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     document.addEventListener("keydown", surTouche);
     const precedent = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const zone = zoneDefilanteRef.current;
+    const precedentZone = zone?.style.overflowY ?? "";
+    if (zone) zone.style.overflowY = "hidden";
     return () => {
       document.removeEventListener("keydown", surTouche);
       document.body.style.overflow = precedent;
+      if (zone) zone.style.overflowY = precedentZone;
     };
   }, [menuOuvert]);
 
@@ -256,7 +268,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="flex h-dvh flex-col bg-cream md:block md:h-auto md:min-h-screen">
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col bg-navy p-6 text-white md:flex">
         <Link href={`/${locale}/console`} className="mb-1 block shrink-0" aria-label="CizaImmo Console">
           <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={170} height={54} priority />
@@ -296,6 +308,14 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         </div>
       </aside>
 
+      {/* Correctif structurel « bande au scroll » (2026-11-08,
+          passe 2, même patron que l'AppShell client) : colonne flex
+          h-dvh — [zone défilante flex-1 overflow-y-auto : barre
+          supérieure + contenu] puis [barre inférieure DANS LE FLUX].
+          Sur bureau, md:contents dissout les enveloppes : disposition
+          d'origine strictement inchangée. */}
+      <div className="flex min-h-0 flex-1 flex-col md:contents">
+        <div ref={zoneDefilanteRef} className="min-h-0 flex-1 overflow-y-auto md:contents">
       {/* Barre supérieure mobile (design « Marine & Or ») : logo,
           titre console, langue et déconnexion — le menu complet
           s'ouvre par « Plus » dans la barre inférieure, il n'y a
@@ -326,6 +346,67 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         </button>
       </header>
 
+      <main className="px-6 py-6 md:ml-60 md:p-10">{children}</main>
+        </div>
+
+      {/* Barre de navigation inférieure mobile — style application :
+          Vue d'ensemble, Comptes, Messages (pastille or des non-lus
+          plateforme, même compteur que la barre latérale), Journal,
+          « Plus » (menu complet plein écran). Zones tactiles ≥ 44 px,
+          safe-area iPhone respectée, état actif en or.
+          Correctif structurel 2026-11-08 (passe 2) : barre DANS
+          LE FLUX (voir l'enveloppe plus haut), même patron que
+          l'AppShell — plus aucun position: fixed au-dessus du
+          contenu qui défile, donc plus de fantôme au scroll. */}
+      <nav
+        aria-label="Navigation console"
+        className="shrink-0 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {barreMobile.map((l) => {
+            const actif = estActif(l.href);
+            const pastille =
+              l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
+            return (
+              <Link
+                key={l.key}
+                href={l.href}
+                aria-current={actif ? "page" : undefined}
+                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+                  actif ? "text-gold" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {actif ? (
+                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
+                ) : null}
+                <span className="relative">
+                  <IconeNav nom={l.key} className="h-6 w-6" />
+                  {pastille !== null ? (
+                    <span className="absolute -right-3 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-navy-dark">
+                      {pastille > 99 ? "99+" : pastille}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="max-w-full truncate">{t(l.key)}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(true)}
+            aria-label={tn("more")}
+            aria-expanded={menuOuvert}
+            aria-controls="menu-console-mobile"
+            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <IconeNav nom="more" className="h-6 w-6" />
+            <span className="max-w-full truncate">{tn("more")}</span>
+          </button>
+        </div>
+      </nav>
+      </div>
       {/* Menu complet mobile — panneau PLEIN ÉCRAN marine, ouvert par
           « Plus » (barre inférieure) : TOUTES les entrées console
           groupées + retour site, langue, utilisateur et déconnexion.
@@ -387,64 +468,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         </div>
       ) : null}
 
-      <main className="px-6 pb-28 pt-6 md:ml-60 md:p-10">{children}</main>
 
-      {/* Barre de navigation inférieure mobile — style application :
-          Vue d'ensemble, Comptes, Messages (pastille or des non-lus
-          plateforme, même compteur que la barre latérale), Journal,
-          « Plus » (menu complet plein écran). Zones tactiles ≥ 44 px,
-          safe-area iPhone respectée, état actif en or.
-          Correctif 2026-11-08 : classe barre-fixe-ios (globals.css),
-          même patron que l'AppShell — couche de composition propre
-          contre le fantôme de barre au défilement iOS. */}
-      <nav
-        aria-label="Navigation console"
-        className="barre-fixe-ios fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
-      >
-        <div className="grid grid-cols-5">
-          {barreMobile.map((l) => {
-            const actif = estActif(l.href);
-            const pastille =
-              l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
-            return (
-              <Link
-                key={l.key}
-                href={l.href}
-                aria-current={actif ? "page" : undefined}
-                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
-                  actif ? "text-gold" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                {actif ? (
-                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
-                ) : null}
-                <span className="relative">
-                  <IconeNav nom={l.key} className="h-6 w-6" />
-                  {pastille !== null ? (
-                    <span className="absolute -right-3 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-navy-dark">
-                      {pastille > 99 ? "99+" : pastille}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="max-w-full truncate">{t(l.key)}</span>
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setMenuOuvert(true)}
-            aria-label={tn("more")}
-            aria-expanded={menuOuvert}
-            aria-controls="menu-console-mobile"
-            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
-              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
-            }`}
-          >
-            <IconeNav nom="more" className="h-6 w-6" />
-            <span className="max-w-full truncate">{tn("more")}</span>
-          </button>
-        </div>
-      </nav>
     </div>
   );
 }

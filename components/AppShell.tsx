@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
@@ -229,6 +229,9 @@ export default function AppShell({
   const [rattachements, setRattachements] = useState<RattachementGestionnaire[]>([]);
   const [contexteActifId, setContexteActifId] = useState<string | null>(null);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  // Zone défilante interne mobile (correctif structurel 2026-11-08) :
+  // verrouillée quand le panneau « Plus » est ouvert.
+  const zoneDefilanteRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let actif = true;
@@ -296,6 +299,9 @@ export default function AppShell({
   const estCoproprietaire = role === "coproprietaire";
 
   // Tiroir mobile : Échap le ferme et la page ne défile pas derrière.
+  // Correctif structurel 2026-11-08 : sur mobile, le défilement vit
+  // dans la zone interne (plus dans la fenêtre) — on verrouille donc
+  // AUSSI la zone, sinon le contenu continuerait sous le panneau.
   useEffect(() => {
     if (!menuOuvert) return;
     const surTouche = (e: KeyboardEvent) => {
@@ -304,9 +310,13 @@ export default function AppShell({
     document.addEventListener("keydown", surTouche);
     const precedent = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const zone = zoneDefilanteRef.current;
+    const precedentZone = zone?.style.overflowY ?? "";
+    if (zone) zone.style.overflowY = "hidden";
     return () => {
       document.removeEventListener("keydown", surTouche);
       document.body.style.overflow = precedent;
+      if (zone) zone.style.overflowY = precedentZone;
     };
   }, [menuOuvert]);
 
@@ -427,7 +437,7 @@ export default function AppShell({
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="flex h-dvh flex-col bg-cream md:block md:h-auto md:min-h-screen">
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col bg-navy p-6 text-white md:flex">
         <Link
           href={`/${locale}/dashboard`}
@@ -464,6 +474,19 @@ export default function AppShell({
           </button>
         </div>
       </aside>
+      {/* Correctif structurel « bande au scroll » (2026-11-08,
+          passe 2 — la passe 1, couche de composition translateZ(0),
+          n'a PAS suffi sur l'iPhone du fondateur) : la coque mobile
+          devient une colonne flex de hauteur h-dvh — [zone défilante
+          flex-1 overflow-y-auto, qui contient la barre supérieure et
+          le contenu] puis [barre inférieure DANS LE FLUX, flex-none].
+          Plus RIEN ne flotte au-dessus du contenu pendant le scroll :
+          seule la zone du milieu défile, comme une application
+          native. Sur bureau, md:contents dissout les deux enveloppes
+          et la disposition d'origine (sidebar fixe + main décalé,
+          défilement de la fenêtre) est strictement inchangée. */}
+      <div className="flex min-h-0 flex-1 flex-col md:contents">
+        <div ref={zoneDefilanteRef} className="min-h-0 flex-1 overflow-y-auto md:contents">
       {/* Barre supérieure mobile (design « Marine & Or ») : logo, langue,
           cloche et avatar — le menu complet s'ouvre par « Plus » dans la
           barre inférieure, il n'y a plus de bouton hamburger.
@@ -500,6 +523,79 @@ export default function AppShell({
           </Link>
         ) : null}
       </header>
+      <main className="px-6 py-6 md:ml-60 md:p-10">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Sur mobile, langue et cloche vivent dans la barre
+                supérieure marine — pas de doublon dans le titre. */}
+            <span className="hidden md:inline-flex">
+              <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
+            </span>
+            <span className="hidden md:inline-flex">
+              <AlertBell />
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold md:hidden"
+            >
+              {tc("logout")}
+            </button>
+          </div>
+        </div>
+        {children}
+      </main>
+        </div>
+      {/* Barre de navigation inférieure mobile — style application :
+          4 destinations fréquentes + « Plus » (menu complet plein
+          écran). Zones tactiles ≥ 44 px, safe-area iPhone respectée,
+          état actif en or avec indicateur.
+          Correctif structurel 2026-11-08 (passe 2) : barre DANS
+          LE FLUX (voir l'enveloppe plus haut) — plus aucun
+          position: fixed au-dessus du contenu qui défile, donc plus
+          de fantôme repeint par WebKit. Fond marine plein, hauteur
+          et safe-area (portée par la barre) inchangés. */}
+      <nav
+        aria-label="Navigation principale"
+        className="shrink-0 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {barreMobile.map((l) => {
+            const actif = estActif(l.href);
+            return (
+              <Link
+                key={l.key}
+                href={l.href}
+                aria-current={actif ? "page" : undefined}
+                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+                  actif ? "text-gold" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {actif ? (
+                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
+                ) : null}
+                <IconeNav nom={l.key} className="h-6 w-6" />
+                <span className="max-w-full truncate">{t(l.key)}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(true)}
+            aria-label={t("more")}
+            aria-expanded={menuOuvert}
+            aria-controls="menu-mobile"
+            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
+              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <IconeNav nom="more" className="h-6 w-6" />
+            <span className="max-w-full truncate">{t("more")}</span>
+          </button>
+        </div>
+      </nav>
+      </div>
       {/* Menu complet mobile — panneau PLEIN ÉCRAN marine, ouvert par
           « Plus » (barre inférieure) : TOUTES les entrées de navigation
           + compte et déconnexion. Téléphone seulement. */}
@@ -551,77 +647,7 @@ export default function AppShell({
           </div>
         </div>
       ) : null}
-      <main className="px-6 pb-28 pt-6 md:ml-60 md:p-10">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Sur mobile, langue et cloche vivent dans la barre
-                supérieure marine — pas de doublon dans le titre. */}
-            <span className="hidden md:inline-flex">
-              <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
-            </span>
-            <span className="hidden md:inline-flex">
-              <AlertBell />
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold md:hidden"
-            >
-              {tc("logout")}
-            </button>
-          </div>
-        </div>
-        {children}
-      </main>
-      {/* Barre de navigation inférieure mobile — style application :
-          4 destinations fréquentes + « Plus » (menu complet plein
-          écran). Zones tactiles ≥ 44 px, safe-area iPhone respectée,
-          état actif en or avec indicateur.
-          Correctif 2026-11-08 (vidéo du fondateur) : classe
-          barre-fixe-ios (globals.css) — couche de composition propre
-          pour que WebKit ne repeigne plus la barre au milieu de
-          l'écran pendant le défilement iOS. Fond marine plein,
-          hauteur et safe-area inchangés. */}
-      <nav
-        aria-label="Navigation principale"
-        className="barre-fixe-ios fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
-      >
-        <div className="grid grid-cols-5">
-          {barreMobile.map((l) => {
-            const actif = estActif(l.href);
-            return (
-              <Link
-                key={l.key}
-                href={l.href}
-                aria-current={actif ? "page" : undefined}
-                className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
-                  actif ? "text-gold" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                {actif ? (
-                  <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />
-                ) : null}
-                <IconeNav nom={l.key} className="h-6 w-6" />
-                <span className="max-w-full truncate">{t(l.key)}</span>
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setMenuOuvert(true)}
-            aria-label={t("more")}
-            aria-expanded={menuOuvert}
-            aria-controls="menu-mobile"
-            className={`relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight ${
-              menuOuvert ? "text-gold" : "text-slate-300 hover:text-white"
-            }`}
-          >
-            <IconeNav nom="more" className="h-6 w-6" />
-            <span className="max-w-full truncate">{t("more")}</span>
-          </button>
-        </div>
-      </nav>
+
     </div>
   );
 }

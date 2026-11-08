@@ -176,30 +176,30 @@ export default function LocataireLienPage({ params }: { params: { token: string 
                 <dl className="mt-3 space-y-1 text-base">
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{t("apartment")}</dt>
-                    <dd className="font-semibold text-navy">
+                    <dd className="min-w-0 break-words font-semibold text-navy">
                       {acces.appartementNumero ?? "—"}
                       {acces.immeubleNom ? ` — ${acces.immeubleNom}` : ""}
                     </dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.start")}</dt>
-                    <dd className="font-semibold text-navy">{formatDate(bail.debut, locale)}</dd>
+                    <dd className="min-w-0 break-words font-semibold text-navy">{formatDate(bail.debut, locale)}</dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.end")}</dt>
-                    <dd className="font-semibold text-navy">{bail.fin ? formatDate(bail.fin, locale) : "—"}</dd>
+                    <dd className="min-w-0 break-words font-semibold text-navy">{bail.fin ? formatDate(bail.fin, locale) : "—"}</dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.monthlyRent")}</dt>
-                    <dd className="font-semibold text-navy">{formatMoney(bail.loyer_mensuel, bail.devise, locale)}</dd>
+                    <dd className="min-w-0 break-words font-semibold text-navy">{formatMoney(bail.loyer_mensuel, bail.devise, locale)}</dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.dueDay")}</dt>
-                    <dd className="font-semibold text-navy">{bail.jour_exigibilite}</dd>
+                    <dd className="min-w-0 break-words font-semibold text-navy">{bail.jour_exigibilite}</dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.deposit")}</dt>
-                    <dd className="font-semibold text-navy">
+                    <dd className="min-w-0 break-words font-semibold text-navy">
                       {bail.caution !== null
                         ? `${formatMoney(bail.caution, bail.devise_caution ?? bail.devise, locale)} · ${tc(`leases.fields.${statutCautionCle(bail.caution_statut)}`)}`
                         : tc("common.notProvided")}
@@ -207,7 +207,7 @@ export default function LocataireLienPage({ params }: { params: { token: string 
                   </div>
                   <div className="flex gap-2">
                     <dt className="w-44 shrink-0 text-slate-500">{tc("leases.fields.chargesIncluded")}</dt>
-                    <dd className="font-semibold text-navy">{bail.charges_incluses ? tc("common.yes") : tc("common.no")}</dd>
+                    <dd className="min-w-0 break-words font-semibold text-navy">{bail.charges_incluses ? tc("common.yes") : tc("common.no")}</dd>
                   </div>
                 </dl>
               )}

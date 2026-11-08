@@ -62,9 +62,15 @@ export default function MessagesPage() {
           {erreur}
         </p>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+      {/* Correctif 2026-11-08 (défaut D) : la grille n'avait pas de
+          colonne mobile explicite — la piste implicite se dimensionnait
+          au contenu le plus large (max-content) et TOUTE la page
+          dépassait l'écran sur mobile. Colonnes en minmax(0,1fr) +
+          sections min-w-0 : liste et fil s'empilent dans la largeur
+          sur mobile ; bureau inchangé (deux volets côte à côte). */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Liste des fils */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="px-2 text-sm font-bold uppercase tracking-wide text-slate-500">
             {t("messagesTitle")}
           </h2>
@@ -118,11 +124,11 @@ export default function MessagesPage() {
         </section>
 
         {/* Fil sélectionné */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {selection ? (
             <>
-              <h2 className="text-lg font-semibold text-navy">{libelleFil(selection)}</h2>
-              <p className="mb-4 mt-1 text-sm text-slate-500">
+              <h2 className="break-words text-lg font-semibold text-navy">{libelleFil(selection)}</h2>
+              <p className="mb-4 mt-1 break-words text-sm text-slate-500">
                 {selection.type === "plateforme"
                   ? t("platformThreadDesc")
                   : `${t("ownerLabel")} ↔ ${t("managerLabel")}`}

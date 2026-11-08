@@ -176,19 +176,23 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
         <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{erreur}</p>
       ) : null}
 
+      {/* Coordonnées — correctif 2026-11-08 (défaut C, même famille
+          que la carte Identité console) : valeurs en min-w-0, e-mails
+          et téléphones en break-all, le reste en break-words — un
+          jeton insécable (mcna2009@yahoo.ca) débordait de la carte. */}
       {/* Coordonnées */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-navy">{t("tenants.detailContact")}</h2>
             <dl className="mt-3 space-y-1 text-base">
-              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.phone")}</dt><dd className="font-semibold text-navy">{locataire.telephone}</dd></div>
-              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.email")}</dt><dd>{locataire.email ?? t("common.notProvided")}</dd></div>
-              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.idType")}</dt><dd>{locataire.piece_type ?? t("common.notProvided")}{locataire.piece_numero ? ` — ${locataire.piece_numero}` : ""}</dd></div>
-              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.previousAddress")}</dt><dd>{locataire.adresse_precedente ?? t("common.notProvided")}</dd></div>
-              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.emergencyContact")}</dt><dd>{locataire.contact_urgence ?? t("common.notProvided")}</dd></div>
+              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.phone")}</dt><dd className="min-w-0 break-all font-semibold text-navy">{locataire.telephone}</dd></div>
+              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.email")}</dt><dd className="min-w-0 break-all">{locataire.email ?? t("common.notProvided")}</dd></div>
+              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.idType")}</dt><dd className="min-w-0 break-words">{locataire.piece_type ?? t("common.notProvided")}{locataire.piece_numero ? ` — ${locataire.piece_numero}` : ""}</dd></div>
+              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.previousAddress")}</dt><dd className="min-w-0 break-words">{locataire.adresse_precedente ?? t("common.notProvided")}</dd></div>
+              <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.emergencyContact")}</dt><dd className="min-w-0 break-words">{locataire.contact_urgence ?? t("common.notProvided")}</dd></div>
               {locataire.notes ? (
-                <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.notes")}</dt><dd>{locataire.notes}</dd></div>
+                <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.notes")}</dt><dd className="min-w-0 break-words">{locataire.notes}</dd></div>
               ) : null}
             </dl>
           </div>

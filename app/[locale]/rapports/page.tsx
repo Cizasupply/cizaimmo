@@ -206,11 +206,11 @@ export default function RapportsPage() {
       <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-sm font-semibold text-slate-900">
           {tr("periodFrom")}
-          <input type="date" value={periodeDebut} onChange={(e) => setPeriodeDebut(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold" />
+          <input type="date" value={periodeDebut} onChange={(e) => setPeriodeDebut(e.target.value)} className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold" />
         </label>
         <label className="block text-sm font-semibold text-slate-900">
           {tr("periodTo")}
-          <input type="date" value={periodeFin} onChange={(e) => setPeriodeFin(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold" />
+          <input type="date" value={periodeFin} onChange={(e) => setPeriodeFin(e.target.value)} className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold" />
         </label>
         <label className="block text-sm font-semibold text-slate-900">
           {tr("building")}

@@ -300,7 +300,7 @@ export default function DepensesPage() {
                 value={recherche}
                 onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
                 placeholder={te("searchPlaceholder")}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
+                className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
               />
             </label>
             <label className="block text-sm font-semibold text-slate-900">
@@ -335,7 +335,7 @@ export default function DepensesPage() {
                 type="date"
                 value={periodeDebut}
                 onChange={(e) => { setPeriodeDebut(e.target.value); setPage(1); }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
+                className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
               />
             </label>
             <label className="block text-sm font-semibold text-slate-900">
@@ -344,7 +344,7 @@ export default function DepensesPage() {
                 type="date"
                 value={periodeFin}
                 onChange={(e) => { setPeriodeFin(e.target.value); setPage(1); }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
+                className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold"
               />
             </label>
             <label className="block text-sm font-semibold text-slate-900">

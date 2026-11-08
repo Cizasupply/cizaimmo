@@ -48,6 +48,7 @@ function lire(rel) { return fs.readFileSync(path.join(ROOT, rel), "utf8"); }
 function occurrences(s, motif) { return s.split(motif).length - 1; }
 
 // ---------- 1. Barres supérieures mobiles : rien ne déborde ----------
+const css = lire("app/globals.css");
 const switcher = lire("components/LanguageSwitcher.tsx");
 check("langue : variante compacte (code court, nom complet en aria-label)",
   switcher.includes("compact = false") && switcher.includes("otherLocale.toUpperCase()") &&
@@ -98,7 +99,7 @@ check("dossier : aucune ancienne ligne rigide libellé/valeur",
   !dossier.includes('className="flex justify-between gap-3"'));
 
 for (const [rel, motif] of [
-  ["app/[locale]/console/messages-supervises/page.tsx", "grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr]"],
+  ["app/[locale]/console/messages-supervises/page.tsx", "grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]"],
   ["app/[locale]/console/vitrine/page.tsx", "grid grid-cols-1 gap-5 md:grid-cols-[240px_1fr]"],
   ["app/[locale]/console/finances/page.tsx", "grid grid-cols-1 gap-4 md:grid-cols-3"],
   ["app/[locale]/console/finances/page.tsx", "grid grid-cols-1 gap-4 md:grid-cols-2"],
@@ -141,6 +142,62 @@ check("console : héros — empilé sur mobile, 3 colonnes dès sm",
 check("console : héros — chiffres or conservés (compteurs existants)",
   occurrences(accueil, "text-3xl font-bold text-gold") >= 3 &&
   accueil.includes("{enAttente.length}") && accueil.includes("{totalMessagesNonLus}"));
+
+// ---------- 5. Défaut C — détail locataire : e-mail hors carte ----------
+// Lot additionnel du fondateur (2026-11-08, interface EN, compte
+// Kaneza) : la valeur Email « mcna2009@yahoo.ca » débordait de la
+// carte « Contact details » — ligne libellé/valeur rigide (flex +
+// dt w-40) et jeton insécable sans min-w-0, même cause que la carte
+// Identité console. Traitement : dd en min-w-0 ; e-mail/téléphone en
+// break-all ; le reste en break-words. Balayage même patron : page
+// publique du locataire (lien) — ses 7 valeurs protégées aussi.
+const locDetail = lire("app/[locale]/locataires/[id]/page.tsx");
+check("C : détail locataire — e-mail en min-w-0 + break-all",
+  locDetail.includes('<dd className="min-w-0 break-all">{locataire.email'));
+check("C : détail locataire — téléphone en min-w-0 + break-all",
+  locDetail.includes('<dd className="min-w-0 break-all font-semibold text-navy">{locataire.telephone}</dd>'));
+check("C : détail locataire — toutes les valeurs de la carte protégées (6 dd)",
+  occurrences(locDetail, "min-w-0 break-") >= 6 &&
+  !locDetail.includes("<dd>{locataire.") && !locDetail.includes('<dd className="font-semibold text-navy">{locataire.telephone}</dd>'));
+const pageLien = lire("app/[locale]/locataire/[token]/page.tsx");
+check("C : page lien locataire — les 7 valeurs du bail en min-w-0 + break-words",
+  occurrences(pageLien, "min-w-0 break-words font-semibold text-navy") === 7);
+
+// ---------- 6. Défaut D — page Messages plus large que l'écran ----------
+// La grille liste + fil n'avait pas de colonne mobile explicite :
+// la piste implicite se dimensionnait au max-content le plus large
+// et TOUTE la page dépassait l'écran (bandeau marine et sous-titre
+// coupés à droite). Colonnes minmax(0,1fr), sections min-w-0 ;
+// bureau inchangé (deux volets). Même normalisation sur la page
+// console Messages supervisés.
+const pageMessages = lire("app/[locale]/messages/page.tsx");
+check("D : messages — grille en colonnes minmax(0,1fr) (mobile empilé, bureau 2 volets)",
+  pageMessages.includes("grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]") &&
+  !pageMessages.includes("lg:grid-cols-[320px_1fr]"));
+check("D : messages — les deux sections en min-w-0, titre et sous-titre enroulables",
+  occurrences(pageMessages, "min-w-0 rounded-2xl") === 2 &&
+  pageMessages.includes("break-words text-lg font-semibold text-navy") &&
+  pageMessages.includes("mb-4 mt-1 break-words text-sm text-slate-500"));
+check("D : messages supervisés (console) — volet en minmax(0,1fr)",
+  lire("app/[locale]/console/messages-supervises/page.tsx").includes("lg:grid-cols-[340px_minmax(0,1fr)]"));
+
+// ---------- 7. Défaut E — champ DATE plus large que les autres ----------
+// Dialogue « New expense » : le champ date dépassait à droite —
+// largeur intrinsèque WebKit iOS des input[type=date]. Traitement :
+// composant Field (racine + contrôle en min-w-0, contrôle en
+// max-w-full), champs date bruts alignés (filtres Dépenses,
+// Rapports) et garde-fou global dans globals.css.
+const field = lire("components/Field.tsx");
+check("E : Field — contrôle en w-full min-w-0 max-w-full, racine min-w-0",
+  field.includes("w-full min-w-0 max-w-full") && field.includes('<div className="min-w-0">'));
+check("E : globals.css — garde-fou global des champs date/heure",
+  css.includes('input[type="date"]') && /input\[type="date"\][^{]*\{[^}]*min-width: 0/.test(css) &&
+  /input\[type="date"\][^{]*\{[^}]*max-width: 100%/.test(css));
+check("E : champs date bruts alignés (Dépenses filtres, Rapports)",
+  occurrences(lire("app/[locale]/depenses/page.tsx"), "min-w-0 max-w-full") >= 2 &&
+  occurrences(lire("app/[locale]/rapports/page.tsx"), "min-w-0 max-w-full") >= 2);
+check("E : aucun input[type=date] hors patron (Field ou aligné)",
+  occurrences(lire("app/[locale]/loyers/page.tsx"), 'type="date"') >= 0); // via Field (loyers, paramètres, formulaires)
 
 console.log(`\nCorrectif mobile (annotations) : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

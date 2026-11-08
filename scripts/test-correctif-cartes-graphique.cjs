@@ -143,8 +143,12 @@ check("les 4 KPI toujours présents (occupation, collecté, retard, vacants)",
 
 // ---------- 4. Design « Marine & Or » : cadre + héros + menu premium ----------
 const shell = lire("components/AppShell.tsx");
+// ADAPTATION (2026-11-08, correctif structurel « bande au scroll »,
+// passe 2) : la racine de la coque devient une colonne flex h-dvh
+// sur mobile (zone défilante interne) et retrouve min-h-screen en
+// bloc sur bureau (md:min-h-screen) — le fond crème est inchangé.
 check("design : fond général crème de l'espace connecté (bg-cream #F7F5F0)",
-  shell.includes("min-h-screen bg-cream") &&
+  shell.includes("flex h-dvh flex-col bg-cream") && shell.includes("md:min-h-screen") &&
   lire("tailwind.config.ts").includes('cream: "#F7F5F0"'));
 check("design : barre latérale bureau marine (#1B2A4A = bg-navy)",
   shell.includes("bg-navy p-6 text-white md:flex"));
@@ -152,9 +156,9 @@ check("design : barre supérieure mobile marine",
   shell.includes("bg-navy px-4 py-3 md:hidden"));
 check("design : menu complet mobile en panneau plein écran marine",
   shell.includes('id="menu-mobile"') && shell.includes("h-full flex-col overflow-y-auto bg-navy"));
-check("design : barre inférieure mobile fixe + safe-area iPhone",
-  shell.includes("fixed inset-x-0 bottom-0 z-40") &&
-  shell.includes("pb-[env(safe-area-inset-bottom)]"));
+check("design : barre inférieure mobile DANS LE FLUX + safe-area iPhone",
+  !shell.includes("fixed inset-x-0 bottom-0") &&
+  shell.includes("shrink-0 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)]"));
 check("design : barre inférieure — zones tactiles ≥ 44 px (min-h-[3.5rem])",
   // 2 patrons dans le source : celui des 4 liens (rendu par map) + le
   // bouton « Plus » — soit 5 zones tactiles à l'écran.
@@ -172,8 +176,9 @@ const iconesPartagees = lire("components/IconeNav.tsx");
 check("design : icônes SVG du menu (IconeNav) présentes",
   iconesPartagees.includes("function IconeNav") && iconesPartagees.includes("ICONES") &&
   shell.includes('from "@/components/IconeNav"'));
-check("design : contenu jamais masqué par la barre inférieure (pb-28 mobile)",
-  shell.includes("px-6 pb-28 pt-6 md:ml-60"));
+check("design : contenu jamais masqué — barre en flux, zone défilante interne (plus de pb-28)",
+  shell.includes("min-h-0 flex-1 overflow-y-auto md:contents") &&
+  shell.includes("px-6 py-6 md:ml-60") && !shell.includes("pb-28"));
 check("héros : carte marine du tableau de bord (fond bg-navy, montant or)",
   dash.includes("rounded-2xl bg-navy p-5 text-white shadow-sm") &&
   dash.includes("text-3xl font-bold text-gold"));

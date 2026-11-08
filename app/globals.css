@@ -29,27 +29,31 @@ textarea {
 }
 
 /* Correctif « une ligne qui passe au milieu » pendant le défilement
-   (2026-11-08, enregistrement d'écran du fondateur, iPhone/Safari) :
-   la barre inférieure fixe des coques (AppShell / ConsoleShell)
-   était repeinte par WebKit à une position périmée pendant le
-   scroll — bande marine translucide au milieu de l'écran, par-dessus
-   les cartes, parfois dédoublée alors que la vraie barre restait
-   visible en bas, parfois étirée. Indices dans le code : fond marine
-   PLEIN (bg-navy, aucune translucidité), aucun backdrop-blur, aucun
-   sticky, aucun ancêtre en transform/filter/perspective/will-change
-   (balayage complet du dépôt), et la barre est le SEUL élément fixe
-   visible pendant le défilement mobile (sidebar bureau masquée,
-   en-tête mobile en flux, panneaux plein écran conditionnels) —
-   mais elle n'avait aucune couche de composition propre : WebKit
-   la re-rastérisait dans la couche de défilement et la « fantômait »
-   à un ancien décalage. La promotion en couche propre ci-dessous
-   fait repeindre la barre d'un bloc, à sa place. translateZ(0) est
-   visuellement neutre : le rendu à l'arrêt ne change pas d'un pixel,
-   hauteurs et env(safe-area-inset-bottom) inchangés. */
-.barre-fixe-ios {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+   (2026-11-08, iPhone/Safari, vidéo du fondateur) — PASSE 2,
+   STRUCTURELLE : la passe 1 (promotion de la barre inférieure fixe
+   en couche de composition propre, translateZ(0)) n'a PAS suffi —
+   le fondateur a confirmé sur son iPhone réel que la bande passait
+   toujours. Le mécanisme est donc SUPPRIMÉ, pas contourné : les
+   coques mobiles (AppShell / ConsoleShell) sont des colonnes flex
+   de hauteur h-dvh ; seule la zone du milieu défile
+   (overflow-y-auto) et la barre inférieure est DANS LE FLUX
+   (flex-none, plus aucun position: fixed au-dessus du contenu).
+   L'ancienne classe .barre-fixe-ios est retirée : elle ne servait
+   qu'aux barres fixes. Voir
+   docs/correctif-scroll-structurel-2026-11-08.md. */
+
+/* Défaut E (2026-11-08, capture « New expense ») : WebKit iOS donne
+   au contrôle natif des champs date/heure une largeur intrinsèque
+   qui peut dépasser la colonne du formulaire — le champ date
+   débordait à droite des autres champs. Garde-fou global : un champ
+   date/heure ne dépasse JAMAIS son conteneur (les formulaires
+   ajoutent en plus w-full min-w-0 max-w-full, via le composant
+   Field ou en direct). */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  min-width: 0;
+  max-width: 100%;
 }
 

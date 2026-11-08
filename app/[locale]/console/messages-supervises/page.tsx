@@ -57,7 +57,7 @@ export default function ConsoleMessagesSupervisesPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
           {chargement ? (
             <p className="px-2 py-4 text-sm text-slate-500">{tc("loading")}</p>

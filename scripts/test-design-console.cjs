@@ -58,14 +58,21 @@ check("shell : groupes Gestion / Supervision / Plateforme rendus",
   shell.includes('"groupManagement"') && shell.includes('"groupSupervision"') && shell.includes('"groupPlatform"'));
 check("shell : barre supérieure mobile marine (plus de hamburger)",
   shell.includes("bg-navy px-4 py-3 md:hidden") && !shell.includes("☰"));
-check("shell : barre inférieure mobile fixe + safe-area iPhone",
-  shell.includes("fixed inset-x-0 bottom-0 z-40") && shell.includes("pb-[env(safe-area-inset-bottom)]"));
+// ADAPTATION (2026-11-08, correctif structurel « bande au scroll »,
+// passe 2) : la barre inférieure n'est plus `fixed` — elle est DANS
+// LE FLUX d'une colonne h-dvh (zone défilante interne). L'intention
+// (« barre inférieure mobile présente, safe-area respectée ») est
+// inchangée ; le patron verrouillé est le nouveau mécanisme.
+check("shell : barre inférieure mobile DANS LE FLUX + safe-area iPhone",
+  !shell.includes("fixed inset-x-0 bottom-0") &&
+  shell.includes("shrink-0 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)]"));
 check("shell : barre inférieure — zones tactiles ≥ 44 px (min-h-[3.5rem], liens + « Plus »)",
   (shell.split("min-h-[3.5rem]").length - 1) >= 2);
 check("shell : panneau « Plus » plein écran marine (un seul mécanisme de menu complet)",
   shell.includes('id="menu-console-mobile"') && shell.includes("h-full flex-col overflow-y-auto bg-navy"));
-check("shell : contenu jamais masqué par la barre inférieure (pb-28 mobile)",
-  shell.includes("px-6 pb-28 pt-6 md:ml-60"));
+check("shell : contenu jamais masqué — barre en flux, zone défilante interne (plus de pb-28)",
+  shell.includes("min-h-0 flex-1 overflow-y-auto md:contents") &&
+  shell.includes("px-6 py-6 md:ml-60") && !shell.includes("pb-28"));
 check("shell : badge Messages — logique inchangée (compteur plateforme, recalcul à la navigation)",
   shell.includes("compterMessagesPlateformeNonLus()") && shell.includes("nonLusMessages > 0") &&
   shell.includes("[profil, pathname]"));
