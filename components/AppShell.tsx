@@ -424,7 +424,7 @@ export default function AppShell({
         {profil?.display_id ? (
           <p className="mt-4 rounded-xl bg-gold/15 px-4 py-3 text-sm text-slate-700">
             {ts("displayIdLabel")} :{" "}
-            <strong className="text-base font-bold tracking-wide text-navy">
+            <strong className="whitespace-nowrap text-base font-bold tracking-wide text-navy">
               {profil.display_id}
             </strong>
             <span className="mt-0.5 block text-xs text-slate-500">

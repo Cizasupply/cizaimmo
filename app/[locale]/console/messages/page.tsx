@@ -78,7 +78,7 @@ export default function ConsoleMessagesPage() {
                 <span className="block truncate font-bold text-navy">
                   {c.proprietaire_nom ?? c.proprietaire_email ?? "—"}
                   {c.proprietaire_display_id ? (
-                    <strong className="ml-2 text-sm font-bold tracking-wide text-navy">
+                    <strong className="ml-2 whitespace-nowrap text-sm font-bold tracking-wide text-navy">
                       {c.proprietaire_display_id}
                     </strong>
                   ) : null}

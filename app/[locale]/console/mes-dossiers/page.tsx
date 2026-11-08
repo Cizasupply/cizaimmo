@@ -162,7 +162,7 @@ export default function ConsoleMesDossiersPage() {
                   {c.display_id ? (
                     <>
                       {" · "}
-                      <strong className="font-bold tracking-wide text-navy">
+                      <strong className="whitespace-nowrap font-bold tracking-wide text-navy">
                         {c.display_id}
                       </strong>
                     </>

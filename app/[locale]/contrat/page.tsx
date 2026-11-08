@@ -179,7 +179,7 @@ export default function ContratPage() {
         {displayId ? (
           <p className="mt-2 text-sm text-slate-600">
             {t("yourDisplayId")} :{" "}
-            <strong className="font-bold tracking-wide text-navy">{displayId}</strong>
+            <strong className="whitespace-nowrap font-bold tracking-wide text-navy">{displayId}</strong>
           </p>
         ) : null}
         <p className="mt-2 text-sm leading-relaxed text-slate-600">

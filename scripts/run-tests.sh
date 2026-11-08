@@ -439,6 +439,20 @@ else
   ECHEC=1
 fi
 
+# Micro-correctif capture fondateur (2026-11-08) : le Display ID
+# (« CIM-000003 ») cassait en deux lignes dans l'encadré de
+# l'écran d'attente — il est désormais insécable (whitespace-
+# nowrap) sur cet écran et partout où il est rendu comme une
+# pastille ou un élément mis en avant du même patron.
+echo ""
+echo "===== Correctif Display ID insécable (capture fondateur) ====="
+if node "scripts/test-display-id-insecable.cjs"; then
+  echo "Correctif Display ID insécable : OK"
+else
+  echo "Correctif Display ID insécable : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Guide d'utilisation joint à la bienvenue (2026-11-08, idée +
 # validation du fondateur) : le guide PDF v3 (FR validée mot pour
 # mot + traduction EN fidèle, fichiers statiques public/guides/)

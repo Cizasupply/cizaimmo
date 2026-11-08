@@ -309,7 +309,7 @@ export default function ConsoleComptesPage() {
                   <p className="text-xs text-slate-500">
                     {compte.display_id ? (
                       <>
-                        <strong className="font-bold tracking-wide text-navy">{compte.display_id}</strong>
+                        <strong className="whitespace-nowrap font-bold tracking-wide text-navy">{compte.display_id}</strong>
                         {" · "}
                       </>
                     ) : null}

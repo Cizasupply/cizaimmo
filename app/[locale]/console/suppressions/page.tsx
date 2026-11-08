@@ -103,7 +103,7 @@ export default function ConsoleSuppressionsPage() {
             {liste.map((s) => (
               <tr key={s.compte_id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-3 font-semibold text-navy">{s.nom}</td>
-                <td className="px-4 py-3 font-bold tracking-wide text-navy">
+                <td className="whitespace-nowrap px-4 py-3 font-bold tracking-wide text-navy">
                   {s.display_id ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{s.email}</td>

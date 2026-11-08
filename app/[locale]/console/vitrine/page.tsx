@@ -187,7 +187,7 @@ export default function ConsoleVitrinePage() {
                         {annonce.proprietaire_nom}
                       </Link>
                       {annonce.proprietaire_display_id ? (
-                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                        <span className="ml-2 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
                           {annonce.proprietaire_display_id}
                         </span>
                       ) : null}

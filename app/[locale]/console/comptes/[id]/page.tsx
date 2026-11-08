@@ -194,7 +194,7 @@ export default function ConsoleDossierPage({
             {compte.display_id ? (
               <>
                 {" · "}
-                <strong className="font-bold tracking-wide text-navy">{compte.display_id}</strong>
+                <strong className="whitespace-nowrap font-bold tracking-wide text-navy">{compte.display_id}</strong>
               </>
             ) : null}
             {" · "}
