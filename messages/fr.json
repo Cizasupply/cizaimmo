@@ -1575,7 +1575,7 @@
     "twoFaSoon": "Bientôt disponible",
     "twoFaText": "Double authentification (2FA) : une sécurité supplémentaire à la connexion, par code sur votre téléphone.",
     "vacancyThreshold": "Seuil de vacance prolongée (jours)",
-    "whatsappNote": "WhatsApp : envoi via l'API officielle Meta (WhatsApp Business Platform). Sans configuration (token + numéro), aucun message n'est envoyé — le statut « non configuré » est affiché. Voir docs/whatsapp-setup.md."
+    "whatsappNote": "WhatsApp : envoi via l'API officielle Meta (WhatsApp Business Platform). Les alertes WhatsApp arrivent bientôt — tant qu'elles ne sont pas activées, aucun message n'est envoyé."
   },
   "shell": {
     "contextCizaGroup": "Ciza Group — parc interne",
@@ -1637,7 +1637,7 @@
     "mmEmpty": "Aucun paiement mobile money pour le moment.",
     "mmTitle": "Paiements mobile money",
     "operator": "Opérateur",
-    "payByCard": "Payer par carte (Stripe, mode test)",
+    "payByCard": "Payer par carte",
     "payByMobileMoney": "Payer par mobile money",
     "payTitle": "Payer pour le plan {plan}",
     "paymentCancelled": "Annulé",
@@ -1726,7 +1726,7 @@
     "disabled": "Canal WhatsApp désactivé dans les Paramètres.",
     "failed": "Échec de l'envoi WhatsApp.",
     "noPhone": "Pas de numéro WhatsApp pour ce contact.",
-    "notConfigured": "WhatsApp non configuré : aucun message envoyé. Voir docs/whatsapp-setup.md.",
+    "notConfigured": "WhatsApp arrive bientôt : aucun message n'a été envoyé.",
     "send": "Envoyer par WhatsApp",
     "sendViaApi": "Envoyer par WhatsApp (API)",
     "sending": "Envoi…",

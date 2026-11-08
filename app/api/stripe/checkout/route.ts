@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
   if (!stripeConfigured()) {
     return NextResponse.json(
-      { error: "stripe_not_configured", message: "Stripe n'est pas configuré (mode test). Renseignez les clés test dans .env.local." },
+      { error: "stripe_not_configured", message: "Le paiement par carte n'est pas encore disponible. Vous serez prévenu dès son ouverture — aucun montant ne sera prélevé sans votre accord." },
       { status: 503 }
     );
   }
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   );
   if (!priceId) {
     return NextResponse.json(
-      { error: "stripe_price_not_configured", message: "Identifiant de prix Stripe manquant pour ce plan (voir docs/stripe-test-setup.md)." },
+      { error: "stripe_price_not_configured", message: "Ce pack n'est pas encore ouvert au paiement par carte." },
       { status: 503 }
     );
   }
