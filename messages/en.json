@@ -280,7 +280,7 @@
     "errors": {
       "ERR_ACCES_PLATEFORME": "Platform access denied.",
       "ERR_COMPTE_NON_EN_ATTENTE": "This account is no longer pending approval.",
-      "ERR_CONTRAT_NON_VALIDE": "Manager agreement not validated.",
+      "ERR_CONTRAT_NON_VALIDE": "Contract not validated.",
       "ERR_DEJA_ADMIN": "This account is already an Admin.",
       "ERR_DEMANDE_EXISTANTE": "A request is already in progress.",
       "ERR_INTROUVABLE": "Item not found.",
@@ -1213,7 +1213,7 @@
     "statusToIssue": "To issue",
     "missingLabel": "Incomplete file — missing:",
     "blockDossier": "Incomplete file",
-    "blockContrat": "Contract not prepared",
+    "blockContrat": "Contract not validated",
     "blockMontant": "Contract without amount",
     "blockDejaEmise": "Already issued this month",
     "blockCoordonnees": "Pending — payment details missing",

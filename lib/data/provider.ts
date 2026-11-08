@@ -792,7 +792,10 @@ export interface DataProvider {
    * SUPER ADMIN : émet la paie d'un employé pour un mois — montant,
    * devise et modalités COPIÉS de son contrat d'engagement en base.
    * Gardes, DANS CET ORDRE : dossier employé incomplet
-   * (ERR_DOSSIER_INCOMPLET), aucun contrat avec montant préparé
+   * (ERR_DOSSIER_INCOMPLET), contrat d'engagement non VALIDÉ
+   * (ERR_CONTRAT_NON_VALIDE — correctif fondateur 2026-11-08 : un
+   * contrat seulement préparé, déposé ou refusé ne suffit pas,
+   * même règle que la carte employé), contrat validé sans montant
    * (ERR_PAIE_SANS_CONTRAT), coordonnées de paiement de l'employé
    * absentes (ERR_COORDONNEES_PAIEMENT_MANQUANTES, ajout 2026-11-08),
    * paie déjà émise ce mois (ERR_PAIE_DEJA_EMISE, doublé par la

@@ -5810,7 +5810,10 @@ export class DemoProvider implements DataProvider {
             : null,
           blocages: blocagesPaie({
             dossierComplet: m.dossier_employe_complet,
-            contratPrepare: !!params,
+            // Correctif fondateur 2026-11-08 : la paie exige le
+            // contrat VALIDÉ (statut « valide »), pas seulement
+            // préparé — même exigence que la carte employé.
+            contratValide: stocke.statut === "valide",
             montant: params?.montant ?? null,
             coordonneesPresentes: !!coordonnees,
             dejaEmise: !!paie,
@@ -5855,6 +5858,13 @@ export class DemoProvider implements DataProvider {
     // Le pack construit lève ERR_INTROUVABLE si le membre n'existe pas.
     const pack = this.construirePackEmployeDemo(db, profilId);
     if (!pack.dossier.complet) throw err("ERR_DOSSIER_INCOMPLET");
+    // Porte contrat VALIDÉ (correctif fondateur 2026-11-08) : un
+    // contrat seulement préparé (à signer), déposé (en attente de
+    // revue) ou refusé ne permet PAS d'émettre la paie — même règle
+    // que l'émission de la carte employé.
+    if (pack.contrat_statut !== "valide") {
+      throw err("ERR_CONTRAT_NON_VALIDE");
+    }
     const params = pack.contrat_parametres;
     if (!params || params.montant === null || !(params.montant > 0)) {
       throw err("ERR_PAIE_SANS_CONTRAT");

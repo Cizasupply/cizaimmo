@@ -10,7 +10,9 @@
 // - les coordonnées ne changent NI la complétude du dossier employé
 //   NI les règles de la carte : elles ne bloquent QUE la paie.
 // - porte d'émission, ORDRE : dossier (ERR_DOSSIER_INCOMPLET) puis
-//   contrat (ERR_PAIE_SANS_CONTRAT) puis coordonnées
+//   contrat VALIDÉ (ERR_CONTRAT_NON_VALIDE — correctif fondateur
+//   2026-11-08 : un contrat seulement préparé/déposé/refusé ne
+//   suffit plus) puis coordonnées
 //   (ERR_COORDONNEES_PAIEMENT_MANQUANTES).
 // - à l'émission, la paie FIGE moyen + destination instantanée
 //   (composée des champs pertinents du moyen) : un changement
@@ -177,6 +179,10 @@ const PARAMS_CONTRAT = {
     reel.includes("instantaneDestinationPaiement") &&
     reel.includes("paiement_destination") &&
     demo.includes("paiement_destination"));
+  check("fournisseurs : porte contrat VALIDÉ à l'émission + vue (réel ET démo, 2026-11-08)",
+    reel.includes('statutContrat !== "valide") throw err("ERR_CONTRAT_NON_VALIDE")') &&
+    demo.includes('pack.contrat_statut !== "valide")') &&
+    reel.includes("contratValide:") && demo.includes("contratValide:"));
   check("BUG PRODUCTION corrigé : la vue Finances trie les dépenses par « cree_le » (pas « created_at »)",
     reel.includes('.order("cree_le", { ascending: false })'));
   check("Mon dossier : section « Mes coordonnées de paiement » + champs selon le moyen",
@@ -257,12 +263,31 @@ const PARAMS_CONTRAT = {
     dossier1.complet === true && dossier1.coordonnees_paiement === null);
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
   const errOrdre2 = await attendErreur(p.emettrePaieEmploye(emp1.id, MOIS));
-  check("ordre : puis le contrat -> ERR_PAIE_SANS_CONTRAT",
-    errOrdre2.code === "ERR_PAIE_SANS_CONTRAT", errOrdre2.code);
+  check("ordre : puis le contrat (aucun) -> ERR_CONTRAT_NON_VALIDE",
+    errOrdre2.code === "ERR_CONTRAT_NON_VALIDE", errOrdre2.code);
   await p.preparerContratEmploye(emp1.id, PARAMS_CONTRAT);
+  const vuePrepare = await p.getVueFinancesPlateforme(MOIS);
+  const lignePrepare = vuePrepare.lignes_paie.find((l) => l.compte_id === emp1.id);
+  check("contrat seulement PRÉPARÉ : blocages « contrat » + « coordonnees »",
+    !!lignePrepare && lignePrepare.dossier_complet === true &&
+    JSON.stringify(lignePrepare.blocages) === JSON.stringify(["contrat", "coordonnees"]),
+    JSON.stringify(lignePrepare?.blocages));
+  const errPrepare = await attendErreur(p.emettrePaieEmploye(emp1.id, MOIS));
+  check("contrat préparé non validé -> ERR_CONTRAT_NON_VALIDE (avant les coordonnées)",
+    errPrepare.code === "ERR_CONTRAT_NON_VALIDE", errPrepare.code);
+  // Cycle complet du contrat : l'employé signe/dépose, le Super
+  // Admin valide -> la porte suivante devient les coordonnées.
+  await connecter("coord.virement@exemple.com", "motdepasse123");
+  await p.televerserContratEmployeSigne({
+    type: "contrat", entite_type: "compte", entite_id: emp1.id,
+    nom_fichier: "contrat-signe.pdf", taille_octets: 900,
+    mime_type: "application/pdf", contenu: PETIT_PDF,
+  });
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  await p.validerContratEmploye(emp1.id);
   const vue1 = await p.getVueFinancesPlateforme(MOIS);
   const ligne1 = vue1.lignes_paie.find((l) => l.compte_id === emp1.id);
-  check("ligne Finances : dossier complet, blocage « coordonnees » seul",
+  check("ligne Finances : contrat VALIDÉ, blocage « coordonnees » seul",
     !!ligne1 && ligne1.dossier_complet === true &&
     JSON.stringify(ligne1.blocages) === JSON.stringify(["coordonnees"]),
     JSON.stringify(ligne1?.blocages));
@@ -334,6 +359,14 @@ const PARAMS_CONTRAT = {
   });
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.preparerContratEmploye(adminSeed.id, PARAMS_CONTRAT);
+  await connecter(ADMIN_DEMO_EMAIL);
+  await p.televerserContratEmployeSigne({
+    type: "contrat", entite_type: "compte", entite_id: adminSeed.id,
+    nom_fichier: "contrat-seed-signe.pdf", taille_octets: 900,
+    mime_type: "application/pdf", contenu: PETIT_PDF,
+  });
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  await p.validerContratEmploye(adminSeed.id);
   const paie2 = await p.emettrePaieEmploye(adminSeed.id, MOIS);
   check("espèces (titulaire seul) : émission OK, destination « Espèces — Titulaire »",
     paie2.paiement_destination === "Espèces — Aline Uwase",

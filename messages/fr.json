@@ -280,7 +280,7 @@
     "errors": {
       "ERR_ACCES_PLATEFORME": "Accès plateforme refusé.",
       "ERR_COMPTE_NON_EN_ATTENTE": "Ce compte n'est plus en attente d'approbation.",
-      "ERR_CONTRAT_NON_VALIDE": "Contrat du gestionnaire non validé.",
+      "ERR_CONTRAT_NON_VALIDE": "Contrat non validé.",
       "ERR_DEJA_ADMIN": "Ce compte est déjà Admin.",
       "ERR_DEMANDE_EXISTANTE": "Une demande est déjà en cours.",
       "ERR_INTROUVABLE": "Élément introuvable.",
@@ -1213,7 +1213,7 @@
     "statusToIssue": "À émettre",
     "missingLabel": "Dossier incomplet — manquants :",
     "blockDossier": "Dossier incomplet",
-    "blockContrat": "Contrat non préparé",
+    "blockContrat": "Contrat non validé",
     "blockMontant": "Contrat sans montant",
     "blockDejaEmise": "Déjà émise ce mois",
     "blockCoordonnees": "En attente — coordonnées de paiement manquantes",

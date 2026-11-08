@@ -4853,7 +4853,12 @@ export class RealProvider implements DataProvider {
         paie,
         blocages: blocagesPaie({
           dossierComplet: dossier.complet,
-          contratPrepare: !!params,
+          // Correctif fondateur 2026-11-08 : la paie exige le
+          // contrat VALIDÉ (statut « valide »), pas seulement
+          // préparé — même exigence que la carte employé.
+          contratValide:
+            ((ligne.statut_contrat_employe as string | null) ??
+              "sans_objet") === "valide",
           montant: params?.montant ?? null,
           coordonneesPresentes: !!dossier.coordonnees_paiement,
           dejaEmise: !!paie,
@@ -4884,6 +4889,13 @@ export class RealProvider implements DataProvider {
     const ligne = await this.lignePack(profilId);
     const dossier = await this.construireDossierEmploye(ligne);
     if (!dossier.complet) throw err("ERR_DOSSIER_INCOMPLET");
+    // Porte contrat VALIDÉ (correctif fondateur 2026-11-08) : un
+    // contrat seulement préparé (à signer), déposé (en attente de
+    // revue) ou refusé ne permet PAS d'émettre la paie — même règle
+    // que l'émission de la carte employé.
+    const statutContrat =
+      (ligne.statut_contrat_employe as string | null) ?? "sans_objet";
+    if (statutContrat !== "valide") throw err("ERR_CONTRAT_NON_VALIDE");
     const params = this.parametresDepuisLigne(ligne);
     if (!params || params.montant === null || !(params.montant > 0)) {
       throw err("ERR_PAIE_SANS_CONTRAT");

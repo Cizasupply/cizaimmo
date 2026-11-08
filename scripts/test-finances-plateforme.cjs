@@ -79,27 +79,32 @@ const PARAMS_CONTRAT = {
     FIN.moisValide("2026-11") && !FIN.moisValide("2026-13") && !FIN.moisValide("11-2026"));
   check("blocages : dossier incomplet -> « dossier » d'abord (cumulé)",
     JSON.stringify(FIN.blocagesPaie({
-      dossierComplet: false, contratPrepare: false,
+      dossierComplet: false, contratValide: false,
       montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["dossier", "contrat"]));
-  check("blocages : dossier complet sans contrat -> « contrat »",
+  check("blocages : dossier complet, contrat non validé -> « contrat »",
     JSON.stringify(FIN.blocagesPaie({
-      dossierComplet: true, contratPrepare: false,
+      dossierComplet: true, contratValide: false,
       montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["contrat"]));
-  check("blocages : contrat sans montant -> « montant »",
+  check("blocages : contrat NON validé même avec montant -> « contrat » seul (2026-11-08)",
     JSON.stringify(FIN.blocagesPaie({
-      dossierComplet: true, contratPrepare: true,
+      dossierComplet: true, contratValide: false,
+      montant: 500000, dejaEmise: false, coordonneesPresentes: true,
+    })) === JSON.stringify(["contrat"]));
+  check("blocages : contrat validé sans montant -> « montant »",
+    JSON.stringify(FIN.blocagesPaie({
+      dossierComplet: true, contratValide: true,
       montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["montant"]));
   check("blocages : tout en ordre + paie existante -> « deja_emise »",
     JSON.stringify(FIN.blocagesPaie({
-      dossierComplet: true, contratPrepare: true,
+      dossierComplet: true, contratValide: true,
       montant: 100, dejaEmise: true, coordonneesPresentes: true,
     })) === JSON.stringify(["deja_emise"]));
   check("blocages : tout en ordre SANS coordonnées -> « coordonnees » (2026-11-08)",
     JSON.stringify(FIN.blocagesPaie({
-      dossierComplet: true, contratPrepare: true,
+      dossierComplet: true, contratValide: true,
       montant: 100, dejaEmise: false, coordonneesPresentes: false,
     })) === JSON.stringify(["coordonnees"]));
   const totauxTest = FIN.totauxParDevise({
@@ -218,12 +223,33 @@ const PARAMS_CONTRAT = {
     dossierAvecCoord.coordonnees_paiement?.numero_mobile === "+257 79 11 22 33",
     JSON.stringify(dossierAvecCoord.coordonnees_paiement));
 
-  console.log("== Paie : sans contrat, puis émission depuis le contrat ==");
+  console.log("== Paie : le contrat doit être VALIDÉ (correctif fondateur 2026-11-08) ==");
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
   const errContrat = await attendErreur(p.emettrePaieEmploye(admin.id, MOIS));
-  check("dossier complet sans contrat -> ERR_PAIE_SANS_CONTRAT",
-    errContrat.code === "ERR_PAIE_SANS_CONTRAT", errContrat.code);
+  check("dossier complet sans contrat -> ERR_CONTRAT_NON_VALIDE",
+    errContrat.code === "ERR_CONTRAT_NON_VALIDE", errContrat.code);
   await p.preparerContratEmploye(admin.id, PARAMS_CONTRAT);
+  const vuePrepare = await p.getVueFinancesPlateforme(MOIS);
+  const lignePrepare = vuePrepare.lignes_paie.find((l) => l.compte_id === admin.id);
+  check("contrat PRÉPARÉ (à signer) : blocage « contrat » affiché",
+    !!lignePrepare && lignePrepare.blocages.includes("contrat"),
+    JSON.stringify(lignePrepare?.blocages));
+  const errPrepare = await attendErreur(p.emettrePaieEmploye(admin.id, MOIS));
+  check("contrat préparé non signé -> émission refusée ERR_CONTRAT_NON_VALIDE",
+    errPrepare.code === "ERR_CONTRAT_NON_VALIDE", errPrepare.code);
+  // L'employée signe et dépose : toujours pas validé -> toujours refusé.
+  await connecter(ADMIN_DEMO_EMAIL);
+  await p.televerserContratEmployeSigne({
+    type: "contrat", entite_type: "compte", entite_id: admin.id,
+    nom_fichier: "contrat-signe.pdf", taille_octets: 900,
+    mime_type: "application/pdf", contenu: PETIT_PDF,
+  });
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  const errDepose = await attendErreur(p.emettrePaieEmploye(admin.id, MOIS));
+  check("contrat signé DÉPOSÉ non validé -> émission refusée ERR_CONTRAT_NON_VALIDE",
+    errDepose.code === "ERR_CONTRAT_NON_VALIDE", errDepose.code);
+  // Validation par le Super Admin : l'émission devient possible.
+  await p.validerContratEmploye(admin.id);
   const paie = await p.emettrePaieEmploye(admin.id, MOIS, "VIR-2026-11-001");
   check("émission OK : montant/devise/modalités copiés du contrat, référence conservée",
     paie.montant === 500000 && paie.devise === "BIF" &&
@@ -248,6 +274,45 @@ const PARAMS_CONTRAT = {
   })();
   check("un Admin ne peut pas émettre une paie -> ERR_SUPER_ADMIN_REQUIS",
     errAdminEmission.code === "ERR_SUPER_ADMIN_REQUIS", errAdminEmission.code);
+
+  console.log("== Paie : contrat REFUSÉ = émission refusée (ligne du Super Admin) ==");
+  const membresBis = await p.listerEquipeAdmins();
+  const superMembre = membresBis.find((m) => m.email === SUPER_ADMIN_DEMO_EMAIL);
+  const departSuper = await p.getMonDossierEmploye();
+  await p.mettreAJourDossierEmploye({
+    telephone: "+257 79 44 44 44",
+    adresse: "6ème Avenue N° 47, Buhomba",
+    adresse_ville: "Bujumbura",
+    adresse_code_postal: null,
+    adresse_pays: "Burundi",
+    paiement_moyen: "especes",
+    paiement_titulaire: "John Assu",
+  });
+  await p.televerserPhotoDossierEmploye({
+    type: "autre", entite_type: "compte", entite_id: departSuper.compte_id,
+    nom_fichier: "photo-super.jpg", taille_octets: 1200,
+    mime_type: "image/jpeg", contenu: PETITE_PHOTO,
+  });
+  await p.televerserPieceDossierEmploye({
+    type: "piece_identite", entite_type: "compte", entite_id: departSuper.compte_id,
+    nom_fichier: "passeport-super.pdf", taille_octets: 900,
+    mime_type: "application/pdf", contenu: PETIT_PDF,
+  });
+  await p.preparerContratEmploye(superMembre.id, PARAMS_CONTRAT);
+  await p.televerserContratEmployeSigne({
+    type: "contrat", entite_type: "compte", entite_id: superMembre.id,
+    nom_fichier: "contrat-super-signe.pdf", taille_octets: 900,
+    mime_type: "application/pdf", contenu: PETIT_PDF,
+  });
+  await p.refuserContratEmploye(superMembre.id, "Signature illisible (scénario de test).");
+  const errRefuse = await attendErreur(p.emettrePaieEmploye(superMembre.id, MOIS));
+  check("contrat REFUSÉ -> émission refusée ERR_CONTRAT_NON_VALIDE",
+    errRefuse.code === "ERR_CONTRAT_NON_VALIDE", errRefuse.code);
+  const vueRefus = await p.getVueFinancesPlateforme(MOIS);
+  const ligneSuper = vueRefus.lignes_paie.find((l) => l.compte_id === superMembre.id);
+  check("ligne Super Admin : blocage « contrat » affiché (contrat refusé)",
+    !!ligneSuper && ligneSuper.blocages.includes("contrat"),
+    JSON.stringify(ligneSuper?.blocages));
 
   console.log("== Dépenses : saisie Admin, validation Super Admin seul ==");
   await connecter(ADMIN_DEMO_EMAIL);

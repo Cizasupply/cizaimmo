@@ -401,6 +401,27 @@ async function principal() {
   const vueNov = await provider.getVueFinancesPlateforme("2026-11");
   check("vue novembre : dépense de novembre seulement", vueNov.depenses.length === 1 && vueNov.depenses[0].libelle === "Forfait internet");
 
+  // --- Porte contrat VALIDÉ (correctif fondateur 2026-11-08) :
+  // un contrat déposé (ou refusé) ne permet plus l'émission.
+  const ligneAdminBase = donnees.profils.find((l) => l.id === ADMIN_ID);
+  for (const statutTeste of ["signe_depose", "refuse", "a_signer"]) {
+    ligneAdminBase.statut_contrat_employe = statutTeste;
+    let erreurStatut = null;
+    try {
+      await provider.emettrePaieEmploye(ADMIN_ID, "2026-12");
+    } catch (e) { erreurStatut = e; }
+    check(`émission réelle : contrat « ${statutTeste} » -> ERR_CONTRAT_NON_VALIDE`,
+      erreurStatut?.message === "ERR_CONTRAT_NON_VALIDE");
+    const vueStatut = await provider.getVueFinancesPlateforme("2026-12");
+    const ligneStatut = vueStatut.lignes_paie.find((l) => l.compte_id === ADMIN_ID);
+    check(`vue : contrat « ${statutTeste} » -> blocage « contrat »`,
+      !!ligneStatut && ligneStatut.blocages.includes("contrat"));
+  }
+  ligneAdminBase.statut_contrat_employe = "valide";
+  const vueRestauree = await provider.getVueFinancesPlateforme("2026-12");
+  const ligneRestauree = vueRestauree.lignes_paie.find((l) => l.compte_id === ADMIN_ID);
+  check("vue : contrat restauré « valide » -> aucun blocage", !!ligneRestauree && ligneRestauree.blocages.length === 0);
+
   // --- Émission réelle + instantané coordonnées.
   const paie = await provider.emettrePaieEmploye(ADMIN_ID, "2026-12");
   check("émission réelle : moyen copié", paie.paiement_moyen === "mobile_money");

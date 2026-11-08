@@ -246,8 +246,13 @@ export type BlocagePaie =
  * ordre que les gardes d' emettrePaie dans les deux fournisseurs) :
  *  - « dossier » : le dossier employé est incomplet (la paie ne
  *    s'émet que sur dossier complet — décision du fondateur) ;
- *  - « contrat » : aucun contrat d'engagement préparé en base ;
- *  - « montant » : contrat préparé mais sans montant (le salaire /
+ *  - « contrat » : le contrat d'engagement n'est pas VALIDÉ
+ *    (statut_contrat_employe ≠ « valide » : non préparé, à signer,
+ *    signé déposé en attente, ou refusé) — correctif du fondateur
+ *    2026-11-08 : « Comment émettre la paie sans contrat ? » Un
+ *    contrat seulement préparé ne suffit plus, comme la carte
+ *    employé exigeait déjà le contrat validé ;
+ *  - « montant » : contrat validé mais sans montant (le salaire /
  *    les honoraires n'ont pas été fixés) ;
  *  - « coordonnees » : les coordonnées de paiement de l'employé
  *    (où il reçoit son salaire) ne sont pas renseignées — ajout
@@ -258,14 +263,14 @@ export type BlocagePaie =
  */
 export function blocagesPaie(entrees: {
   dossierComplet: boolean;
-  contratPrepare: boolean;
+  contratValide: boolean;
   montant: number | null;
   coordonneesPresentes: boolean;
   dejaEmise: boolean;
 }): BlocagePaie[] {
   const blocages: BlocagePaie[] = [];
   if (!entrees.dossierComplet) blocages.push("dossier");
-  if (!entrees.contratPrepare) blocages.push("contrat");
+  if (!entrees.contratValide) blocages.push("contrat");
   else if (entrees.montant === null || !(entrees.montant > 0)) {
     blocages.push("montant");
   }
