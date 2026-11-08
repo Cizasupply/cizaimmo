@@ -1674,7 +1674,7 @@
     "statusReadOnly": "Read-only",
     "statusSuspended": "Suspended",
     "statusTrial": "Free trial",
-    "stripeNotConfigured": "Stripe not configured — test mode. Set the test keys in .env.local (see docs/stripe-test-setup.md) to enable card payment.",
+    "stripeNotConfigured": "Card payment is coming soon. We will let you know before your trial ends — nothing will be charged without your agreement.",
     "stripeTestMode": "Stripe in TEST MODE: test cards only (4242 4242 4242 4242…), no real charge.",
     "trialEnds": "Trial ends",
     "trialPackTitle": "Your pack at the end of the trial",
