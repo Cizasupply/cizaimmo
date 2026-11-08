@@ -373,6 +373,25 @@ else
   ECHEC=1
 fi
 
+# Design « Marine & Or premium » de la PAGE D'ACCUEIL PUBLIQUE
+# (2026-11-08, ordre du fondateur : « il reste page d'accueil » —
+# dernière surface après l'espace client et la console) : héros
+# marine #1B2A4A + CTA or / contour clair, sections alternées
+# crème/blanc, titres marine SemiBold + filet or, cartes blanches
+# bordées au patron ; mini-grille tarifaire au patron (cartes
+# blanches, prix marine gras, Pro en avant marine/or) avec
+# MÉCANIQUE INTACTE (prix des tables finance, taux publics datés,
+# jamais « en direct ») ; en-tête/pied publics alignés bg-navy.
+# Aucun contenu, texte ni libellé nouveau.
+echo ""
+echo "===== Design accueil public (Marine & Or) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-design-accueil.cjs"; then
+  echo "Design accueil : OK"
+else
+  echo "Design accueil : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

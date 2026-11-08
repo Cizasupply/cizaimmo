@@ -19,12 +19,24 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  * bouton doré plein « Essai gratuit ».
  * Logo responsive : 180 px sur mobile, 260 px à partir de md.
  */
-export default function PublicHeader() {
+export default function PublicHeader({
+  masquerEssai = false,
+}: {
+  /**
+   * Page d'accueil uniquement (2026-11-08, règle du fondateur :
+   * aucun doublon de CTA) : le bouton « Essai gratuit » de
+   * l'en-tête y est masqué car le héros porte LE bouton d'essai
+   * unique de la page (« Commencer l'essai gratuit de 30 jours »,
+   * primaire or). Toutes les autres pages publiques gardent
+   * l'en-tête complet, inchangé par défaut.
+   */
+  masquerEssai?: boolean;
+} = {}) {
   const t = useTranslations("landing");
   const tn = useTranslations("nav");
   const ta = useTranslations("auth");
   return (
-    <header className="bg-navy-dark px-4 py-4 text-white sm:px-6">
+    <header className="bg-navy px-4 py-4 text-white sm:px-6">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 xl:flex-nowrap xl:justify-between">
         <Link href="/" aria-label="CizaImmo — Accueil" className="order-1 shrink-0">
           <Image
@@ -55,12 +67,14 @@ export default function PublicHeader() {
           >
             {ta("loginButton")}
           </Link>
-          <Link
-            href="/inscription"
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy-dark hover:bg-gold-light xl:flex-none"
-          >
-            {t("ctaTrialShort")}
-          </Link>
+          {masquerEssai ? null : (
+            <Link
+              href="/inscription"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy-dark hover:bg-gold-light xl:flex-none"
+            >
+              {t("ctaTrialShort")}
+            </Link>
+          )}
         </div>
       </div>
     </header>

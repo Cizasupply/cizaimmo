@@ -19,30 +19,21 @@ import type { Devise, Plan, PrixPlans, TauxChange } from "@/lib/data";
 import { TARIFS_SEED, construirePrixPlans, convertirPrixAffichage } from "@/lib/tarifs";
 import { GESTIONNAIRES_MAX, VITRINE_PAR_PLAN, INDIVISION_PAR_PLAN } from "@/lib/abonnement";
 import { formatDate, formatMoney } from "@/lib/format";
+import { LIBELLES_DEVISE, useDeviseAffichage } from "@/components/DeviseAffichage";
 
 const PLANS: Plan[] = ["starter", "pro", "agence"];
-
-const LIBELLES_DEVISE: Record<Devise, string> = {
-  USD: "$ USD",
-  EUR: "€ EUR",
-  GBP: "£ GBP",
-  CAD: "$ CAD",
-  BIF: "BIF",
-  XAF: "XAF",
-  XOF: "XOF",
-  KES: "KES",
-  TZS: "TZS",
-  RWF: "RWF",
-  UGX: "UGX",
-  BRL: "R$ BRL",
-};
 
 export default function MiniGrilleTarifs() {
   const t = useTranslations("landing");
   const locale = useLocale();
   const [prix, setPrix] = useState<PrixPlans>(() => construirePrixPlans(TARIFS_SEED));
   const [taux, setTaux] = useState<TauxChange[]>([]);
-  const [devise, setDevise] = useState<Devise>("USD");
+  // Devise partagée avec le sélecteur du héros (contexte de la
+  // page d'accueil) ; repli local si la grille est rendue seule.
+  const ctxDevise = useDeviseAffichage();
+  const [deviseLocale, setDeviseLocale] = useState<Devise>("USD");
+  const devise = ctxDevise ? ctxDevise.devise : deviseLocale;
+  const setDevise = ctxDevise ? ctxDevise.setDevise : setDeviseLocale;
 
   useEffect(() => {
     let actif = true;
@@ -99,7 +90,7 @@ export default function MiniGrilleTarifs() {
 
   return (
     <div>
-      <p className="mt-8 text-center text-base font-semibold text-white">
+      <p className="mt-8 text-center text-base font-semibold text-navy">
         {t("pricing.currencyInvite")}
       </p>
       <div className="mx-auto mt-3 max-w-xs">
@@ -110,7 +101,7 @@ export default function MiniGrilleTarifs() {
           id="mini-grille-devise"
           value={devise}
           onChange={(e) => setDevise(e.target.value as Devise)}
-          className="w-full rounded-full border-2 border-gold bg-white px-5 py-3 text-center text-base font-bold text-navy shadow-lg"
+          className="min-h-12 w-full rounded-full border-2 border-gold bg-white px-5 py-3 text-center text-base font-bold text-navy shadow-lg"
         >
           {DEVISES.map((d) => (
             <option key={d} value={d}>
@@ -120,42 +111,55 @@ export default function MiniGrilleTarifs() {
         </select>
       </div>
       {!deviseEstUsd ? (
-        <p className="mt-3 text-center text-sm text-slate-300">
+        <p className="mt-3 text-center text-sm text-slate-600">
           {dateTauxAffichee
             ? t("pricing.rateDate", { date: formatDate(dateTauxAffichee, locale) })
             : t("pricing.rateUnavailable")}
         </p>
       ) : null}
       {!conversionDisponible && !deviseEstUsd ? (
-        <p className="mt-1 text-center text-xs text-slate-400">{t("pricing.rateFallbackUsd")}</p>
+        <p className="mt-1 text-center text-xs text-slate-500">{t("pricing.rateFallbackUsd")}</p>
       ) : null}
 
       <div className="mt-8 grid gap-6 text-left md:grid-cols-3">
-        {conversions.map(({ plan, afrique, internationale }) => (
-          <div key={plan} className="rounded-2xl border border-navy-light bg-navy p-6">
-            <h3 className="text-xl font-bold text-gold">
+        {conversions.map(({ plan, afrique, internationale }) => {
+          // Design « Marine & Or » (2026-11-08) : cartes blanches
+          // bordées au patron, prix marine gras ; le pack Pro est
+          // mis en avant en marine/or (visuel uniquement, aucun
+          // libellé ajouté, mécanique des prix inchangée).
+          const vedette = plan === "pro";
+          return (
+          <div
+            key={plan}
+            className={
+              vedette
+                ? "rounded-2xl bg-navy p-6 text-white shadow-sm ring-1 ring-gold"
+                : "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            }
+          >
+            <h3 className={vedette ? "text-xl font-bold text-gold" : "text-xl font-bold text-navy"}>
               {plan === "starter" ? "Starter" : plan === "pro" ? "Pro" : "Agence"}
             </h3>
-            <p className="mt-2 text-slate-300">
+            <p className={vedette ? "mt-2 text-slate-300" : "mt-2 text-slate-600"}>
               {plan === "agence"
                 ? t("pricing.blocksUnlimited")
                 : t("pricing.blocks", { count: plan === "starter" ? 1 : 5 })}
             </p>
             <p className="mt-4 text-2xl font-bold">
               {afrique.texte}
-              <span className="text-sm font-normal text-slate-300">
+              <span className={vedette ? "text-sm font-normal text-slate-300" : "text-sm font-normal text-slate-500"}>
                 {" "}
                 {t("pricing.perMonth")} · {t("pricing.gridAfrique")}
               </span>
             </p>
             <p className="mt-1 text-2xl font-bold">
               {internationale.texte}
-              <span className="text-sm font-normal text-slate-300">
+              <span className={vedette ? "text-sm font-normal text-slate-300" : "text-sm font-normal text-slate-500"}>
                 {" "}
                 {t("pricing.perMonth")} · {t("pricing.gridInternationale")}
               </span>
             </p>
-            <ul className="mt-4 space-y-2 text-sm text-slate-300">
+            <ul className={vedette ? "mt-4 space-y-2 text-sm text-slate-200" : "mt-4 space-y-2 text-sm text-slate-600"}>
               <li>✓ {t("pricing.fullManagement")}</li>
               <li>✓ {t("pricing.reports")}</li>
               <li>✓ {libelleGestionnaires(plan)}</li>
@@ -170,12 +174,17 @@ export default function MiniGrilleTarifs() {
             </ul>
             <Link
               href={`/${locale}/inscription`}
-              className="mt-6 block rounded-full bg-gold px-5 py-2.5 text-center font-semibold text-navy-dark hover:bg-gold-light"
+              className={
+                vedette
+                  ? "mt-6 block min-h-12 rounded-full bg-gold px-5 py-3 text-center font-semibold text-navy hover:bg-gold-light"
+                  : "mt-6 block min-h-12 rounded-full border border-navy bg-white px-5 py-3 text-center font-semibold text-navy hover:bg-navy hover:text-white"
+              }
             >
               {t("pricing.cta")}
             </Link>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

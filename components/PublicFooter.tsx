@@ -22,7 +22,7 @@ export default function PublicFooter() {
   const tf = useTranslations("footer");
   const tc = useTranslations("common");
   return (
-    <footer className="border-t border-navy-light bg-navy-dark px-4 py-10 text-sm text-slate-300 sm:px-6">
+    <footer className="border-t border-navy-light bg-navy px-4 py-10 text-sm text-slate-300 sm:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Marque */}
