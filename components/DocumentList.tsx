@@ -49,6 +49,8 @@ export default function DocumentList({
         return "bg-green-100 text-green-800";
       case "justificatif":
         return "bg-amber-100 text-amber-800";
+      case "autorisation":
+        return "bg-indigo-100 text-indigo-800";
       case "facture":
         return "bg-orange-100 text-orange-800";
       case "piece_identite":

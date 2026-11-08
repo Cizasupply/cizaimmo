@@ -171,7 +171,9 @@
       "rattachement_retire": "Attachment removed",
       "rattachement_valide": "Connection validated",
       "supervision_ouverte": "Supervision opened",
-      "tarifs_modifies": "Prices updated"
+      "tarifs_modifies": "Prices updated",
+      "immeuble_gestion_valide": "Manager property validated",
+      "immeuble_gestion_refuse": "Manager property refused"
     },
     "averageRent": "Average rent",
     "backToManagers": "Back to managers",
@@ -222,7 +224,8 @@
       "contrat": "Agreement",
       "facture": "Invoice",
       "justificatif": "Supporting document",
-      "piece_identite": "ID document"
+      "piece_identite": "ID document",
+      "autorisation": "Management authorization"
     },
     "emailPlaceholder": "email",
     "errors": {
@@ -254,7 +257,10 @@
       "ERR_COMPTE_PLATEFORME": "Protected platform account: action not allowed.",
       "ERR_PROFIL_INTROUVABLE": "Profile not found.",
       "ERR_COMPTE_SUSPENDU": "This account is suspended.",
-      "ERR_COMPTE_REFUSE": "This account was refused."
+      "ERR_COMPTE_REFUSE": "This account was refused.",
+      "ERR_PROPRIETAIRE_DECLARE_REQUIS": "The owner's name and email are required for a property created by a manager.",
+      "ERR_VALIDATION_PAS_EN_ATTENTE": "This property is no longer awaiting validation.",
+      "ERR_VALIDATION_MOTIF_REQUIS": "A reason is required to refuse validation."
     },
     "fileAudit": "Account history",
     "fileBuildings": "Buildings",
@@ -671,7 +677,10 @@
       "ERR_VITRINE_ACCES": "You do not have access to this listing.",
       "ERR_VITRINE_PAS_EN_ATTENTE": "This listing is no longer pending validation.",
       "ERR_VITRINE_MOTIF_REQUIS": "Choose a predefined refusal reason.",
-      "ERR_ACCES_PLATEFORME": "Platform access denied."
+      "ERR_ACCES_PLATEFORME": "Platform access denied.",
+      "ERR_PROPRIETAIRE_DECLARE_REQUIS": "The owner's name and email are required for a property created by a manager.",
+      "ERR_VALIDATION_PAS_EN_ATTENTE": "This property is no longer awaiting validation.",
+      "ERR_VALIDATION_MOTIF_REQUIS": "A reason is required to refuse validation."
     },
     "expenses": {
       "add": "Add an expense",
@@ -1064,7 +1073,8 @@
       "bail": "Signed lease",
       "facture": "Invoice",
       "justificatif": "Payment proof",
-      "piece_identite": "ID document"
+      "piece_identite": "ID document",
+      "autorisation": "Management authorization"
     },
     "upload": "Upload a document",
     "uploadButton": "Upload",
@@ -1888,5 +1898,50 @@
       "ERR_ACCES_PLATEFORME": "Platform access denied.",
       "generic": "Something went wrong. Please try again."
     }
+  },
+  "v17": {
+    "photosTitle": "Property photos",
+    "photosHint": "Add at least one photo: the first one becomes the property's passport photo, the one everyone will see to identify the house.",
+    "photosFormatHint": "JPG or PNG, 10 MB maximum per photo.",
+    "photoAdd": "Add photos",
+    "photoMain": "Main",
+    "photoRemove": "Remove",
+    "photoRequired": "Add at least one photo of the property.",
+    "managerTitle": "Property managed for an owner",
+    "managerHint": "You are creating this property as a manager: upload the management authorization signed by the owner and declare their identity. The platform will review the file.",
+    "ownerName": "Owner's name",
+    "ownerEmail": "Owner's email",
+    "ownerNameRequired": "The owner's name is required.",
+    "ownerEmailRequired": "The owner's email is required.",
+    "ownerEmailInvalid": "Invalid email address.",
+    "autorisationLabel": "Management authorization signed by the owner",
+    "autorisationHint": "Document signed by the owner authorizing you to manage this property (PDF, JPG or PNG, 10 MB max).",
+    "autorisationRequired": "The management authorization is required.",
+    "autorisationOnFile": "An authorization is already on file; choose a file only to replace it.",
+    "validationPending": "Awaiting platform validation",
+    "validationRefused": "Validation refused by the platform",
+    "validationOk": "Validated by the platform",
+    "declaredOwner": "Declared owner",
+    "concordanceOk": "Owner already linked and validated: automatic match.",
+    "reviewMotif": "Reason",
+    "reviewTitle": "Manager-created properties — review",
+    "reviewHint": "Properties created by this manager: management authorization and declared owner to check.",
+    "declaredOwnerLabel": "Declared owner",
+    "concordanceAuto": "Automatic match (validated link)",
+    "concordanceManual": "To check manually",
+    "statusEnAttente": "Pending",
+    "statusValide": "Validated",
+    "statusRefuse": "Refused",
+    "openAutorisation": "Open the authorization",
+    "noAutorisation": "Authorization not received",
+    "validateBuilding": "Validate",
+    "refuseBuilding": "Refuse",
+    "validatedMsg": "Property validated.",
+    "refusedMsg": "Property refused.",
+    "motifLabel": "Refusal reason",
+    "motifAutorisation": "Insufficient authorization",
+    "motifProprietaire": "Owner not confirmed",
+    "motifInfos": "Incomplete information",
+    "motifAutre": "Other"
   }
 }

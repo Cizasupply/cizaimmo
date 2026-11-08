@@ -28,6 +28,7 @@ import type {
   Document,
   DocumentInput,
   ChecklistDossier,
+  RevueImmeubleGestion,
   ChecklistDossierSaisie,
   DossierCompte,
   EntreeAudit,
@@ -59,6 +60,7 @@ import type {
   FiltreRecus,
   Immeuble,
   ImmeubleInput,
+  PhotoImmeubleInput,
   ImmeublePatch,
   LienLocataire,
   LimiteBlocs,
@@ -523,6 +525,59 @@ export class RealProvider implements DataProvider {
     }
   }
 
+  /**
+   * v1.7 : résout les URLs d'affichage des photos des immeubles —
+   * liens signés (1 h) du bucket privé, un seul appel pour tous les
+   * chemins. Les tableaux photos / photos_urls restent alignés par
+   * index (chaîne vide si une signature échoue).
+   */
+  private async enrichirPhotosImmeubles<T extends Immeuble>(liste: T[]): Promise<T[]> {
+    const chemins = Array.from(
+      new Set(liste.flatMap((i) => (Array.isArray(i.photos) ? i.photos : [])))
+    );
+    if (chemins.length === 0) return liste;
+    const { data } = await this.client()
+      .storage.from("documents-prives")
+      .createSignedUrls(chemins, 3600);
+    const parChemin = new Map<string, string>();
+    (data ?? []).forEach((s, idx) => {
+      if (s?.signedUrl) parChemin.set(chemins[idx], s.signedUrl);
+    });
+    for (const im of liste) {
+      im.photos_urls = (im.photos ?? []).map((p) => parChemin.get(p) ?? "");
+    }
+    return liste;
+  }
+
+  /**
+   * v1.7 — contrôle allégé : le propriétaire déclaré correspond-il à
+   * un propriétaire DÉJÀ rattaché à ce gestionnaire (rattachement
+   * « proprietaire » actif, validé par l'Admin) ? La concordance se
+   * juge sur l'e-mail (identifiant du compte propriétaire).
+   */
+  private async calculerConcordanceProprietaire(
+    gestionnaireId: string,
+    emailDeclare: string
+  ): Promise<boolean> {
+    const { data: rattachements } = await this.client()
+      .from("rattachements_gestionnaires")
+      .select("proprietaire_id")
+      .eq("gestionnaire_id", gestionnaireId)
+      .eq("contexte", "proprietaire")
+      .eq("statut", "actif");
+    const ids = ((rattachements as { proprietaire_id: string | null }[] | null) ?? [])
+      .map((r) => r.proprietaire_id)
+      .filter((x): x is string => Boolean(x));
+    if (ids.length === 0) return false;
+    const { data: profils } = await this.client()
+      .from("profils")
+      .select("email")
+      .in("id", ids);
+    return ((profils as { email: string }[] | null) ?? []).some(
+      (p) => p.email.toLowerCase() === emailDeclare
+    );
+  }
+
   async listerImmeubles(inclureArchives = false): Promise<Immeuble[]> {
     const session = await this.requireSession();
     const role = await this.roleSession();
@@ -533,7 +588,7 @@ export class RealProvider implements DataProvider {
     if (!inclureArchives) q = q.eq("statut", "actif");
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return (data as Immeuble[]).map(mapImmeuble);
+    return this.enrichirPhotosImmeubles((data as Immeuble[]).map(mapImmeuble));
   }
 
   async getImmeuble(id: string): Promise<Immeuble | null> {
@@ -543,7 +598,11 @@ export class RealProvider implements DataProvider {
       .eq("id", id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return data ? mapImmeuble(data as Immeuble) : null;
+    if (!data) return null;
+    const [enrichi] = await this.enrichirPhotosImmeubles([
+      mapImmeuble(data as Immeuble),
+    ]);
+    return enrichi;
   }
 
   async creerImmeuble(input: ImmeubleInput): Promise<Immeuble> {
@@ -558,16 +617,52 @@ export class RealProvider implements DataProvider {
       .limit(1);
     if (doublon && doublon.length > 0) throw err("ERR_IMMEUBLE_NOM_UNIQUE");
     await this.verifierLimiteBlocs();
+    // v1.7 : un créateur GESTIONNAIRE déclare le propriétaire du bien
+    // (nom + e-mail obligatoires) et l'immeuble part en revue
+    // plateforme ; un créateur propriétaire reste « valide » d'office.
+    const role = await this.roleSession();
+    let declareNom: string | null = null;
+    let declareEmail: string | null = null;
+    let concordance = false;
+    let origine: Immeuble["origine_creation"] = "proprietaire";
+    let validation: Immeuble["validation_statut"] = "valide";
+    if (role === "gestionnaire") {
+      declareNom = input.proprietaire_declare_nom?.trim() || null;
+      declareEmail = input.proprietaire_declare_email?.trim().toLowerCase() || null;
+      if (!declareNom || !declareEmail) {
+        throw err("ERR_PROPRIETAIRE_DECLARE_REQUIS");
+      }
+      origine = "gestionnaire";
+      validation = "en_attente";
+      concordance = await this.calculerConcordanceProprietaire(
+        session.id,
+        declareEmail
+      );
+    }
     const { data, error } = await this.client()
       .from("immeubles")
-      .insert({ ...input, owner_id: session.id, nom: input.nom.trim(), statut: "actif" })
+      .insert({
+        ...input,
+        proprietaire_declare_nom: declareNom,
+        proprietaire_declare_email: declareEmail,
+        origine_creation: origine,
+        validation_statut: validation,
+        proprietaire_concordance: concordance,
+        photos: [],
+        owner_id: session.id,
+        nom: input.nom.trim(),
+        statut: "actif",
+      })
       .select()
       .single();
     if (error) {
       if (error.code === "23505") throw err("ERR_IMMEUBLE_NOM_UNIQUE");
       throw new Error(error.message);
     }
-    return mapImmeuble(data as Immeuble);
+    const [cree] = await this.enrichirPhotosImmeubles([
+      mapImmeuble(data as Immeuble),
+    ]);
+    return cree;
   }
 
   async modifierImmeuble(id: string, patch: ImmeublePatch): Promise<Immeuble> {
@@ -586,9 +681,52 @@ export class RealProvider implements DataProvider {
         .limit(1);
       if (doublon && doublon.length > 0) throw err("ERR_IMMEUBLE_NOM_UNIQUE");
     }
+    // v1.7 : immeuble de gestionnaire — le propriétaire déclaré reste
+    // obligatoire ; le modifier recalcule la concordance et, si la
+    // plateforme avait refusé la validation, resoumet le bien en revue.
+    const maj: Record<string, unknown> = {
+      ...patch,
+      nom: patch.nom ? patch.nom.trim() : undefined,
+    };
+    if (
+      patch.proprietaire_declare_nom !== undefined ||
+      patch.proprietaire_declare_email !== undefined
+    ) {
+      const { data: actuel } = await this.client()
+        .from("immeubles")
+        .select(
+          "owner_id, origine_creation, validation_statut, proprietaire_declare_nom, proprietaire_declare_email"
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (actuel && actuel.origine_creation === "gestionnaire") {
+        const nomDeclare =
+          patch.proprietaire_declare_nom !== undefined
+            ? patch.proprietaire_declare_nom?.trim() || null
+            : (actuel.proprietaire_declare_nom as string | null);
+        const emailDeclare =
+          patch.proprietaire_declare_email !== undefined
+            ? patch.proprietaire_declare_email?.trim().toLowerCase() || null
+            : (actuel.proprietaire_declare_email as string | null);
+        if (!nomDeclare || !emailDeclare) {
+          throw err("ERR_PROPRIETAIRE_DECLARE_REQUIS");
+        }
+        maj.proprietaire_declare_nom = nomDeclare;
+        maj.proprietaire_declare_email = emailDeclare;
+        maj.proprietaire_concordance =
+          await this.calculerConcordanceProprietaire(
+            actuel.owner_id as string,
+            emailDeclare
+          );
+        if (actuel.validation_statut === "refuse") {
+          maj.validation_statut = "en_attente";
+          maj.validation_motif = null;
+        }
+      }
+    }
     const { data, error } = await this.client()
       .from("immeubles")
-      .update({ ...patch, nom: patch.nom ? patch.nom.trim() : undefined })
+      .update(maj)
       .eq("id", id)
       .select()
       .single();
@@ -596,7 +734,10 @@ export class RealProvider implements DataProvider {
       if (error.code === "23505") throw err("ERR_IMMEUBLE_NOM_UNIQUE");
       throw new Error(error.message);
     }
-    return mapImmeuble(data as Immeuble);
+    const [modifie] = await this.enrichirPhotosImmeubles([
+      mapImmeuble(data as Immeuble),
+    ]);
+    return modifie;
   }
 
   async archiverImmeuble(id: string): Promise<Immeuble> {
@@ -608,6 +749,132 @@ export class RealProvider implements DataProvider {
     await this.verifierEcritureAutorisee();
     await this.verifierLimiteBlocs();
     return this.modifierImmeuble(id, { statut: "actif" });
+  }
+
+  // --- v1.7 : photos du bien (bucket privé, liens signés) -------------------
+  async ajouterPhotoImmeuble(
+    immeubleId: string,
+    photo: PhotoImmeubleInput
+  ): Promise<Immeuble> {
+    await this.verifierEcritureAutorisee();
+    const session = await this.requireSession();
+    const nom = photo.nom_fichier.trim();
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    const mimeOk =
+      !photo.mime_type || ["image/jpeg", "image/png"].includes(photo.mime_type);
+    if (!["jpg", "jpeg", "png"].includes(extension) || !mimeOk || !photo.contenu) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      photo.taille_octets !== undefined &&
+      photo.taille_octets !== null &&
+      photo.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    const { data: actuel, error: errLecture } = await this.client()
+      .from("immeubles")
+      .select("photos")
+      .eq("id", immeubleId)
+      .maybeSingle();
+    if (errLecture) throw new Error(errLecture.message);
+    if (!actuel) throw err("ERR_NOT_FOUND");
+    const photosActuelles: string[] = Array.isArray(actuel.photos)
+      ? (actuel.photos as string[])
+      : [];
+    // Même patron que les documents : bucket PRIVÉ « documents-prives »,
+    // chemin préfixé par l'id de l'uploader (politiques Storage).
+    const storagePath = `${session.id}/immeuble/${immeubleId}/photo-${Date.now()}-${nom}`;
+    const blob = await (await fetch(photo.contenu)).blob();
+    const { error: uploadError } = await this.client()
+      .storage.from("documents-prives")
+      .upload(storagePath, blob, {
+        contentType: photo.mime_type ?? blob.type,
+        upsert: false,
+      });
+    if (uploadError) {
+      if (/bucket not found/i.test(uploadError.message)) {
+        throw err("ERR_BUCKET_MANQUANT");
+      }
+      throw new Error(uploadError.message);
+    }
+    const { data, error } = await this.client()
+      .from("immeubles")
+      .update({ photos: [...photosActuelles, storagePath] })
+      .eq("id", immeubleId)
+      .select()
+      .single();
+    if (error) {
+      await this.client().storage.from("documents-prives").remove([storagePath]);
+      throw new Error(error.message);
+    }
+    const [maj] = await this.enrichirPhotosImmeubles([
+      mapImmeuble(data as Immeuble),
+    ]);
+    return maj;
+  }
+
+  async retirerPhotoImmeuble(
+    immeubleId: string,
+    index: number
+  ): Promise<Immeuble> {
+    await this.verifierEcritureAutorisee();
+    await this.requireSession();
+    const { data: actuel, error: errLecture } = await this.client()
+      .from("immeubles")
+      .select("photos")
+      .eq("id", immeubleId)
+      .maybeSingle();
+    if (errLecture) throw new Error(errLecture.message);
+    if (!actuel) throw err("ERR_NOT_FOUND");
+    const photosActuelles: string[] = Array.isArray(actuel.photos)
+      ? [...(actuel.photos as string[])]
+      : [];
+    if (index < 0 || index >= photosActuelles.length) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const [retiree] = photosActuelles.splice(index, 1);
+    const { data, error } = await this.client()
+      .from("immeubles")
+      .update({ photos: photosActuelles })
+      .eq("id", immeubleId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    if (retiree) {
+      await this.client().storage.from("documents-prives").remove([retiree]);
+    }
+    const [maj] = await this.enrichirPhotosImmeubles([
+      mapImmeuble(data as Immeuble),
+    ]);
+    return maj;
+  }
+
+  // --- v1.7 : décision plateforme (RPC — la base décide) --------------------
+  async deciderValidationImmeuble(
+    immeubleId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<void> {
+    await this.acteurPlateforme();
+    const { error } = await this.client().rpc("decider_validation_immeuble", {
+      p_immeuble: immeubleId,
+      p_accepter: accepter,
+      p_motif: motif ?? null,
+    });
+    if (error) {
+      if (error.message.includes("ERR_VALIDATION_PAS_EN_ATTENTE")) {
+        throw err("ERR_VALIDATION_PAS_EN_ATTENTE");
+      }
+      if (error.message.includes("ERR_VALIDATION_MOTIF_REQUIS")) {
+        throw err("ERR_VALIDATION_MOTIF_REQUIS");
+      }
+      if (error.message.includes("ERR_ACCES_PLATEFORME")) {
+        throw err("ERR_ACCES_PLATEFORME");
+      }
+      if (error.message.includes("ERR_NOT_FOUND")) throw err("ERR_NOT_FOUND");
+      throw new Error(error.message);
+    }
   }
 
   async listerAppartements(
@@ -3591,12 +3858,30 @@ export class RealProvider implements DataProvider {
       .eq("entite_id", compteId)
       .order("created_at", { ascending: false });
 
+    // v1.7 : les lignes immeubles portent aussi leurs photos (chemins
+    // Storage) — les vignettes sont signées en un seul appel plus bas.
+    type LigneImmeubleDossier = {
+      id: string;
+      nom: string;
+      ville: string;
+      adresse: string;
+      photos?: string[] | null;
+      photo_url?: string | null;
+      origine_creation?: string | null;
+      proprietaire_declare_nom?: string | null;
+      proprietaire_declare_email?: string | null;
+      proprietaire_concordance?: boolean | null;
+      validation_statut?: string | null;
+      validation_motif?: string | null;
+    };
     const { data: immeublesRows } = await client
       .from("immeubles")
-      .select("id, nom, ville, adresse")
+      .select(
+        "id, nom, ville, adresse, photos, photo_url, origine_creation, proprietaire_declare_nom, proprietaire_declare_email, proprietaire_concordance, validation_statut, validation_motif"
+      )
       .eq("owner_id", compteId);
-    const immeublesPossedes = (immeublesRows as { id: string; nom: string; ville: string; adresse: string }[] | null) ?? [];
-    const idsPossedes = immeublesPossedes.map((i) => i.id);
+    const lignesPossedees = (immeublesRows as LigneImmeubleDossier[] | null) ?? [];
+    const idsPossedes = lignesPossedees.map((i) => i.id);
 
     let preuvesPropriete: Document[] = [];
     if (idsPossedes.length > 0) {
@@ -3630,13 +3915,13 @@ export class RealProvider implements DataProvider {
     );
 
     const idsGeres = Array.from(new Set(commeGestionnaire.flatMap((r) => r.immeuble_ids)));
-    let immeublesGeres: { id: string; nom: string; ville: string; adresse: string }[] = [];
+    let lignesGerees: LigneImmeubleDossier[] = [];
     if (idsGeres.length > 0) {
       const { data } = await client
         .from("immeubles")
-        .select("id, nom, ville, adresse")
+        .select("id, nom, ville, adresse, photos, photo_url")
         .in("id", idsGeres);
-      immeublesGeres = (data as { id: string; nom: string; ville: string; adresse: string }[] | null) ?? [];
+      lignesGerees = (data as LigneImmeubleDossier[] | null) ?? [];
     }
 
     let annonces: { id: string; immeuble_nom: string; numero: string }[] = [];
@@ -3646,10 +3931,76 @@ export class RealProvider implements DataProvider {
         .select("id, numero, immeuble_id")
         .eq("vitrine", true)
         .in("immeuble_id", idsPossedes);
-      const nomParId = new Map(immeublesPossedes.map((i) => [i.id, i.nom]));
+      const nomParId = new Map(lignesPossedees.map((i) => [i.id, i.nom]));
       annonces = ((data as { id: string; numero: string; immeuble_id: string }[] | null) ?? []).map(
         (a) => ({ id: a.id, immeuble_nom: nomParId.get(a.immeuble_id) ?? "", numero: a.numero })
       );
+    }
+
+    // v1.7 : vignettes du dossier — la photo principale de chaque
+    // immeuble (possédé, géré ou en revue) est signée en UN appel.
+    const lignesRevue = lignesPossedees.filter(
+      (i) => i.origine_creation === "gestionnaire"
+    );
+    const cheminsVignettes = Array.from(
+      new Set(
+        [...lignesPossedees, ...lignesGerees]
+          .map((i) => (Array.isArray(i.photos) ? i.photos[0] : undefined))
+          .filter((p): p is string => Boolean(p))
+      )
+    );
+    const vignettes = new Map<string, string>();
+    if (cheminsVignettes.length > 0) {
+      const { data: signes } = await client.storage
+        .from("documents-prives")
+        .createSignedUrls(cheminsVignettes, 3600);
+      (signes ?? []).forEach((s, idx) => {
+        if (s?.signedUrl) vignettes.set(cheminsVignettes[idx], s.signedUrl);
+      });
+    }
+    const avecVignette = (i: LigneImmeubleDossier) => ({
+      id: i.id,
+      nom: i.nom,
+      ville: i.ville,
+      adresse: i.adresse,
+      photo_url:
+        (Array.isArray(i.photos) && i.photos[0]
+          ? vignettes.get(i.photos[0])
+          : undefined) ??
+        i.photo_url ??
+        null,
+    });
+    const immeublesPossedes = lignesPossedees.map(avecVignette);
+    const immeublesGeres = lignesGerees.map(avecVignette);
+
+    // v1.7 : revue plateforme des immeubles créés par ce gestionnaire
+    // — autorisation de gestion la plus récente jointe à chaque bien.
+    let immeublesEnRevue: RevueImmeubleGestion[] = [];
+    if (lignesRevue.length > 0) {
+      const { data: docsAutorisation } = await client
+        .from("documents")
+        .select("*")
+        .eq("entite_type", "immeuble")
+        .eq("type", "autorisation")
+        .in("entite_id", lignesRevue.map((i) => i.id))
+        .order("created_at", { ascending: false });
+      const autorisationParImmeuble = new Map<string, Document>();
+      for (const d of (docsAutorisation as Document[] | null) ?? []) {
+        if (!autorisationParImmeuble.has(d.entite_id)) {
+          autorisationParImmeuble.set(d.entite_id, d);
+        }
+      }
+      immeublesEnRevue = lignesRevue.map((i) => ({
+        ...avecVignette(i),
+        proprietaire_declare_nom: i.proprietaire_declare_nom ?? null,
+        proprietaire_declare_email: i.proprietaire_declare_email ?? null,
+        proprietaire_concordance: Boolean(i.proprietaire_concordance ?? false),
+        validation_statut:
+          (i.validation_statut as RevueImmeubleGestion["validation_statut"] | null) ??
+          "valide",
+        validation_motif: i.validation_motif ?? null,
+        autorisation: autorisationParImmeuble.get(i.id) ?? null,
+      }));
     }
 
     const { data: auditRows } = await client
@@ -3711,6 +4062,7 @@ export class RealProvider implements DataProvider {
       demandes,
       immeubles_possedes: immeublesPossedes,
       immeubles_geres: immeublesGeres,
+      immeubles_en_revue: immeublesEnRevue,
       annonces,
       audit: (auditRows as EntreeAudit[] | null) ?? [],
     };
@@ -4658,6 +5010,23 @@ function mapImmeuble(r: Immeuble): Immeuble {
     prix_acquisition: num(r.prix_acquisition),
     // v1.6 : quartier — défaut sûr si la ligne est antérieure à la migration.
     quartier: (brut.quartier as string | null | undefined) ?? null,
+    // v1.7 : photos (chemins Storage) + revue gestionnaire — défauts
+    // sûrs si la ligne est antérieure à la migration. photos_urls est
+    // résolu à part (liens signés, voir enrichirPhotosImmeubles).
+    photos: Array.isArray(brut.photos) ? (brut.photos as string[]) : [],
+    photos_urls: [],
+    origine_creation:
+      brut.origine_creation === "gestionnaire" ? "gestionnaire" : "proprietaire",
+    proprietaire_declare_nom:
+      (brut.proprietaire_declare_nom as string | null | undefined) ?? null,
+    proprietaire_declare_email:
+      (brut.proprietaire_declare_email as string | null | undefined) ?? null,
+    proprietaire_concordance: Boolean(brut.proprietaire_concordance ?? false),
+    validation_statut:
+      (brut.validation_statut as Immeuble["validation_statut"] | undefined) ??
+      "valide",
+    validation_motif:
+      (brut.validation_motif as string | null | undefined) ?? null,
   };
 }
 

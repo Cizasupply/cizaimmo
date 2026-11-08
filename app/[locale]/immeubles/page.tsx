@@ -279,7 +279,12 @@ export default function ImmeublesPage() {
                   return (
                     <article key={im.id} className="rounded-2xl bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                        {/* v1.7 : vignette — la photo du passeport du bien. */}
+                        {(im.photos_urls[0] || im.photo_url) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={im.photos_urls[0] || im.photo_url || ""} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
                           <Link href={`/${locale}/immeubles/${im.id}`} className="break-words text-lg font-bold text-navy underline">
                             {im.nom}
                           </Link>
@@ -337,15 +342,24 @@ export default function ImmeublesPage() {
                       return (
                         <tr key={im.id} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="px-4 py-3">
-                            <Link href={`/${locale}/immeubles/${im.id}`} className="font-bold text-navy underline">
-                              {im.nom}
-                            </Link>
-                            <p className="text-xs text-slate-500">{im.adresse}</p>
-                            {im.statut === "archive" ? (
-                              <span className="mt-1 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700">
-                                {t("common.archived")}
-                              </span>
-                            ) : null}
+                            <div className="flex items-center gap-3">
+                              {/* v1.7 : vignette — la photo du passeport du bien. */}
+                              {(im.photos_urls[0] || im.photo_url) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={im.photos_urls[0] || im.photo_url || ""} alt="" className="h-11 w-14 shrink-0 rounded-md object-cover" />
+                              ) : null}
+                              <div className="min-w-0">
+                                <Link href={`/${locale}/immeubles/${im.id}`} className="font-bold text-navy underline">
+                                  {im.nom}
+                                </Link>
+                                <p className="text-xs text-slate-500">{im.adresse}</p>
+                                {im.statut === "archive" ? (
+                                  <span className="mt-1 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700">
+                                    {t("common.archived")}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-4 py-3">{im.ville}, {im.pays}</td>
                           <td className="px-4 py-3">{s?.nbAppartements ?? 0} (<span className="font-bold text-green-700">{s?.nbOccupes ?? 0}</span> {t("buildings.statsOccupied").toLowerCase()})</td>

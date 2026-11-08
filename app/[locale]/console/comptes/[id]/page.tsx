@@ -22,6 +22,16 @@ import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
 import { formatDate, formatDateTime } from "@/lib/format";
 
+/** v1.7 : motifs PRÉDÉFINIS de refus de validation d'un immeuble de
+ * gestionnaire (même patron que la vitrine v1.6 : la valeur stockée
+ * est le libellé, la clé sert à l'affichage traduit). */
+const MOTIFS_VALIDATION_IMMEUBLE: { valeur: string; cle: string }[] = [
+  { valeur: "Autorisation insuffisante", cle: "motifAutorisation" },
+  { valeur: "Propriétaire non confirmé", cle: "motifProprietaire" },
+  { valeur: "Informations incomplètes", cle: "motifInfos" },
+  { valeur: "Autre", cle: "motifAutre" },
+];
+
 export default function ConsoleDossierPage({
   params,
 }: {
@@ -29,6 +39,7 @@ export default function ConsoleDossierPage({
 }) {
   const t = useTranslations("console");
   const t15 = useTranslations("v15");
+  const t17 = useTranslations("v17");
   const locale = useLocale();
   const [dossier, setDossier] = useState<DossierCompte | null>(null);
   // v1.5 : responsable du dossier, modale d'assignation, fil plateforme.
@@ -49,6 +60,8 @@ export default function ConsoleDossierPage({
     infos_verifiees: false,
     antifraude_examinee: false,
   });
+  // v1.7 : motifs de refus de validation d'immeuble, par immeuble.
+  const [motifsRevue, setMotifsRevue] = useState<Record<string, string>>({});
 
   const charger = useCallback(async () => {
     try {
@@ -516,13 +529,26 @@ export default function ConsoleDossierPage({
           ) : (
             <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
               {dossier.immeubles_possedes.map((i) => (
-                <li key={i.id}>
-                  🏠 {i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}
+                <li key={i.id} className="flex items-center gap-2">
+                  {/* v1.7 : vignette — la photo du passeport du bien. */}
+                  {i.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={i.photo_url} alt="" className="h-9 w-11 shrink-0 rounded object-cover" />
+                  ) : (
+                    <span aria-hidden>🏠</span>
+                  )}
+                  <span>{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
                 </li>
               ))}
               {dossier.immeubles_geres.map((i) => (
-                <li key={i.id}>
-                  🔑 {i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}
+                <li key={i.id} className="flex items-center gap-2">
+                  {i.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={i.photo_url} alt="" className="h-9 w-11 shrink-0 rounded object-cover" />
+                  ) : (
+                    <span aria-hidden>🔑</span>
+                  )}
+                  <span>{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
                 </li>
               ))}
             </ul>
@@ -540,6 +566,131 @@ export default function ConsoleDossierPage({
             </>
           ) : null}
         </section>
+
+        {/* v1.7 : revue des immeubles créés par ce gestionnaire —
+            autorisation de gestion + propriétaire déclaré. */}
+        {dossier.immeubles_en_revue.length > 0 ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="font-bold text-navy">{t17("reviewTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t17("reviewHint")}</p>
+            <ul className="mt-3 space-y-3">
+              {dossier.immeubles_en_revue.map((r) => (
+                <li key={r.id} className="rounded-xl border border-slate-200 p-3">
+                  <div className="flex flex-wrap items-start gap-3">
+                    {r.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={r.photo_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+                    ) : null}
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="font-bold text-navy">
+                        {r.nom} — {r.adresse ? `${r.adresse}, ` : ""}{r.ville}
+                      </p>
+                      <p className="mt-0.5 text-slate-600">
+                        {t17("declaredOwnerLabel")} :{" "}
+                        <strong>{r.proprietaire_declare_nom ?? "—"}</strong>
+                        {r.proprietaire_declare_email ? ` · ${r.proprietaire_declare_email}` : ""}
+                      </p>
+                      <p className="mt-0.5">
+                        {r.proprietaire_concordance ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-800">
+                            {t17("concordanceAuto")}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                            {t17("concordanceManual")}
+                          </span>
+                        )}{" "}
+                        {r.validation_statut === "en_attente" ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+                            {t17("statusEnAttente")}
+                          </span>
+                        ) : r.validation_statut === "refuse" ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800">
+                            {t17("statusRefuse")}
+                            {r.validation_motif ? ` — ${r.validation_motif}` : ""}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-800">
+                            {t17("statusValide")}
+                          </span>
+                        )}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {r.autorisation ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirDocument(r.autorisation!.id)}
+                            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-navy hover:border-gold"
+                          >
+                            {t17("openAutorisation")}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-red-700">
+                            {t17("noAutorisation")}
+                          </span>
+                        )}
+                        {r.validation_statut === "en_attente" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={occupe}
+                              onClick={() =>
+                                agir(
+                                  () =>
+                                    getDataProvider().deciderValidationImmeuble(r.id, true),
+                                  t17("validatedMsg")
+                                )
+                              }
+                              className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                            >
+                              {t17("validateBuilding")}
+                            </button>
+                            <label className="sr-only" htmlFor={`motif-revue-${r.id}`}>
+                              {t17("motifLabel")}
+                            </label>
+                            <select
+                              id={`motif-revue-${r.id}`}
+                              value={motifsRevue[r.id] ?? ""}
+                              onChange={(e) =>
+                                setMotifsRevue((m) => ({ ...m, [r.id]: e.target.value }))
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
+                            >
+                              <option value="">{t17("motifLabel")}</option>
+                              {MOTIFS_VALIDATION_IMMEUBLE.map((m) => (
+                                <option key={m.valeur} value={m.valeur}>
+                                  {t17(m.cle as "motifAutorisation")}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={occupe || !(motifsRevue[r.id] ?? "")}
+                              onClick={() =>
+                                agir(
+                                  () =>
+                                    getDataProvider().deciderValidationImmeuble(
+                                      r.id,
+                                      false,
+                                      motifsRevue[r.id]
+                                    ),
+                                  t17("refusedMsg")
+                                )
+                              }
+                              className="rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50"
+                            >
+                              {t17("refuseBuilding")}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {/* Audit */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">

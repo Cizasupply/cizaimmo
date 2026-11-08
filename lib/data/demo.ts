@@ -43,6 +43,7 @@ import type {
   Grille,
   Immeuble,
   ImmeubleInput,
+  PhotoImmeubleInput,
   ImmeublePatch,
   LienLocataire,
   LimiteBlocs,
@@ -228,6 +229,20 @@ function loadDb(): DemoDb {
       const rec = imm as unknown as Record<string, unknown>;
       if (rec.date_estimation === undefined) { rec.date_estimation = null; migre = true; }
       if (rec.mode_acquisition === undefined) { rec.mode_acquisition = null; migre = true; }
+    }
+    // Migration douce (v1.7) : photos du bien + revue gestionnaire —
+    // les immeubles des bases antérieures partent sans photo, créés
+    // par leur propriétaire et déjà « valide ».
+    for (const imm of [...db.immeubles, ...(db.parcCizaGroup?.immeubles ?? [])]) {
+      const rec = imm as unknown as Record<string, unknown>;
+      if (!Array.isArray(rec.photos)) { rec.photos = []; migre = true; }
+      if (!Array.isArray(rec.photos_urls)) { rec.photos_urls = rec.photos; migre = true; }
+      if (rec.origine_creation === undefined) { rec.origine_creation = "proprietaire"; migre = true; }
+      if (rec.proprietaire_declare_nom === undefined) { rec.proprietaire_declare_nom = null; migre = true; }
+      if (rec.proprietaire_declare_email === undefined) { rec.proprietaire_declare_email = null; migre = true; }
+      if (rec.proprietaire_concordance === undefined) { rec.proprietaire_concordance = false; migre = true; }
+      if (rec.validation_statut === undefined) { rec.validation_statut = "valide"; migre = true; }
+      if (rec.validation_motif === undefined) { rec.validation_motif = null; migre = true; }
     }
     if (db.preferences && (db.preferences as unknown as Record<string, unknown>).canal_whatsapp === undefined) {
       (db.preferences as unknown as Record<string, unknown>).canal_whatsapp = true;
@@ -1052,11 +1067,48 @@ export class DemoProvider implements DataProvider {
       (i) => i.owner_id === ownerId && i.statut === "actif"
     ).length;
     await this.verifierLimiteBlocs(db, nbActifs);
+    // v1.7 : un créateur GESTIONNAIRE (contexte propriétaire) déclare
+    // le propriétaire du bien (nom + e-mail OBLIGATOIRES) et l'immeuble
+    // part en revue plateforme ; la concordance est automatique si ce
+    // propriétaire est déjà rattaché (actif) à ce gestionnaire.
+    const session = await this.getSession();
+    const estGestionnaire =
+      Boolean(session?.id.startsWith("gestionnaire:")) &&
+      this.parcActif(db).estPrincipal;
+    let declareNom: string | null = null;
+    let declareEmail: string | null = null;
+    let concordance = false;
+    if (estGestionnaire) {
+      declareNom = input.proprietaire_declare_nom?.trim() || null;
+      declareEmail =
+        input.proprietaire_declare_email?.trim().toLowerCase() || null;
+      if (!declareNom || !declareEmail) {
+        throw err("ERR_PROPRIETAIRE_DECLARE_REQUIS");
+      }
+      concordance = db.plateforme.rattachements.some(
+        (r) =>
+          r.gestionnaire_email.toLowerCase() ===
+            (session?.email ?? "").toLowerCase() &&
+          r.contexte === "proprietaire" &&
+          r.statut === "actif" &&
+          (r.proprietaire_email ?? "").toLowerCase() === declareEmail
+      );
+    }
     const immeuble: Immeuble = {
       id: uid(),
       owner_id: ownerId,
       ...input,
       quartier: input.quartier ?? null,
+      // v1.7 : les champs de revue sont posés par le fournisseur,
+      // jamais par l'appelant (miroir de la base).
+      proprietaire_declare_nom: declareNom,
+      proprietaire_declare_email: declareEmail,
+      photos: [],
+      photos_urls: [],
+      origine_creation: estGestionnaire ? "gestionnaire" : "proprietaire",
+      proprietaire_concordance: concordance,
+      validation_statut: estGestionnaire ? "en_attente" : "valide",
+      validation_motif: null,
       nom: input.nom.trim(),
       statut: "actif",
       created_at: new Date().toISOString(),
@@ -1087,6 +1139,36 @@ export class DemoProvider implements DataProvider {
       ...patch,
       nom: patch.nom ? patch.nom.trim() : parc.immeubles[idx].nom,
     };
+    // v1.7 : immeuble de gestionnaire — le propriétaire déclaré reste
+    // obligatoire ; le modifier recalcule la concordance et, si la
+    // plateforme avait refusé la validation, resoumet le bien en revue.
+    if (maj.origine_creation === "gestionnaire") {
+      maj.proprietaire_declare_nom = maj.proprietaire_declare_nom?.trim() || null;
+      maj.proprietaire_declare_email =
+        maj.proprietaire_declare_email?.trim().toLowerCase() || null;
+      if (!maj.proprietaire_declare_nom || !maj.proprietaire_declare_email) {
+        throw err("ERR_PROPRIETAIRE_DECLARE_REQUIS");
+      }
+      if (
+        patch.proprietaire_declare_nom !== undefined ||
+        patch.proprietaire_declare_email !== undefined
+      ) {
+        const session = await this.getSession();
+        maj.proprietaire_concordance = db.plateforme.rattachements.some(
+          (r) =>
+            r.gestionnaire_email.toLowerCase() ===
+              (session?.email ?? "").toLowerCase() &&
+            r.contexte === "proprietaire" &&
+            r.statut === "actif" &&
+            (r.proprietaire_email ?? "").toLowerCase() ===
+              maj.proprietaire_declare_email
+        );
+        if (maj.validation_statut === "refuse") {
+          maj.validation_statut = "en_attente";
+          maj.validation_motif = null;
+        }
+      }
+    }
     parc.immeubles[idx] = maj;
     saveDb(db);
     return maj;
@@ -1106,6 +1188,107 @@ export class DemoProvider implements DataProvider {
     ).length;
     await this.verifierLimiteBlocs(db, nbActifs);
     return this.modifierImmeuble(id, { statut: "actif" });
+  }
+
+  // --- v1.7 : photos du bien (démo : la data URL EST la photo) --------------
+  async ajouterPhotoImmeuble(
+    immeubleId: string,
+    photo: PhotoImmeubleInput
+  ): Promise<Immeuble> {
+    const ownerId = await this.requireOwnerId();
+    const db = loadDb();
+    const parc = this.cols(db);
+    this.verifierEcriture(db);
+    const idx = parc.immeubles.findIndex(
+      (i) => i.id === immeubleId && i.owner_id === ownerId
+    );
+    if (idx < 0) throw err("ERR_NOT_FOUND");
+    const nom = photo.nom_fichier.trim();
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    if (!["jpg", "jpeg", "png"].includes(extension) || !photo.contenu) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      photo.taille_octets !== undefined &&
+      photo.taille_octets !== null &&
+      photo.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    const actuel = parc.immeubles[idx];
+    const maj: Immeuble = {
+      ...actuel,
+      photos: [...(actuel.photos ?? []), photo.contenu],
+      photos_urls: [...(actuel.photos_urls ?? []), photo.contenu],
+    };
+    parc.immeubles[idx] = maj;
+    saveDb(db);
+    return maj;
+  }
+
+  async retirerPhotoImmeuble(
+    immeubleId: string,
+    index: number
+  ): Promise<Immeuble> {
+    const ownerId = await this.requireOwnerId();
+    const db = loadDb();
+    const parc = this.cols(db);
+    this.verifierEcriture(db);
+    const idx = parc.immeubles.findIndex(
+      (i) => i.id === immeubleId && i.owner_id === ownerId
+    );
+    if (idx < 0) throw err("ERR_NOT_FOUND");
+    const actuel = parc.immeubles[idx];
+    if (index < 0 || index >= (actuel.photos ?? []).length) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const photos = [...(actuel.photos ?? [])];
+    const urls = [...(actuel.photos_urls ?? [])];
+    photos.splice(index, 1);
+    urls.splice(index, 1);
+    const maj: Immeuble = { ...actuel, photos, photos_urls: urls };
+    parc.immeubles[idx] = maj;
+    saveDb(db);
+    return maj;
+  }
+
+  // --- v1.7 : décision plateforme sur un immeuble de gestionnaire ----------
+  async deciderValidationImmeuble(
+    immeubleId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    let cible: Immeuble | undefined;
+    for (const parc of [db.immeubles, db.parcCizaGroup.immeubles]) {
+      cible = parc.find((i) => i.id === immeubleId);
+      if (cible) break;
+    }
+    if (!cible || cible.origine_creation !== "gestionnaire") {
+      throw err("ERR_NOT_FOUND");
+    }
+    if (cible.validation_statut !== "en_attente") {
+      throw err("ERR_VALIDATION_PAS_EN_ATTENTE");
+    }
+    if (!accepter && !(motif && motif.trim())) {
+      throw err("ERR_VALIDATION_MOTIF_REQUIS");
+    }
+    cible.validation_statut = accepter ? "valide" : "refuse";
+    cible.validation_motif = accepter ? null : motif!.trim();
+    const emailGestionnaire = cible.owner_id.startsWith("gestionnaire:")
+      ? cible.owner_id.slice("gestionnaire:".length)
+      : null;
+    this.journaliserAudit(
+      db,
+      acteur,
+      accepter ? "immeuble_gestion_valide" : "immeuble_gestion_refuse",
+      "immeuble",
+      cible.id,
+      emailGestionnaire,
+      { immeuble_nom: cible.nom, motif: accepter ? null : motif!.trim() }
+    );
+    saveDb(db);
   }
 
   async listerAppartements(
@@ -4444,10 +4627,15 @@ export class DemoProvider implements DataProvider {
         ? `demo:photo-${compteId}`
         : null;
 
+    // v1.7 : vignette d'un immeuble = sa photo principale (en démo,
+    // la valeur stockée est directement affichable), sinon le
+    // photo_url historique.
+    const vignette = (i: Immeuble): string | null =>
+      i.photos_urls?.[0] ?? i.photos?.[0] ?? i.photo_url ?? null;
     const immeublesPossedes = estPrincipal
       ? db.immeubles
           .filter((i) => i.owner_id === compteId)
-          .map((i) => ({ id: i.id, nom: i.nom, ville: i.ville, adresse: i.adresse }))
+          .map((i) => ({ id: i.id, nom: i.nom, ville: i.ville, adresse: i.adresse, photo_url: vignette(i) }))
       : [];
     const idsPossedes = new Set(immeublesPossedes.map((i) => i.id));
     const preuvesPropriete = estPrincipal
@@ -4471,14 +4659,55 @@ export class DemoProvider implements DataProvider {
     const resoudre = (id: string) => {
       for (const parc of parcs) {
         const trouve = parc.find((i) => i.id === id);
-        if (trouve) return { id: trouve.id, nom: trouve.nom, ville: trouve.ville, adresse: trouve.adresse };
+        if (trouve) return { id: trouve.id, nom: trouve.nom, ville: trouve.ville, adresse: trouve.adresse, photo_url: vignette(trouve) };
       }
       return null;
     };
     const immeublesGeres = commeGestionnaire
       .flatMap((r) => r.immeuble_ids)
       .map(resoudre)
-      .filter((i): i is { id: string; nom: string; ville: string; adresse: string } => i !== null);
+      .filter((i): i is { id: string; nom: string; ville: string; adresse: string; photo_url: string | null } => i !== null);
+
+    // v1.7 : immeubles créés par CE gestionnaire (revue plateforme) —
+    // en démo, le créateur est identifié par l'id de session
+    // « gestionnaire:<e-mail> » posé comme owner_id à la création.
+    const identitesCreateur = new Set([
+      compteId,
+      `gestionnaire:${compte.email.toLowerCase()}`,
+    ]);
+    const tousDocuments = [...db.documents, ...db.parcCizaGroup.documents];
+    const immeublesEnRevue = parcs
+      .flat()
+      .filter(
+        (i) =>
+          i.origine_creation === "gestionnaire" &&
+          identitesCreateur.has(i.owner_id)
+      )
+      .map((i) => {
+        const autorisation =
+          tousDocuments
+            .filter(
+              (d) =>
+                d.entite_type === "immeuble" &&
+                d.type === "autorisation" &&
+                d.entite_id === i.id
+            )
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ??
+          null;
+        return {
+          id: i.id,
+          nom: i.nom,
+          ville: i.ville,
+          adresse: i.adresse,
+          photo_url: vignette(i),
+          proprietaire_declare_nom: i.proprietaire_declare_nom,
+          proprietaire_declare_email: i.proprietaire_declare_email,
+          proprietaire_concordance: i.proprietaire_concordance,
+          validation_statut: i.validation_statut,
+          validation_motif: i.validation_motif,
+          autorisation,
+        };
+      });
 
     const annonces = estPrincipal
       ? db.appartements
@@ -4508,6 +4737,7 @@ export class DemoProvider implements DataProvider {
       ),
       immeubles_possedes: immeublesPossedes,
       immeubles_geres: immeublesGeres,
+      immeubles_en_revue: immeublesEnRevue,
       annonces,
       audit: db.plateforme.journal.filter(
         (e) => e.cible_id === compteId || e.cible_email === compte.email

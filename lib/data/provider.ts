@@ -55,6 +55,7 @@ import type {
   Paiement,
   PaiementMobileMoney,
   ParametresFinance,
+  PhotoImmeubleInput,
   Plan,
   PreferencesNotifications,
   Profil,
@@ -164,6 +165,25 @@ export interface DataProvider {
   archiverImmeuble(id: string): Promise<Immeuble>;
   /** Restauration (bloquée si la limite de blocs du plan est atteinte). */
   desarchiverImmeuble(id: string): Promise<Immeuble>;
+
+  // --- v1.7 : photos du bien + revue des immeubles de gestionnaire --------
+  /**
+   * Ajoute une photo au bien (bucket privé ; la première photo devient
+   * la photo principale = photo du passeport). Garde d'écriture v1.4.
+   */
+  ajouterPhotoImmeuble(immeubleId: string, photo: PhotoImmeubleInput): Promise<Immeuble>;
+  /** Retire la photo à l'index donné (la suivante devient principale). */
+  retirerPhotoImmeuble(immeubleId: string, index: number): Promise<Immeuble>;
+  /**
+   * Décision plateforme sur un immeuble créé par un gestionnaire
+   * (revue de l'autorisation de gestion) : valide, ou refuse avec un
+   * motif obligatoire. Réservé Admin / Super Admin (RPC en réel).
+   */
+  deciderValidationImmeuble(
+    immeubleId: string,
+    accepter: boolean,
+    motif?: string | null
+  ): Promise<void>;
 
   // --- MODULE 2 : appartements ----------------------------------------------
   listerAppartements(

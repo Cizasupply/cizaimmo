@@ -28,6 +28,7 @@ import { messageErreur } from "@/lib/translateError";
 
 export default function ImmeubleDetailPage({ params }: { params: { id: string } }) {
   const t = useTranslations("crud");
+  const t17 = useTranslations("v17");
   const locale = useLocale();
   const router = useRouter();
 
@@ -199,6 +200,16 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       ) : null}
 
       <div className="rounded-2xl bg-white p-6 shadow-sm">
+        {/* v1.7 : la photo principale du bien ouvre sa fiche — c'est la
+            photo du passeport : tout le monde voit de quelle maison on parle. */}
+        {(immeuble.photos_urls[0] || immeuble.photo_url) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={immeuble.photos_urls[0] || immeuble.photo_url || ""}
+            alt={immeuble.nom}
+            className="mb-5 h-52 w-full rounded-xl object-cover"
+          />
+        ) : null}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-base text-slate-600">
@@ -210,6 +221,33 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
               {immeuble.statut === "archive" ? ` · ${t("common.archived")}` : ""}
             </p>
             {immeuble.notes ? <p className="mt-2 text-base text-slate-700">{immeuble.notes}</p> : null}
+            {/* v1.7 : bien créé par un gestionnaire — propriétaire
+                déclaré et état de la revue plateforme, visibles ici. */}
+            {immeuble.origine_creation === "gestionnaire" ? (
+              <div className="mt-3 space-y-1 text-sm">
+                <p className="text-slate-700">
+                  {t17("declaredOwner")} : <strong>{immeuble.proprietaire_declare_nom ?? "—"}</strong>
+                  {immeuble.proprietaire_declare_email ? ` · ${immeuble.proprietaire_declare_email}` : ""}
+                </p>
+                {immeuble.validation_statut === "en_attente" ? (
+                  <p className="inline-block rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-800">
+                    {t17("validationPending")}
+                  </p>
+                ) : immeuble.validation_statut === "refuse" ? (
+                  <p className="inline-block rounded-full bg-red-100 px-3 py-1 font-semibold text-red-800">
+                    {t17("validationRefused")}
+                    {immeuble.validation_motif ? ` — ${t17("reviewMotif")} : ${immeuble.validation_motif}` : ""}
+                  </p>
+                ) : (
+                  <p className="inline-block rounded-full bg-green-100 px-3 py-1 font-semibold text-green-800">
+                    {t17("validationOk")}
+                  </p>
+                )}
+                {immeuble.proprietaire_concordance ? (
+                  <p className="text-slate-600">{t17("concordanceOk")}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-2">
             {!estCoproprietaire ? (
@@ -343,10 +381,30 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             <p className="mt-1 text-sm text-slate-700">
               {t("passport.statusLabel")} : {immeuble.statut === "actif" ? t("common.active") : t("common.archived")}
             </p>
-            {immeuble.photo_url ? (
-              <p className="mt-1 text-sm">
-                <a href={immeuble.photo_url} target="_blank" rel="noreferrer" className="break-all font-semibold text-navy underline">{t("passport.photos")}</a>
-              </p>
+            {/* v1.7 : galerie du passeport — toutes les photos du bien,
+                la première porte le badge « Principale ». */}
+            {(immeuble.photos_urls.filter(Boolean).length > 0 || immeuble.photo_url) ? (
+              <div className="mt-2">
+                <p className="text-sm font-semibold text-navy">{t("passport.photos")}</p>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {(immeuble.photos_urls.filter(Boolean).length > 0
+                    ? immeuble.photos_urls.filter(Boolean)
+                    : [immeuble.photo_url as string]
+                  ).map((url, idx) => (
+                    <li key={idx} className="relative">
+                      <a href={url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="h-20 w-24 rounded-lg object-cover" />
+                      </a>
+                      {idx === 0 ? (
+                        <span className="absolute left-1 top-1 rounded-full bg-navy px-2 py-0.5 text-[11px] font-bold text-white">
+                          {t17("photoMain")}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
               <p className="mt-1 text-sm text-slate-600">{t("passport.noPhotos")}</p>
             )}

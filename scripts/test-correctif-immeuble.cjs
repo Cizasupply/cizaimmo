@@ -60,18 +60,21 @@ for (const pol of ["immeubles_insert_owner", "immeubles_update", "immeubles_dele
 
 console.log("== C. Cohérence : chaque champ d'ImmeubleInput a sa colonne SQL ==");
 // Colonnes connues de la table immeubles à travers schema.sql + modules.
+// (v1.7 : proprietaire_declare_nom / proprietaire_declare_email sont
+// définis par supabase/module-v17.sql — vérifié juste après.)
 const colonnes = new Set([
   "id", "owner_id", "nom", "adresse", "ville", "pays", "devise", "type",
   "etages", "photo_url", "notes", "valeur_bien", "devise_valeur",
   "date_acquisition", "prix_acquisition", "statut", "created_at",
   "date_estimation", "mode_acquisition", "quartier",
+  "proprietaire_declare_nom", "proprietaire_declare_email",
 ]);
 const types = fs.readFileSync(path.join(RACINE, "lib/data/types.ts"), "utf-8");
 const bloc = types.match(/export interface ImmeubleInput \{([\s\S]*?)\n\}/);
 check("ImmeubleInput introuvable dans types.ts", !!bloc);
 if (bloc) {
   const champs = [...bloc[1].matchAll(/^\s{2}(\w+)[?:]/gm)].map((m) => m[1]);
-  check("ImmeubleInput : 16 champs attendus", champs.length === 16, `reçu ${champs.length} : ${champs.join(",")}`);
+  check("ImmeubleInput : 18 champs attendus (16 + 2 déclarés v1.7)", champs.length === 18, `reçu ${champs.length} : ${champs.join(",")}`);
   for (const c of champs) {
     check(`champ ${c} -> colonne immeubles connue`, colonnes.has(c));
   }
@@ -81,6 +84,11 @@ if (bloc) {
 const schema = fs.readFileSync(path.join(RACINE, "supabase/schema.sql"), "utf-8");
 check("schema.sql définit date_estimation", schema.includes("add column if not exists date_estimation date"));
 check("schema.sql définit mode_acquisition", schema.includes("add column if not exists mode_acquisition text"));
+// v1.7 : les deux colonnes « propriétaire déclaré » viennent du SQL
+// (module-v17), jamais du seul code.
+const sqlV17 = fs.readFileSync(path.join(RACINE, "supabase/module-v17.sql"), "utf-8");
+check("module-v17.sql définit proprietaire_declare_nom", sqlV17.includes("add column if not exists proprietaire_declare_nom"));
+check("module-v17.sql définit proprietaire_declare_email", sqlV17.includes("add column if not exists proprietaire_declare_email"));
 
 console.log(`\nRésultat : ${ok} OK, ${ko} KO`);
 process.exit(ko ? 1 : 0);

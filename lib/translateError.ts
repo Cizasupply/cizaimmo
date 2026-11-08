@@ -56,6 +56,10 @@ const CODES = new Set([
   "ERR_VITRINE_PAS_EN_ATTENTE",
   "ERR_VITRINE_MOTIF_REQUIS",
   "ERR_ACCES_PLATEFORME",
+  // v1.7 « Passeport photo + autorisation de gestion ».
+  "ERR_PROPRIETAIRE_DECLARE_REQUIS",
+  "ERR_VALIDATION_PAS_EN_ATTENTE",
+  "ERR_VALIDATION_MOTIF_REQUIS",
 ]);
 
 export function messageErreur(

@@ -205,6 +205,24 @@ else
   ECHEC=1
 fi
 
+# Extension v1.7 — Passeport photo + autorisation de gestion
+# (2026-11-07, décision du fondateur) : photo de l'immeuble = photo
+# du passeport (upload ≥ 1 photo, première = principale, bucket
+# privé + URLs signées, vignettes listes + dossier console) ; cas
+# gestionnaire : autorisation de gestion au lieu du titre,
+# propriétaire déclaré obligatoire, revue plateforme (RPC
+# decider_validation_immeuble), concordance rattachement. Module
+# SQL : supabase/module-v17.sql (morceaux dans
+# ~/workspace/cizaimmo-sql-v17/, à appliquer au live APRÈS le push).
+echo ""
+echo "===== Extension v1.7 (Passeport photo + autorisation) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-v17.cjs"; then
+  echo "Extension v1.7 : OK"
+else
+  echo "Extension v1.7 : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

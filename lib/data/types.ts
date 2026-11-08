@@ -288,6 +288,13 @@ export interface ImmeubleInput {
   mode_acquisition: string | null;
   /** v1.6 : quartier (affiché sur les annonces publiques vérifiées). */
   quartier?: string | null;
+  /**
+   * v1.7 : propriétaire DÉCLARÉ par un créateur GESTIONNAIRE (nom +
+   * e-mail obligatoires dans ce cas — le fournisseur refuse la
+   * création sans eux). Ignorés pour un créateur propriétaire.
+   */
+  proprietaire_declare_nom?: string | null;
+  proprietaire_declare_email?: string | null;
 }
 
 export type ImmeublePatch = Partial<ImmeubleInput> & {
@@ -403,6 +410,24 @@ export interface FiltreAppartements {
   statut?: StatutAppartement;
 }
 
+/**
+ * v1.7 : statut de revue plateforme d'un immeuble créé par un
+ * gestionnaire (autorisation de gestion à valider). Les immeubles
+ * créés par leur propriétaire sont « valide » d'office.
+ */
+/** v1.7 : qui a créé l'immeuble — décide du justificatif exigé. */
+export type OrigineCreationImmeuble = "proprietaire" | "gestionnaire";
+export type StatutValidationImmeuble = "valide" | "en_attente" | "refuse";
+
+/** v1.7 : photo du bien à téléverser (contenu = data URL, comme les documents). */
+export interface PhotoImmeubleInput {
+  nom_fichier: string;
+  /** Contenu du fichier (base64 data URL). */
+  contenu: string;
+  taille_octets?: number | null;
+  mime_type?: string | null;
+}
+
 /** Entités dont le CRUD arrive au Module 2 (formes minimales, à compléter). */
 export interface Immeuble {
   id: string;
@@ -428,6 +453,33 @@ export interface Immeuble {
   quartier: string | null;
   statut: "actif" | "archive";
   created_at: string;
+  // --- v1.7 « Passeport photo + autorisation de gestion » ----------------
+  /**
+   * Photos du bien téléversées (bucket privé « documents-prives ») :
+   * chemins Storage en réel ; en démo, les data URLs elles-mêmes.
+   * La PREMIÈRE est la photo principale = photo du passeport du bien.
+   */
+  photos: string[];
+  /**
+   * URLs d'affichage des photos : liens signés (1 h) résolus par le
+   * fournisseur réel ; en démo, identiques à `photos`.
+   */
+  photos_urls: string[];
+  /** Qui a créé l'immeuble : son propriétaire, ou un gestionnaire. */
+  origine_creation: OrigineCreationImmeuble;
+  /** Propriétaire déclaré par le gestionnaire créateur (sinon null). */
+  proprietaire_declare_nom: string | null;
+  proprietaire_declare_email: string | null;
+  /**
+   * Contrôle allégé : true si le propriétaire déclaré correspond à un
+   * propriétaire déjà rattaché au gestionnaire et validé (e-mail du
+   * rattachement actif) — la concordance est alors automatique.
+   */
+  proprietaire_concordance: boolean;
+  /** Revue plateforme (immeubles créés par un gestionnaire). */
+  validation_statut: StatutValidationImmeuble;
+  /** Motif du refus de validation (montré au gestionnaire). */
+  validation_motif: string | null;
 }
 
 export interface Appartement {
@@ -641,6 +693,10 @@ export type TypeDocument =
   | "facture"
   /** v1.3 : contrat de collaboration gestionnaire (à signer ou signé). */
   | "contrat"
+  /** v1.7 : autorisation de gestion signée par le propriétaire,
+   * déposée par un gestionnaire créateur d'immeuble (à la place du
+   * titre de propriété) — revue plateforme. */
+  | "autorisation"
   | "autre";
 export const TYPES_DOCUMENT: TypeDocument[] = [
   "bail",
@@ -648,6 +704,7 @@ export const TYPES_DOCUMENT: TypeDocument[] = [
   "justificatif",
   "facture",
   "contrat",
+  "autorisation",
   "autre",
 ];
 /** v1.3 : « compte » = document du DOSSIER d'inscription (pièce d'identité, contrat). */
@@ -908,7 +965,9 @@ export type CibleAudit =
   | "parametre"
   | "gestionnaire"
   | "plateforme"
-  | "appartement";
+  | "appartement"
+  /** v1.7 : décisions de revue des immeubles créés par un gestionnaire. */
+  | "immeuble";
 
 export interface EntreeAudit {
   id: string;
@@ -1113,6 +1172,38 @@ export interface ChecklistDossier extends ChecklistDossierSaisie {
   updated_at: string | null;
 }
 
+/**
+ * v1.7 : un immeuble créé par un gestionnaire, vu dans son Dossier
+ * console pour la revue plateforme : propriétaire déclaré, signal de
+ * concordance (rattachement déjà validé), statut de revue et
+ * autorisation de gestion déposée (document, si reçue).
+ */
+export interface RevueImmeubleGestion {
+  id: string;
+  nom: string;
+  ville: string;
+  adresse: string;
+  /** Vignette : URL signée de la photo principale du bien (ou photo_url historique). */
+  photo_url: string | null;
+  proprietaire_declare_nom: string | null;
+  proprietaire_declare_email: string | null;
+  proprietaire_concordance: boolean;
+  validation_statut: StatutValidationImmeuble;
+  validation_motif: string | null;
+  /** Autorisation de gestion déposée (document « autorisation »), si reçue. */
+  autorisation: Document | null;
+}
+
+/** Résumé d'immeuble dans le Dossier console (vignette v1.7 incluse). */
+export interface ImmeubleResumeDossier {
+  id: string;
+  nom: string;
+  ville: string;
+  adresse: string;
+  /** Vignette : photo principale du bien (URL signée en réel), sinon null. */
+  photo_url: string | null;
+}
+
 export interface DossierCompte {
   compte: ComptePlateforme;
   /** Checklist de vérification (dernière consignation), si présente. */
@@ -1132,8 +1223,10 @@ export interface DossierCompte {
   rattachements_comme_proprietaire: RattachementGestionnaire[];
   rattachements_comme_gestionnaire: RattachementGestionnaire[];
   demandes: DemandeRattachement[];
-  immeubles_possedes: { id: string; nom: string; ville: string; adresse: string }[];
-  immeubles_geres: { id: string; nom: string; ville: string; adresse: string }[];
+  immeubles_possedes: ImmeubleResumeDossier[];
+  immeubles_geres: ImmeubleResumeDossier[];
+  /** v1.7 : immeubles créés par CE gestionnaire — revue plateforme. */
+  immeubles_en_revue: RevueImmeubleGestion[];
   /** Annonces vitrine : appartements publiés des immeubles possédés. */
   annonces: { id: string; immeuble_nom: string; numero: string }[];
   audit: EntreeAudit[];

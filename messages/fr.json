@@ -171,7 +171,9 @@
       "rattachement_retire": "Rattachement retiré",
       "rattachement_valide": "Rattachement validé",
       "supervision_ouverte": "Supervision ouverte",
-      "tarifs_modifies": "Tarifs modifiés"
+      "tarifs_modifies": "Tarifs modifiés",
+      "immeuble_gestion_valide": "Immeuble de gestion validé",
+      "immeuble_gestion_refuse": "Immeuble de gestion refusé"
     },
     "averageRent": "Loyer moyen",
     "backToManagers": "Retour aux gestionnaires",
@@ -222,7 +224,8 @@
       "contrat": "Contrat",
       "facture": "Facture",
       "justificatif": "Justificatif",
-      "piece_identite": "Pièce d'identité"
+      "piece_identite": "Pièce d'identité",
+      "autorisation": "Autorisation de gestion"
     },
     "emailPlaceholder": "e-mail",
     "errors": {
@@ -254,7 +257,10 @@
       "ERR_COMPTE_PLATEFORME": "Compte plateforme protégé : action impossible.",
       "ERR_PROFIL_INTROUVABLE": "Profil introuvable.",
       "ERR_COMPTE_SUSPENDU": "Ce compte est suspendu.",
-      "ERR_COMPTE_REFUSE": "Ce compte a été refusé."
+      "ERR_COMPTE_REFUSE": "Ce compte a été refusé.",
+      "ERR_PROPRIETAIRE_DECLARE_REQUIS": "Le nom et l'e-mail du propriétaire sont obligatoires pour un immeuble créé par un gestionnaire.",
+      "ERR_VALIDATION_PAS_EN_ATTENTE": "Cet immeuble n'est plus en attente de validation.",
+      "ERR_VALIDATION_MOTIF_REQUIS": "Un motif est obligatoire pour refuser la validation."
     },
     "fileAudit": "Historique du compte",
     "fileBuildings": "Immeubles",
@@ -671,7 +677,10 @@
       "ERR_VITRINE_ACCES": "Vous n'avez pas accès à cette annonce.",
       "ERR_VITRINE_PAS_EN_ATTENTE": "Cette annonce n'est plus en attente de validation.",
       "ERR_VITRINE_MOTIF_REQUIS": "Choisissez un motif de refus prédéfini.",
-      "ERR_ACCES_PLATEFORME": "Accès plateforme refusé."
+      "ERR_ACCES_PLATEFORME": "Accès plateforme refusé.",
+      "ERR_PROPRIETAIRE_DECLARE_REQUIS": "Le nom et l'e-mail du propriétaire sont obligatoires pour un immeuble créé par un gestionnaire.",
+      "ERR_VALIDATION_PAS_EN_ATTENTE": "Cet immeuble n'est plus en attente de validation.",
+      "ERR_VALIDATION_MOTIF_REQUIS": "Un motif est obligatoire pour refuser la validation."
     },
     "expenses": {
       "add": "Ajouter une dépense",
@@ -1064,7 +1073,8 @@
       "bail": "Bail signé",
       "facture": "Facture",
       "justificatif": "Justificatif de paiement",
-      "piece_identite": "Pièce d'identité"
+      "piece_identite": "Pièce d'identité",
+      "autorisation": "Autorisation de gestion"
     },
     "upload": "Téléverser un document",
     "uploadButton": "Téléverser",
@@ -1888,5 +1898,50 @@
       "ERR_ACCES_PLATEFORME": "Accès plateforme refusé.",
       "generic": "Une erreur est survenue. Réessayez."
     }
+  },
+  "v17": {
+    "photosTitle": "Photos du bien",
+    "photosHint": "Ajoutez au moins une photo : la première devient la photo du passeport du bien, celle que tout le monde verra pour identifier la maison.",
+    "photosFormatHint": "JPG ou PNG, 10 Mo maximum par photo.",
+    "photoAdd": "Ajouter des photos",
+    "photoMain": "Principale",
+    "photoRemove": "Retirer",
+    "photoRequired": "Ajoutez au moins une photo du bien.",
+    "managerTitle": "Bien géré pour un propriétaire",
+    "managerHint": "Vous créez ce bien comme gestionnaire : déposez l'autorisation de gestion signée par le propriétaire et déclarez son identité. La plateforme validera le dossier.",
+    "ownerName": "Nom du propriétaire",
+    "ownerEmail": "E-mail du propriétaire",
+    "ownerNameRequired": "Le nom du propriétaire est obligatoire.",
+    "ownerEmailRequired": "L'e-mail du propriétaire est obligatoire.",
+    "ownerEmailInvalid": "Adresse e-mail invalide.",
+    "autorisationLabel": "Autorisation de gestion signée par le propriétaire",
+    "autorisationHint": "Document signé par le propriétaire vous autorisant à gérer ce bien (PDF, JPG ou PNG, 10 Mo max).",
+    "autorisationRequired": "L'autorisation de gestion est obligatoire.",
+    "autorisationOnFile": "Une autorisation est déjà au dossier ; choisissez un fichier seulement pour la remplacer.",
+    "validationPending": "En attente de validation par la plateforme",
+    "validationRefused": "Validation refusée par la plateforme",
+    "validationOk": "Validé par la plateforme",
+    "declaredOwner": "Propriétaire déclaré",
+    "concordanceOk": "Propriétaire déjà rattaché et validé : concordance automatique.",
+    "reviewMotif": "Motif",
+    "reviewTitle": "Immeubles créés en gestion — revue",
+    "reviewHint": "Biens créés par ce gestionnaire : autorisation de gestion et propriétaire déclaré à vérifier.",
+    "declaredOwnerLabel": "Propriétaire déclaré",
+    "concordanceAuto": "Concordance automatique (rattachement validé)",
+    "concordanceManual": "À vérifier manuellement",
+    "statusEnAttente": "En attente",
+    "statusValide": "Validé",
+    "statusRefuse": "Refusé",
+    "openAutorisation": "Ouvrir l'autorisation",
+    "noAutorisation": "Autorisation non reçue",
+    "validateBuilding": "Valider",
+    "refuseBuilding": "Refuser",
+    "validatedMsg": "Immeuble validé.",
+    "refusedMsg": "Immeuble refusé.",
+    "motifLabel": "Motif du refus",
+    "motifAutorisation": "Autorisation insuffisante",
+    "motifProprietaire": "Propriétaire non confirmé",
+    "motifInfos": "Informations incomplètes",
+    "motifAutre": "Autre"
   }
 }

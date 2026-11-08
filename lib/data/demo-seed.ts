@@ -288,6 +288,16 @@ export function buildDemoDb(): DemoDb {
       quartier: "Buhomba",
       statut: "actif",
       created_at: now,
+      // v1.7 : photo du passeport (URL fictive, comme les photos
+      // d'appartements de la démo) — créée par la propriétaire.
+      photos: ["https://exemple.cizaimmo.com/photos/buhomba-1.jpg"],
+      photos_urls: ["https://exemple.cizaimmo.com/photos/buhomba-1.jpg"],
+      origine_creation: "proprietaire",
+      proprietaire_declare_nom: null,
+      proprietaire_declare_email: null,
+      proprietaire_concordance: false,
+      validation_statut: "valide",
+      validation_motif: null,
     },
     {
       id: "00000000-0000-4000-8000-000000000202",
@@ -310,6 +320,14 @@ export function buildDemoDb(): DemoDb {
       quartier: "Le Plateau-Mont-Royal",
       statut: "actif",
       created_at: now,
+      photos: [],
+      photos_urls: [],
+      origine_creation: "proprietaire",
+      proprietaire_declare_nom: null,
+      proprietaire_declare_email: null,
+      proprietaire_concordance: false,
+      validation_statut: "valide",
+      validation_motif: null,
     },
     {
       id: "00000000-0000-4000-8000-000000000203",
@@ -332,6 +350,14 @@ export function buildDemoDb(): DemoDb {
       quartier: "Kigobe",
       statut: "archive",
       created_at: now,
+      photos: [],
+      photos_urls: [],
+      origine_creation: "proprietaire",
+      proprietaire_declare_nom: null,
+      proprietaire_declare_email: null,
+      proprietaire_concordance: false,
+      validation_statut: "valide",
+      validation_motif: null,
     },
   ];
 
@@ -544,6 +570,14 @@ export function buildDemoDb(): DemoDb {
       quartier: "Rohero",
       statut: "actif",
       created_at: now,
+      photos: [],
+      photos_urls: [],
+      origine_creation: "proprietaire",
+      proprietaire_declare_nom: null,
+      proprietaire_declare_email: null,
+      proprietaire_concordance: false,
+      validation_statut: "valide",
+      validation_motif: null,
     },
   ];
   const cgAppartements: Appartement[] = [
