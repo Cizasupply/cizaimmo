@@ -28,6 +28,7 @@ import type {
   EcheanceLoyer,
   EntreeAudit,
   FactureAbonnement,
+  ChecklistDossierSaisie,
   Conversation,
   MembreEquipe,
   MessageDirect,
@@ -519,6 +520,17 @@ export interface DataProvider {
   approuverCompte(compteId: string): Promise<void>;
   /** Refuse un compte « en_attente » (motif prédéfini) : e-mail + journal. */
   refuserCompte(compteId: string, motif: MotifRefus): Promise<void>;
+  /**
+   * Consigne l'état de la checklist de vérification d'un dossier
+   * « en_attente » (photo, pièce d'identité, informations, alerte
+   * anti-fraude) — Admin / Super Admin. L'approbation exige la
+   * checklist complète : garde dans la base (approuver_compte) et
+   * bouton grisé dans la console tant qu'elle est incomplète.
+   */
+  enregistrerChecklistDossier(
+    compteId: string,
+    saisie: ChecklistDossierSaisie
+  ): Promise<void>;
   /** Réattribue la grille d'un compte (Admin / Super Admin) — journalisé. */
   reattribuerGrille(compteId: string, grille: Grille): Promise<void>;
   /** Envoie un avis par MODÈLE prédéfini (jamais de texte libre) — journalisé. */

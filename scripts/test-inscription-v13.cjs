@@ -167,6 +167,12 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
 
   console.log("== Approbation gestionnaire : contrat + e-mail avec pièce jointe ==");
   emails.length = 0;
+  // Checklist de vérification (2026-11-07) : revue consignée avant
+  // l'approbation — sinon ERR_CHECKLIST_INCOMPLETE.
+  await p.enregistrerChecklistDossier(gestId, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(gestId);
   compteGest = await compteParEmail("gest.test@exemple.com");
   check("après approbation : statut_contrat = a_signer",
@@ -222,6 +228,10 @@ const PETITE_PHOTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("ba
   // Règle v1.2 : les écritures sont bloquées tant que le compte est
   // en_attente — l'Admin approuve d'abord le propriétaire.
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  await p.enregistrerChecklistDossier(profilProprio.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(profilProprio.id);
   await connecter("proprio.test@exemple.com");
   // v1.4 : l'essai démarre en Starter (1 bloc) et le profil principal

@@ -120,6 +120,12 @@ async function attendErreur(promesse) {
   await connecter(ADMIN_DEMO_EMAIL);
   const cibleAttente = await compteParEmail("attente@exemple.com");
   const avant = Date.now();
+  // Checklist de vérification (2026-11-07) : revue consignée avant
+  // toute approbation — sinon ERR_CHECKLIST_INCOMPLETE.
+  await p.enregistrerChecklistDossier(cibleAttente.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(cibleAttente.id);
   await connecter("attente@exemple.com");
   abo = await p.getAbonnement();
@@ -147,6 +153,11 @@ async function attendErreur(promesse) {
   await connecter(ADMIN_DEMO_EMAIL);
   const cibleFraude = await compteParEmail("fraude@exemple.com");
   check("contradiction à l'inscription -> grille internationale + a_verifier", cibleFraude && cibleFraude.abonnement?.grille === "internationale" && cibleFraude.grille_statut === "a_verifier", JSON.stringify({ g: cibleFraude?.abonnement?.grille, s: cibleFraude?.grille_statut }));
+  // Compte signalé « a_verifier » : la case anti-fraude est requise.
+  await p.enregistrerChecklistDossier(cibleFraude.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(cibleFraude.id);
   await connecter("fraude@exemple.com");
   await p.modifierProfil({ pays: "Canada" });
@@ -164,6 +175,10 @@ async function attendErreur(promesse) {
   await p.signUp({ nom: "Paiement Test", email: "paiement@exemple.com", motDePasse: "motdepasse123", pays: "Canada", devisePrincipale: "CAD", langue: "fr", paysIp: "CA" });
   await connecter(ADMIN_DEMO_EMAIL);
   const ciblePaiement = await compteParEmail("paiement@exemple.com");
+  await p.enregistrerChecklistDossier(ciblePaiement.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(ciblePaiement.id);
   await connecter("paiement@exemple.com");
   const mm = await p.demanderPaiementMobileMoney("ecocash", "+257 79 12 34 56", "pro");

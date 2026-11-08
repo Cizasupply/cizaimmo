@@ -27,6 +27,8 @@ import type {
   Devise,
   Document,
   DocumentInput,
+  ChecklistDossier,
+  ChecklistDossierSaisie,
   DossierCompte,
   EntreeAudit,
   FiltreDocuments,
@@ -2515,6 +2517,7 @@ export class RealProvider implements DataProvider {
   private async acteurPlateforme(): Promise<{
     id: string;
     email: string;
+    nom: string;
     role: "admin" | "super_admin";
   }> {
     const profil = await this.getProfil();
@@ -2525,7 +2528,9 @@ export class RealProvider implements DataProvider {
     ) {
       throw err("ERR_ACCES_PLATEFORME");
     }
-    return { id: profil.id, email: profil.email, role: profil.role };
+    // Audit enrichi : le NOM de l'acteur est figé dans chaque entrée
+    // du journal (snapshot du profil au moment de l'action).
+    return { id: profil.id, email: profil.email, nom: profil.nom, role: profil.role };
   }
 
   private async acteurSuperAdmin() {
@@ -2535,7 +2540,7 @@ export class RealProvider implements DataProvider {
   }
 
   private async journaliserAudit(
-    acteur: { id: string; email: string; role: "admin" | "super_admin" },
+    acteur: { id: string; email: string; nom: string; role: "admin" | "super_admin" },
     action: string,
     cibleType: CibleAudit,
     cibleId: string | null,
@@ -2545,6 +2550,9 @@ export class RealProvider implements DataProvider {
     await this.client().from("journal_audit").insert({
       acteur_id: acteur.id,
       acteur_email: acteur.email,
+      // Audit enrichi (2026-11-07) : snapshot du nom de l'acteur —
+      // la base complète par trigger si un chemin ne le fournit pas.
+      acteur_nom: acteur.nom,
       acteur_role: acteur.role,
       action,
       cible_type: cibleType,
@@ -2771,6 +2779,17 @@ export class RealProvider implements DataProvider {
       .eq("id", compteId)
       .maybeSingle();
     if (!profil) throw err("ERR_INTROUVABLE");
+    // Checklist de vérification (2026-11-07) : la dernière
+    // consignation est relue ici pour être versée au journal de
+    // l'approbation (cases cochées) ; la GARDE elle-même vit dans la
+    // base (approuver_compte refuse une checklist incomplète).
+    const { data: checklistRows } = await client
+      .from("dossier_checklists")
+      .select("photo_verifiee, piece_coherente, infos_verifiees, antifraude_examinee")
+      .eq("cible_id", compteId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const checklist = (checklistRows as ChecklistDossierSaisie[] | null)?.[0] ?? null;
     const maintenant = new Date();
     // v1.4 — LA BASE DÉCIDE : la transition d'approbation est la
     // fonction SQL public.approuver_compte (module-v14.sql). Elle
@@ -2784,6 +2803,7 @@ export class RealProvider implements DataProvider {
       if (rpcError.message.includes("COMPTE_NON_EN_ATTENTE")) throw err("ERR_COMPTE_NON_EN_ATTENTE");
       if (rpcError.message.includes("ADMIN_PLATEFORME_REQUIS")) throw err("ERR_ACCES_PLATEFORME");
       if (rpcError.message.includes("ABONNEMENT_INTROUVABLE")) throw err("ERR_INTROUVABLE");
+      if (rpcError.message.includes("CHECKLIST_INCOMPLETE")) throw err("ERR_CHECKLIST_INCOMPLETE");
       throw new Error(rpcError.message);
     }
     const finEssai = (finEssaiRpc as string | null) ?? maintenant.toISOString();
@@ -2834,10 +2854,43 @@ export class RealProvider implements DataProvider {
       grille: abo.grille,
       trial_ends_at: finEssai,
       email_bienvenue: emailStatut,
+      // Checklist consignée au moment de l'approbation (cases
+      // cochées par l'Admin relecteur — preuve de la revue).
+      ...(checklist
+        ? {
+            checklist_photo_verifiee: checklist.photo_verifiee,
+            checklist_piece_coherente: checklist.piece_coherente,
+            checklist_infos_verifiees: checklist.infos_verifiees,
+            checklist_antifraude_examinee: checklist.antifraude_examinee,
+          }
+        : {}),
       ...(contratJoint
         ? { contrat_envoye: true, display_id: profil.display_id }
         : {}),
     });
+  }
+
+  async enregistrerChecklistDossier(
+    compteId: string,
+    saisie: ChecklistDossierSaisie
+  ): Promise<void> {
+    await this.acteurPlateforme();
+    // LA BASE DÉCIDE (patron v1.4) : la consignation passe par la RPC
+    // public.enregistrer_checklist_dossier (module-checklist-audit.sql)
+    // — rôle vérifié en interne, acteur = session, horodatage base.
+    const { error } = await this.client().rpc("enregistrer_checklist_dossier", {
+      cible: compteId,
+      p_photo: saisie.photo_verifiee,
+      p_piece: saisie.piece_coherente,
+      p_infos: saisie.infos_verifiees,
+      p_antifraude: saisie.antifraude_examinee,
+    });
+    if (error) {
+      if (error.message.includes("ADMIN_PLATEFORME_REQUIS")) throw err("ERR_ACCES_PLATEFORME");
+      if (error.message.includes("COMPTE_INTROUVABLE")) throw err("ERR_INTROUVABLE");
+      if (error.message.includes("COMPTE_NON_EN_ATTENTE")) throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      throw new Error(error.message);
+    }
   }
 
   async refuserCompte(compteId: string, motif: MotifRefus): Promise<void> {
@@ -3606,6 +3659,33 @@ export class RealProvider implements DataProvider {
       .order("created_at", { ascending: false })
       .limit(50);
 
+    // Checklist de vérification : la consignation la plus récente
+    // fait foi pour l'état courant (qui a coché, quand).
+    let checklist: ChecklistDossier | null = null;
+    const { data: checklistRows } = await client
+      .from("dossier_checklists")
+      .select("*")
+      .eq("cible_id", compteId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const checklistRow = (checklistRows as Record<string, unknown>[] | null)?.[0];
+    if (checklistRow) {
+      const { data: acteurRow } = await client
+        .from("profils")
+        .select("nom, email")
+        .eq("id", checklistRow.acteur_id as string)
+        .maybeSingle();
+      checklist = {
+        photo_verifiee: Boolean(checklistRow.photo_verifiee),
+        piece_coherente: Boolean(checklistRow.piece_coherente),
+        infos_verifiees: Boolean(checklistRow.infos_verifiees),
+        antifraude_examinee: Boolean(checklistRow.antifraude_examinee),
+        acteur_nom: (acteurRow?.nom as string | undefined) ?? null,
+        acteur_email: (acteurRow?.email as string | undefined) ?? null,
+        updated_at: (checklistRow.created_at as string | undefined) ?? null,
+      };
+    }
+
     // Photo de profil : lien signé (1 h) pour l'afficher dans le
     // dossier — la politique Storage « select plateforme » autorise
     // l'Admin à lire les fichiers clients du bucket privé. Un échec
@@ -3621,6 +3701,7 @@ export class RealProvider implements DataProvider {
 
     return {
       compte,
+      checklist,
       photo_profil_path: photoPath,
       photo_profil_url: photoProfilUrl,
       documents_compte: (docsCompte as Document[] | null) ?? [],

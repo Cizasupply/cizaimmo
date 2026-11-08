@@ -36,6 +36,13 @@ async function approuverInscription(p, email) {
   const comptes = await p.listerComptesPlateforme();
   const cible = comptes.find((c) => c.email === email);
   if (!cible) throw new Error(`Compte à approuver introuvable : ${email}`);
+  // Checklist de vérification (2026-11-07) : l'Admin consigne la
+  // revue complète AVANT l'approbation — sans elle, approuverCompte
+  // lève ERR_CHECKLIST_INCOMPLETE (garde base + miroir démo).
+  await p.enregistrerChecklistDossier(cible.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(cible.id);
   await p.signOut();
   await p.signIn(email, "motdepasse123");

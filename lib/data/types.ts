@@ -914,6 +914,12 @@ export interface EntreeAudit {
   id: string;
   acteur_id: string | null;
   acteur_email: string;
+  /**
+   * Audit enrichi (2026-11-07) : nom complet de l'acteur, figé à
+   * l'écriture (snapshot du profil). Null pour les entrées anciennes
+   * (antérieures à la colonne) — l'affichage retombe sur l'e-mail.
+   */
+  acteur_nom: string | null;
   acteur_role: "admin" | "super_admin";
   action: string;
   cible_type: CibleAudit;
@@ -1086,8 +1092,31 @@ export interface DemandeRattachement {
  * identité, documents du dossier, preuves de propriété, rattachements
  * des deux côtés, immeubles, annonces vitrine, abonnement, audit.
  */
+/** Coches de la checklist de vérification d'un dossier (saisie). */
+export interface ChecklistDossierSaisie {
+  photo_verifiee: boolean;
+  piece_coherente: boolean;
+  infos_verifiees: boolean;
+  antifraude_examinee: boolean;
+}
+
+/**
+ * État courant de la checklist d'un dossier : dernière consignation
+ * (Admin / Super Admin + horodatage). L'approbation exige l'état
+ * complet — photo, pièce, infos toujours ; anti-fraude en plus si
+ * le compte est signalé « a_verifier » (garde base, approuver_compte).
+ */
+export interface ChecklistDossier extends ChecklistDossierSaisie {
+  acteur_nom: string | null;
+  acteur_email: string | null;
+  /** Horodatage ISO de la dernière consignation. */
+  updated_at: string | null;
+}
+
 export interface DossierCompte {
   compte: ComptePlateforme;
+  /** Checklist de vérification (dernière consignation), si présente. */
+  checklist: ChecklistDossier | null;
   /** Chemin Storage de la photo de profil (bucket privé), si reçue. */
   photo_profil_path: string | null;
   /**

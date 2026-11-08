@@ -12,6 +12,7 @@ import type {
   Depense,
   Document,
   EcheanceLoyer,
+  ChecklistDossier,
   EntreeAudit,
   FactureAbonnement,
   GestionnaireInvite,
@@ -131,6 +132,12 @@ export interface PlateformeDemo {
   rattachements: RattachementGestionnaire[];
   journal: EntreeAudit[];
   avis: Avis[];
+  /**
+   * Checklists de vérification des dossiers (2026-11-07) : dernier
+   * état consigné par compte « en_attente » (miroir de la table
+   * dossier_checklists réelle — ici seul l'état courant est gardé).
+   */
+  checklistsDossiers: Record<string, ChecklistDossier>;
   /** v1.3 : demandes de rattachement par Display ID (triple validation). */
   demandesRattachement: DemandeRattachement[];
   /**
@@ -703,6 +710,7 @@ export function buildDemoDb(): DemoDb {
     ],
     journal: [],
     avis: [],
+    checklistsDossiers: {},
     // v1.3 : demandes de rattachement par Display ID. Marc Dubois
     // (CIM-000002, contrat « valide ») est le gestionnaire démo ; son
     // identifiant de compte = celui de son invitation.

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { EntreeAudit } from "@/lib/data";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 
 export default function ConsoleJournalPage() {
   const t = useTranslations("console");
@@ -54,12 +54,20 @@ export default function ConsoleJournalPage() {
             {entrees.map((e) => (
               <tr key={e.id} className="border-b border-slate-100 last:border-0">
                 <td className="whitespace-nowrap px-4 py-3 text-slate-500">
-                  {formatDate(e.created_at, locale)}
+                  {formatDateTime(e.created_at, locale)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="block font-semibold text-navy">{e.acteur_email}</span>
+                  {/* Audit enrichi : nom de l'acteur en principal
+                      (repli e-mail pour les entrées anciennes),
+                      rôle + e-mail en secondaire. */}
+                  <span className="block font-semibold text-navy">{e.acteur_nom ?? e.acteur_email}</span>
                   <span className="text-xs text-slate-400">
-                    {e.acteur_role === "super_admin" ? t("roleSuperAdmin") : t("roleAdmin")}
+                    {e.acteur_role === "super_admin"
+                      ? t("roleSuperAdmin")
+                      : e.acteur_role === "admin"
+                        ? t("roleAdmin")
+                        : e.acteur_role}
+                    {e.acteur_nom ? ` · ${e.acteur_email}` : ""}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-semibold text-navy">

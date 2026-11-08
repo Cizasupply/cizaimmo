@@ -15,12 +15,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { DossierCompte, MotifRefus, Profil } from "@/lib/data";
-import type { Conversation } from "@/lib/data/types";
+import type { ChecklistDossierSaisie, Conversation } from "@/lib/data/types";
 import AssignationModale from "@/components/AssignationModale";
 import FilMessages from "@/components/FilMessages";
 import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export default function ConsoleDossierPage({
   params,
@@ -40,6 +40,15 @@ export default function ConsoleDossierPage({
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [motif, setMotif] = useState<MotifRefus>("informations_insuffisantes");
+  // Checklist de vérification (2026-11-07) : état local des coches,
+  // synchronisé depuis la dernière consignation du dossier ; chaque
+  // bascule est consignée dans la base (acteur + horodatage).
+  const [checklist, setChecklist] = useState<ChecklistDossierSaisie>({
+    photo_verifiee: false,
+    piece_coherente: false,
+    infos_verifiees: false,
+    antifraude_examinee: false,
+  });
 
   const charger = useCallback(async () => {
     try {
@@ -60,6 +69,37 @@ export default function ConsoleDossierPage({
   useEffect(() => {
     charger();
   }, [charger]);
+
+  // Resynchronise les coches quand le dossier (re)chargé change de
+  // consignation (autre Admin passé entre-temps, rechargement…).
+  const checklistMaj = dossier?.checklist?.updated_at ?? null;
+  const dossierId = dossier?.compte.id ?? null;
+  useEffect(() => {
+    const c = dossier?.checklist;
+    setChecklist({
+      photo_verifiee: c?.photo_verifiee ?? false,
+      piece_coherente: c?.piece_coherente ?? false,
+      infos_verifiees: c?.infos_verifiees ?? false,
+      antifraude_examinee: c?.antifraude_examinee ?? false,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dossierId, checklistMaj]);
+
+  async function basculerChecklist(
+    cle: keyof ChecklistDossierSaisie,
+    valeur: boolean
+  ) {
+    if (!dossier) return;
+    const prochain = { ...checklist, [cle]: valeur };
+    setChecklist(prochain);
+    try {
+      await getDataProvider().enregistrerChecklistDossier(dossier.compte.id, prochain);
+      await charger();
+    } catch {
+      setErreur(t("errors.generic"));
+      await charger();
+    }
+  }
 
   async function agir(action: () => Promise<void>, succes: string) {
     setOccupe(true);
@@ -109,6 +149,22 @@ export default function ConsoleDossierPage({
   const { compte } = dossier;
   const enAttente = compte.abonnement?.statut === "en_attente";
   const demandesAdmin = dossier.demandes.filter((d) => d.statut === "en_attente_admin");
+  // Checklist : la case anti-fraude n'est requise (et montrée) que
+  // pour un compte signalé « à vérifier ». Le refus reste libre.
+  const aVerifier = compte.grille_statut === "a_verifier";
+  const checklistComplete =
+    checklist.photo_verifiee &&
+    checklist.piece_coherente &&
+    checklist.infos_verifiees &&
+    (!aVerifier || checklist.antifraude_examinee);
+  const casesChecklist: { cle: keyof ChecklistDossierSaisie; libelle: string }[] = [
+    { cle: "photo_verifiee", libelle: t("checklistPhoto") },
+    { cle: "piece_coherente", libelle: t("checklistPiece") },
+    { cle: "infos_verifiees", libelle: t("checklistInfos") },
+    ...(aVerifier
+      ? [{ cle: "antifraude_examinee" as keyof ChecklistDossierSaisie, libelle: t("checklistAntifraude") }]
+      : []),
+  ];
 
   return (
     <div>
@@ -163,12 +219,44 @@ export default function ConsoleDossierPage({
       {enAttente ? (
         <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-5">
           <h2 className="font-bold text-amber-800">{t("reviewTitle")}</h2>
+          {/* Checklist de vérification (fondateur, 2026-11-07) :
+              l'approbation exige toutes les cases requises cochées
+              — bouton grisé sinon, et garde équivalente dans la
+              base (approuver_compte). Le refus reste libre. */}
+          <div className="mt-4 rounded-xl bg-white/70 p-4">
+            <h3 className="text-sm font-bold text-amber-900">{t("checklistTitle")}</h3>
+            <div className="mt-2 space-y-2">
+              {casesChecklist.map(({ cle, libelle }) => (
+                <label key={cle} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={checklist[cle]}
+                    disabled={occupe}
+                    onChange={(e) => void basculerChecklist(cle, e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-green-700"
+                  />
+                  <span>{libelle}</span>
+                </label>
+              ))}
+            </div>
+            {dossier.checklist?.updated_at ? (
+              <p className="mt-3 text-xs text-slate-500">
+                {t("checklistBy", {
+                  actor: dossier.checklist.acteur_nom ?? dossier.checklist.acteur_email ?? "",
+                  date: formatDateTime(dossier.checklist.updated_at, locale),
+                })}
+              </p>
+            ) : null}
+            {!checklistComplete ? (
+              <p className="mt-2 text-xs font-semibold text-amber-700">{t("checklistHint")}</p>
+            ) : null}
+          </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              disabled={occupe}
+              disabled={occupe || !checklistComplete}
               onClick={() => agir(() => getDataProvider().approuverCompte(compte.id), t("approvedMsg"))}
-              className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+              className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               ✓ {t("approve")}
             </button>
@@ -465,8 +553,16 @@ export default function ConsoleDossierPage({
                   <span className="font-semibold text-navy">
                     {t(`audit.${e.action}` as "audit.compte_approuve")}
                   </span>{" "}
+                  {/* Audit enrichi : nom de l'acteur (repli e-mail
+                      pour les entrées anciennes), rôle, jour ET heure. */}
                   <span className="text-slate-600">
-                    — {t("byActor", { actor: e.acteur_email })} · {formatDate(e.created_at, locale)}
+                    — {e.acteur_nom ?? e.acteur_email} —{" "}
+                    {e.acteur_role === "super_admin"
+                      ? t("roleSuperAdmin")
+                      : e.acteur_role === "admin"
+                        ? t("roleAdmin")
+                        : e.acteur_role}{" "}
+                    — {formatDateTime(e.created_at, locale)}
                   </span>
                 </li>
               ))}

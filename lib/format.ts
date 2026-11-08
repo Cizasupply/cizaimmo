@@ -32,6 +32,29 @@ export function formatDate(dateStr: string | null | undefined, locale: string): 
   }).format(d);
 }
 
+/**
+ * Date ET heure localisées (registre d'audit enrichi, 2026-11-07) :
+ * FR « 7 nov. 2026 à 17 h 30 » / EN “Nov 7, 2026 at 5:30 PM”.
+ * L'heure est celle de l'appareil de lecture (fuseau local).
+ */
+export function formatDateTime(dateStr: string | null | undefined, locale: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const en = locale === "en";
+  const langue = en ? "en-US" : "fr-FR";
+  const date = new Intl.DateTimeFormat(langue, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(d);
+  const heure = new Intl.DateTimeFormat(langue, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
+  return en ? `${date} at ${heure}` : `${date} à ${heure.replace(":", " h ")}`;
+}
+
 /** Pourcentage avec une décimale (ex. 66,7 % / 66.7%). */
 export function formatPct(valeur: number, locale: string): string {
   return new Intl.NumberFormat(locale === "en" ? "en-US" : "fr-FR", {

@@ -188,6 +188,23 @@ else
   ECHEC=1
 fi
 
+# Checklist de vérification avant approbation + registre d'audit
+# enrichi (2026-11-07, demande du fondateur) : garde d'approbation
+# dans la base (approuver_compte lève CHECKLIST_INCOMPLETE), RPC de
+# consignation des coches, journal enrichi (nom de l'acteur figé à
+# l'écriture + trigger de complétion), affichage « Nom — rôle —
+# jour à heure ». Module SQL :
+# supabase/module-checklist-audit.sql (morceaux dans
+# ~/workspace/cizaimmo-sql-checklist/, à appliquer au live).
+echo ""
+echo "===== Checklist + audit enrichi ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-checklist-audit.cjs"; then
+  echo "Checklist/audit : OK"
+else
+  echo "Checklist/audit : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

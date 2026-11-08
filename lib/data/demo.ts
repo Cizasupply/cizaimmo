@@ -37,6 +37,7 @@ import type {
   FiltreEcheances,
   FiltreRecus,
   DemandeRattachement,
+  ChecklistDossierSaisie,
   DossierCompte,
   GestionnaireInvite,
   Grille,
@@ -3363,17 +3364,28 @@ export class DemoProvider implements DataProvider {
     // de suppression de son propre compte) — acteur_role reflète alors
     // son rôle réel (proprietaire / gestionnaire…), même si le type
     // EntreeAudit historique ne déclare que les rôles plateforme.
-    acteur: { id: string; email: string; role: string },
+    acteur: { id: string; email: string; role: string; nom?: string },
     action: string,
     cibleType: CibleAudit,
     cibleId: string | null,
     cibleEmail: string | null,
     details?: Record<string, unknown> | null
   ): void {
+    // Audit enrichi (2026-11-07) : le nom de l'acteur est FIGÉ dans
+    // l'entrée (miroir du snapshot réel) — fourni par l'appelant
+    // quand il l'a (acteurPlateforme), sinon résolu depuis le
+    // registre (profil principal, admins, clients).
+    const acteurNom =
+      acteur.nom ??
+      (db.profil.id === acteur.id ? db.profil.nom : null) ??
+      db.plateforme.comptesAdmins.find((a) => a.id === acteur.id)?.nom ??
+      db.plateforme.comptesClients.find((c) => c.id === acteur.id)?.nom ??
+      null;
     db.plateforme.journal.push({
       id: uid(),
       acteur_id: acteur.id,
       acteur_email: acteur.email,
+      acteur_nom: acteurNom,
       acteur_role: acteur.role as EntreeAudit["acteur_role"],
       action,
       cible_type: cibleType,
@@ -3585,6 +3597,28 @@ export class DemoProvider implements DataProvider {
     const db = loadDb();
     const acteur = this.acteurPlateforme(db);
     const cible = this.trouverCible(db, compteId);
+    // Checklist de vérification (2026-11-07, miroir de la garde base
+    // de approuver_compte) : pour un compte EN ATTENTE, la revue
+    // consignée doit être complète — anti-fraude exigée seulement
+    // si le compte est signalé « a_verifier ». Le refus reste libre.
+    const statutCible = cible.principal
+      ? db.abonnement.statut
+      : cible.entree!.abonnement.statut;
+    if (statutCible === "en_attente") {
+      const grilleStatutCible = cible.principal
+        ? db.profil.grille_statut ?? "ok"
+        : cible.entree!.grille_statut;
+      const chk = db.plateforme.checklistsDossiers?.[compteId] ?? null;
+      if (
+        !chk ||
+        !chk.photo_verifiee ||
+        !chk.piece_coherente ||
+        !chk.infos_verifiees ||
+        (grilleStatutCible === "a_verifier" && !chk.antifraude_examinee)
+      ) {
+        throw err("ERR_CHECKLIST_INCOMPLETE");
+      }
+    }
     const maintenant = new Date().toISOString();
     const finEssai = ajouterJours(maintenant, db.finance.parametres.jours_essai);
     let emailCible: string;
@@ -3672,14 +3706,50 @@ export class DemoProvider implements DataProvider {
         langueCible
       );
     }
+    const chkAppro = db.plateforme.checklistsDossiers?.[compteId] ?? null;
     this.journaliserAudit(db, acteur, "compte_approuve", "compte", compteId, emailCible, {
       grille: grilleConfirmee,
       trial_ends_at: finEssai,
       email_bienvenue: emailStatut,
+      // Checklist consignée au moment de l'approbation (preuve de
+      // la revue, comme en réel).
+      ...(chkAppro
+        ? {
+            checklist_photo_verifiee: chkAppro.photo_verifiee,
+            checklist_piece_coherente: chkAppro.piece_coherente,
+            checklist_infos_verifiees: chkAppro.infos_verifiees,
+            checklist_antifraude_examinee: chkAppro.antifraude_examinee,
+          }
+        : {}),
       ...(contratJoint
         ? { contrat_envoye: true, display_id: displayIdCible }
         : {}),
     });
+    saveDb(db);
+  }
+
+  async enregistrerChecklistDossier(
+    compteId: string,
+    saisie: ChecklistDossierSaisie
+  ): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    const statutCible = cible.principal
+      ? db.abonnement.statut
+      : cible.entree!.abonnement.statut;
+    if (statutCible !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
+    // Miroir de la RPC réelle : l'état complet est consigné avec
+    // l'identité de l'Admin relecteur et l'horodatage.
+    (db.plateforme.checklistsDossiers ??= {})[compteId] = {
+      photo_verifiee: saisie.photo_verifiee,
+      piece_coherente: saisie.piece_coherente,
+      infos_verifiees: saisie.infos_verifiees,
+      antifraude_examinee: saisie.antifraude_examinee,
+      acteur_nom: acteur.nom,
+      acteur_email: acteur.email,
+      updated_at: new Date().toISOString(),
+    };
     saveDb(db);
   }
 
@@ -4423,6 +4493,7 @@ export class DemoProvider implements DataProvider {
 
     return {
       compte,
+      checklist: db.plateforme.checklistsDossiers?.[compteId] ?? null,
       photo_profil_path: photoPath,
       photo_profil_url: null,
       documents_compte: documentsCompte,

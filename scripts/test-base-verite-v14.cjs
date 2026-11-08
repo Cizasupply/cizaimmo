@@ -211,6 +211,12 @@ function segmentPolitique(sql, nom) {
   const cible = comptes.find((c) => c.email === "baseverite@exemple.bi");
   check("console : le compte en attente est visible, plan starter",
     !!cible && cible.abonnement?.plan === "starter");
+  // Checklist de vérification (2026-11-07) : revue consignée avant
+  // l'approbation — sinon ERR_CHECKLIST_INCOMPLETE.
+  await p.enregistrerChecklistDossier(cible.id, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
   await p.approuverCompte(cible.id);
   await p.signOut();
   await p.signIn("baseverite@exemple.bi", "motdepasse123");
