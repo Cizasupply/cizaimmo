@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { MembreEquipe, VerificationEmploye } from "@/lib/data";
+import type { MembreEquipe, Profil, VerificationEmploye } from "@/lib/data";
 import { filtrerMembresEmployes } from "@/lib/pack-employe";
 import { formatDate } from "@/lib/format";
 
@@ -16,7 +16,11 @@ import { formatDate } from "@/lib/format";
  * comme NON VALIDE : la carte ne « passe » plus. Verdict en trois
  * états (2026-11-08) : vert seulement si la carte est ÉMISE ; ambre
  * « CARTE NON ÉMISE » si le compte est en règle sans carte émise.
- * Console plateforme (Admin et Super Admin).
+ * SUPER ADMIN UNIQUEMENT (verrouillage 2026-11-08, décision du
+ * fondateur : le sous-admin n'en a pas besoin) : entrée de menu
+ * superSeul, gardes ERR_SUPER_ADMIN_REQUIS chez les fournisseurs,
+ * et refus propre ci-dessous en accès direct par un Admin (même
+ * patron que la page Suppressions).
  *
  * LISTE + RECHERCHE (2026-11-08, demande du fondateur : « on
  * sélectionne celui que admin veut voir ») : sous la saisie directe,
@@ -28,7 +32,10 @@ import { formatDate } from "@/lib/format";
 export default function PageVerifierEmploye() {
   const t = useTranslations("packEmploye");
   const td = useTranslations("dossierEmploye");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
+  const [profil, setProfil] = useState<Profil | null>(null);
+  const [charge, setCharge] = useState(false);
   const [saisie, setSaisie] = useState("");
   const [resultat, setResultat] = useState<VerificationEmploye | null>(null);
   const [cherche, setCherche] = useState(false);
@@ -39,7 +46,17 @@ export default function PageVerifierEmploye() {
 
   useEffect(() => {
     let actif = true;
-    getDataProvider()
+    const provider = getDataProvider();
+    provider
+      .getProfil()
+      .then((moi) => {
+        if (actif) setProfil(moi);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (actif) setCharge(true);
+      });
+    provider
       .listerEquipeAdmins()
       .then((liste) => {
         if (actif) setMembres(liste);
@@ -89,6 +106,22 @@ export default function PageVerifierEmploye() {
       <span className="text-right font-semibold text-navy">{valeur}</span>
     </div>
   );
+
+  // Verrouillage 2026-11-08 : accès direct par un Admin → refus
+  // propre (même patron que la page Suppressions).
+  if (charge && profil && profil.role !== "super_admin") {
+    return (
+      <div className="mx-auto w-full max-w-2xl">
+        <h1 className="text-xl font-bold text-navy">{t("verifyTitle")}</h1>
+        <p
+          role="alert"
+          className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700"
+        >
+          {t15("superOnly")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl">

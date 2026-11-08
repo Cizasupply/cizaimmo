@@ -580,7 +580,12 @@ export interface DataProvider {
   /** Retire le rôle Admin (le compte redevient un compte ordinaire). */
   retirerAdmin(adminId: string): Promise<void>;
 
-  /** Journal d'audit plateforme (lecture, Admin / Super Admin). */
+  /**
+   * Journal d'audit plateforme (LECTURE, Super Admin uniquement —
+   * verrouillage 2026-11-08, décision du fondateur ; un Admin reçoit
+   * ERR_SUPER_ADMIN_REQUIS. L'ÉCRITURE au journal par tous les rôles
+   * est inchangée.)
+   */
   listerJournalAudit(): Promise<EntreeAudit[]>;
 
   /** Rattachements gestionnaires (console). */
@@ -753,7 +758,9 @@ export interface DataProvider {
   refuserContratEmploye(adminId: string, motif: string): Promise<void>;
   /**
    * Vérification d'un employé CONTRE LA BASE par son Display ID
-   * (celui du code-barres de la carte) — plateforme uniquement.
+   * (celui du code-barres de la carte) — SUPER ADMIN uniquement
+   * (verrouillage 2026-11-08, décision du fondateur : le sous-admin
+   * n'en a pas besoin ; un Admin reçoit ERR_SUPER_ADMIN_REQUIS).
    * Retourne null si aucun compte plateforme ne porte ce Display ID.
    */
   verifierEmploye(displayId: string): Promise<VerificationEmploye | null>;
@@ -1039,7 +1046,11 @@ export interface DataProvider {
    * vue « Mes dossiers »), PAS une restriction d'accès. Journalisé.
    */
   assignerDossier(compteId: string, adminId: string | null): Promise<void>;
-  /** Page Équipe : Admins, charge, accès, dernière activité (audit). */
+  /**
+   * Super Admin : page Équipe (Admins, charge, accès, dernière
+   * activité) — alimente aussi la liste de « Vérifier un employé ».
+   * Un Admin reçoit ERR_SUPER_ADMIN_REQUIS (verrouillage 2026-11-08).
+   */
   listerEquipeAdmins(): Promise<MembreEquipe[]>;
   /** Super Admin : coupe ou rétablit l'accès console d'un employé Admin. */
   basculerAccesAdmin(adminId: string, actif: boolean): Promise<void>;

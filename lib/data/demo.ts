@@ -4338,7 +4338,10 @@ export class DemoProvider implements DataProvider {
 
   async listerJournalAudit(): Promise<EntreeAudit[]> {
     const db = loadDb();
-    this.acteurPlateforme(db);
+    // Verrouillage 2026-11-08 (décision du fondateur) : la LECTURE
+    // du journal d'audit est réservée au Super Admin — l'écriture
+    // (journaliserAudit, tous rôles) est inchangée.
+    this.acteurSuperAdmin(db);
     return db.plateforme.journal
       .slice()
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -5679,7 +5682,9 @@ export class DemoProvider implements DataProvider {
     displayId: string
   ): Promise<VerificationEmploye | null> {
     const db = loadDb();
-    this.acteurPlateforme(db);
+    // Verrouillage 2026-11-08 (décision du fondateur) : la
+    // vérification d'un employé est réservée au Super Admin.
+    this.acteurSuperAdmin(db);
     const propre = (displayId ?? "").trim().toUpperCase();
     if (!propre) return null;
     let cibleId: string | null = null;
@@ -5764,7 +5769,10 @@ export class DemoProvider implements DataProvider {
     const acteur = this.acteurPlateforme(db);
     if (!moisValide(mois)) throw err("ERR_MOIS_INVALIDE");
     const estSuper = acteur.role === "super_admin";
-    const membres = await this.listerEquipeAdmins();
+    // Corps interne SANS la garde Super Admin de listerEquipeAdmins
+    // (verrouillage 2026-11-08) : la vue Finances de l'Admin part de
+    // la liste complète puis filtre sur lui-même — inchangé.
+    const membres = this.equipeAdminsInterne(db);
     const lignes = membres
       .filter((m) => estSuper || m.id === acteur.id)
       .map((m) => {
@@ -7623,7 +7631,20 @@ export class DemoProvider implements DataProvider {
 
   async listerEquipeAdmins(): Promise<MembreEquipe[]> {
     const db = loadDb();
-    this.acteurPlateforme(db);
+    // Verrouillage 2026-11-08 (décision du fondateur) : la liste
+    // Équipe — qui alimente aussi « Vérifier un employé » — est
+    // réservée au Super Admin.
+    this.acteurSuperAdmin(db);
+    return this.equipeAdminsInterne(db);
+  }
+
+  /**
+   * Corps SANS garde de listerEquipeAdmins — usage INTERNE
+   * uniquement : la vue Finances de l'Admin construit ses lignes
+   * depuis la liste complète puis filtre sur lui-même (comportement
+   * strictement inchangé par le verrouillage 2026-11-08).
+   */
+  private equipeAdminsInterne(db: DemoDb): MembreEquipe[] {
     const membres: MembreEquipe[] = [];
     const emailsVus = new Set<string>();
     const construire = (

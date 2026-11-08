@@ -217,6 +217,8 @@ const PARAMS_B = {
   check("ConsoleShell : « Vérifier un employé » + portail charte monté",
     shell.includes("/console/verifier-employe") &&
     shell.includes("CharteConfidentialite"));
+  check("ConsoleShell : entrée « Vérifier un employé » verrouillée Super Admin (superSeul, 2026-11-08)",
+    /\{\s*key: "verifyEmployee",[^}]*superSeul: true\s*\}/.test(shell));
   const charte = lire("components/CharteConfidentialite.tsx");
   check("portail charte : acceptation via le fournisseur (datée en base)",
     charte.includes("accepterCharteEmploye") && charte.includes("charteItem1"));
@@ -287,6 +289,15 @@ const PARAMS_B = {
   const errClientVerif = await attendErreur(p.verifierEmploye("CIM-000001"));
   check("client : verifierEmploye -> ERR_ACCES_PLATEFORME",
     errClientVerif.code === "ERR_ACCES_PLATEFORME", errClientVerif.code);
+
+  console.log("== Verrouillage 2026-11-08 : le sous-admin est refusé ==");
+  await connecter(ADMIN_DEMO_EMAIL);
+  const errAdminVerif = await attendErreur(p.verifierEmploye("CIM-000001"));
+  check("admin : verifierEmploye -> ERR_SUPER_ADMIN_REQUIS",
+    errAdminVerif.code === "ERR_SUPER_ADMIN_REQUIS", errAdminVerif.code);
+  const errAdminListe = await attendErreur(p.listerEquipeAdmins());
+  check("admin : listerEquipeAdmins (liste de la page Vérifier) -> ERR_SUPER_ADMIN_REQUIS",
+    errAdminListe.code === "ERR_SUPER_ADMIN_REQUIS", errAdminListe.code);
 
   console.log("== Préparation du compte employé de test (promotion) ==");
   await p.signOut();

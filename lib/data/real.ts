@@ -3528,7 +3528,10 @@ export class RealProvider implements DataProvider {
   }
 
   async listerJournalAudit(): Promise<EntreeAudit[]> {
-    await this.acteurPlateforme();
+    // Verrouillage 2026-11-08 (décision du fondateur) : la LECTURE
+    // du journal d'audit est réservée au Super Admin — l'écriture
+    // (journaliserAudit, tous rôles) est inchangée.
+    await this.acteurSuperAdmin();
     const { data, error } = await this.client()
       .from("journal_audit")
       .select("*")
@@ -4619,7 +4622,9 @@ export class RealProvider implements DataProvider {
   async verifierEmploye(
     displayId: string
   ): Promise<VerificationEmploye | null> {
-    await this.acteurPlateforme();
+    // Verrouillage 2026-11-08 (décision du fondateur) : la
+    // vérification d'un employé est réservée au Super Admin.
+    await this.acteurSuperAdmin();
     const propre = (displayId ?? "").trim().toUpperCase();
     if (!propre) return null;
     const { data, error } = await this.client()
@@ -6359,7 +6364,10 @@ export class RealProvider implements DataProvider {
   }
 
   async listerEquipeAdmins(): Promise<MembreEquipe[]> {
-    await this.acteurPlateforme();
+    // Verrouillage 2026-11-08 (décision du fondateur) : la liste
+    // Équipe — qui alimente aussi « Vérifier un employé » — est
+    // réservée au Super Admin.
+    await this.acteurSuperAdmin();
     const client = this.client();
     const { data, error } = await client
       .from("profils")

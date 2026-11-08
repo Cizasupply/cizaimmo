@@ -37,7 +37,11 @@ export default function ConsoleAccueilPage() {
         const [liste, tarifs, audit, demandesListe, vitrineListe, filsListe] = await Promise.all([
           provider.listerComptesPlateforme(),
           provider.getTarifsPlateforme(),
-          provider.listerJournalAudit(),
+          // Lecture du journal réservée au Super Admin
+          // (verrouillage 2026-11-08) : repli silencieux pour
+          // l'Admin, même patron que les deux appels suivants —
+          // sa Vue d'ensemble reste complète, sans le bloc journal.
+          provider.listerJournalAudit().catch(() => [] as EntreeAudit[]),
           provider.listerDemandesRattachement(),
           provider.listerVitrineAValider().catch(() => [] as AnnonceAValider[]),
           provider.listerConversationsPlateforme().catch(() => [] as Conversation[]),

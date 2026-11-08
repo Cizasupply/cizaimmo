@@ -277,6 +277,23 @@ check("formatDateTime : null -> tiret", formatDateTime(null, "fr") === "—");
     c6r && c6r.abonnement && c6r.abonnement.statut === "annule",
     c6r && c6r.abonnement && c6r.abonnement.statut);
 
+  console.log("== 8. Verrouillage 2026-11-08 : LECTURE du journal Super Admin seule ==");
+  const shellJ = lire("components/ConsoleShell.tsx");
+  check("ConsoleShell : entrée « Journal d'audit » verrouillée Super Admin (superSeul)",
+    /\{\s*key: "journal",[^}]*superSeul: true\s*\}/.test(shellJ));
+  const { ADMIN_DEMO_EMAIL } = require(`${BUILD}/data/demo-seed.js`);
+  try { await p2.signOut(); } catch { /* pas de session */ }
+  await p2.signIn(ADMIN_DEMO_EMAIL, "motdepasse");
+  const errAdminJournal = await attendErreur(p2.listerJournalAudit());
+  check("admin : listerJournalAudit -> ERR_SUPER_ADMIN_REQUIS",
+    errAdminJournal.code === "ERR_SUPER_ADMIN_REQUIS", errAdminJournal.code);
+  try { await p2.signOut(); } catch { /* pas de session */ }
+  await p2.signIn(SUPER_ADMIN_DEMO_EMAIL, "motdepasse");
+  const journalSuper = await p2.listerJournalAudit();
+  check("super admin : lecture du journal inchangée (entrées présentes)",
+    Array.isArray(journalSuper) && journalSuper.length > 0,
+    `n=${Array.isArray(journalSuper) ? journalSuper.length : "?"}`);
+
   console.log(`\nChecklist + audit enrichi : ${ok} OK, ${ko} KO`);
   process.exit(ko ? 1 : 0);
 })().catch((e) => {

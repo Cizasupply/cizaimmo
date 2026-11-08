@@ -17,18 +17,26 @@
  *  3. ORGANISATION — en-tête, barre de filtres en carte, tableau
  *     bureau soigné (détails sans débordement) et cartes sur mobile,
  *     selon les patrons des autres pages de la console / de l'app.
+ *
+ * Verrouillage 2026-11-08 (décision du fondateur) : la LECTURE du
+ * journal passe SUPER ADMIN SEULE — entrée de menu superSeul,
+ * garde ERR_SUPER_ADMIN_REQUIS chez les fournisseurs, refus propre
+ * ci-dessous en accès direct par un Admin (même patron que la page
+ * Suppressions). L'écriture au journal (tous rôles) est inchangée.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { EntreeAudit } from "@/lib/data";
+import type { EntreeAudit, Profil } from "@/lib/data";
 import { formatDateTime, formatDetailsAudit, periodeJournalContient } from "@/lib/format";
 import type { PeriodeJournal } from "@/lib/format";
 
 export default function ConsoleJournalPage() {
   const t = useTranslations("console");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
+  const [profil, setProfil] = useState<Profil | null>(null);
   const [entrees, setEntrees] = useState<EntreeAudit[]>([]);
   const [charge, setCharge] = useState(false);
   const [recherche, setRecherche] = useState("");
@@ -38,7 +46,14 @@ export default function ConsoleJournalPage() {
 
   useEffect(() => {
     let actif = true;
-    getDataProvider()
+    const provider = getDataProvider();
+    provider
+      .getProfil()
+      .then((moi) => {
+        if (actif) setProfil(moi);
+      })
+      .catch(() => undefined);
+    provider
       .listerJournalAudit()
       .then((liste) => {
         if (actif) setEntrees(liste);
@@ -118,6 +133,19 @@ export default function ConsoleJournalPage() {
     "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold";
   const etiquetteClasse =
     "block text-xs font-semibold uppercase tracking-wide text-slate-500";
+
+  // Verrouillage 2026-11-08 : accès direct par un Admin → refus
+  // propre (même patron que la page Suppressions).
+  if (charge && profil && profil.role !== "super_admin") {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("journalTitle")}</h1>
+        <p role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
+          {t15("superOnly")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>

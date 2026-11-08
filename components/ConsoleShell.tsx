@@ -49,11 +49,14 @@ const LIENS = [
   // Dossier employé (2026-11-08) : visible par les DEUX rôles
   // plateforme (admin ET super_admin remplissent leur dossier).
   { key: "myEmployeeFile", href: "/console/mon-dossier" },
-  { key: "verifyEmployee", href: "/console/verifier-employe" },
+  // Verrouillage 2026-11-08 (décision du fondateur) : « Vérifier un
+  // employé » et le « Journal d'audit » passent Super Admin seul —
+  // le sous-admin n'en a pas besoin (gardes fournisseurs assorties).
+  { key: "verifyEmployee", href: "/console/verifier-employe", superSeul: true },
   { key: "messages", href: "/console/messages" },
   { key: "supervisedMessages", href: "/console/messages-supervises" },
   { key: "vitrine", href: "/console/vitrine" },
-  { key: "journal", href: "/console/journal" },
+  { key: "journal", href: "/console/journal", superSeul: true },
   { key: "suppressions", href: "/console/suppressions", superSeul: true },
   { key: "admins", href: "/console/admins", superSeul: true },
   { key: "finances", href: "/console/finances", superSeul: true },
@@ -86,6 +89,8 @@ const GROUPES: { cle: "groupManagement" | "groupSupervision" | "groupPlatform"; 
  * mobile-first) : 4 destinations fréquentes + « Plus » qui ouvre le
  * menu complet. Mêmes routes et mêmes libellés (console.*) que la
  * barre latérale ; l'entrée Messages porte la pastille des non-lus.
+ * Les entrées suivent la visibilité du menu (superSeul masqué pour
+ * l'Admin — le Journal depuis le verrouillage 2026-11-08).
  */
 const barreMobile = [
   { key: "overview", href: "/console" },
@@ -221,6 +226,14 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     if ("adminSeul" in l && l.adminSeul && estSuper) return false;
     return true;
   });
+
+  // Barre inférieure mobile : MÊMES règles de visibilité que le
+  // menu — le Journal (superSeul depuis le verrouillage 2026-11-08)
+  // en sort pour l'Admin ; le nombre de colonnes de la grille suit
+  // les entrées visibles (+ le bouton « Plus »).
+  const barreVisible = barreMobile.filter((l) =>
+    liensVisibles.some((v) => v.key === l.key)
+  );
 
   const chemin = cheminSansLocale(pathname);
   const estActif = (href: string) =>
@@ -374,8 +387,13 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         aria-label="Navigation console"
         className="shrink-0 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
       >
-        <div className="grid grid-cols-5">
-          {barreMobile.map((l) => {
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${barreVisible.length + 1}, minmax(0, 1fr))`,
+          }}
+        >
+          {barreVisible.map((l) => {
             const actif = estActif(l.href);
             const pastille =
               l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;

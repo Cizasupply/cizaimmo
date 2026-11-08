@@ -131,7 +131,9 @@ async function attendErreur(promesse) {
   abo = await p.getAbonnement();
   const ecartJours = abo && abo.trial_ends_at ? (new Date(abo.trial_ends_at).getTime() - avant) / 86400000 : 0;
   check("approbation par un Admin -> essai démarré À l'approbation (+30 j)", abo && abo.statut === "essai" && ecartJours > 29 && ecartJours < 31, `${abo?.statut} / ${ecartJours}`);
-  await connecter(ADMIN_DEMO_EMAIL);
+  // Lecture du journal : Super Admin seule depuis le verrouillage
+  // 2026-11-08 — l'action vérifiée reste celle de l'Admin.
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   let journal = await p.listerJournalAudit();
   check("audit : décision d'approbation journalisée", journal.some((e) => e.action === "compte_approuve" && e.cible_email === "attente@exemple.com"));
 
@@ -143,7 +145,7 @@ async function attendErreur(promesse) {
   await p.refuserCompte(cibleRefus.id, "doublon");
   const eRefus = await attendErreur(p.signIn("refus@exemple.com", "motdepasse123"));
   check("compte refusé -> connexion impossible (ERR_COMPTE_REFUSE)", eRefus.levee && eRefus.code === "ERR_COMPTE_REFUSE", JSON.stringify(eRefus));
-  await connecter(ADMIN_DEMO_EMAIL);
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   journal = await p.listerJournalAudit();
   check("audit : refus journalisé avec motif", journal.some((e) => e.action === "compte_refuse" && e.cible_email === "refus@exemple.com" && e.details && e.details.motif === "doublon"));
 
@@ -167,6 +169,7 @@ async function attendErreur(promesse) {
   await p.reattribuerGrille(cibleFraude.id, "afrique");
   const apresReattr = await compteParEmail("fraude@exemple.com");
   check("réattribution console -> afrique + statut ok", apresReattr && apresReattr.abonnement?.grille === "afrique" && apresReattr.grille_statut === "ok", JSON.stringify({ g: apresReattr?.abonnement?.grille, s: apresReattr?.grille_statut }));
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   journal = await p.listerJournalAudit();
   check("audit : réattribution de grille journalisée", journal.some((e) => e.action === "grille_reattribuee" && e.cible_email === "fraude@exemple.com"));
 
@@ -194,8 +197,10 @@ async function attendErreur(promesse) {
   const avis = await p.envoyerAvis(cibleAvis.id, "retard_paiement");
   check("avis créé depuis le modèle (destinataire + modèle)", avis && avis.modele === "retard_paiement" && avis.destinataire_id === cibleAvis.id, JSON.stringify(avis?.modele));
   check("avis : statut d'envoi honnête (envoye/non_configuré/echec)", ["envoye", "non_configuré", "echec"].includes(avis.statut_envoi), avis.statut_envoi);
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   journal = await p.listerJournalAudit();
   check("audit : avis_envoye journalisé", journal.some((e) => e.action === "avis_envoye" && e.cible_email === cibleAvis.email));
+  await connecter(ADMIN_DEMO_EMAIL);
 
   console.log("== Finances dynamiques : la console change le front ==");
   const tarifsAvant = await p.getTarifsPlateforme();
@@ -232,6 +237,7 @@ async function attendErreur(promesse) {
   await connecter(ADMIN_DEMO_EMAIL);
   const supervision = await p.ouvrirSupervision(rattCg.id);
   check("supervision : résumé du parc Ciza Group du gestionnaire", supervision && supervision.immeubles.some((i) => i.nom.includes("Ciza")), JSON.stringify(supervision?.immeubles?.map((i) => i.nom)));
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   journal = await p.listerJournalAudit();
   check("audit : supervision_ouverte journalisée", journal.some((e) => e.action === "supervision_ouverte"));
 
