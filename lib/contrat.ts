@@ -108,6 +108,14 @@ export function nomFichierContrat(displayId: string): string {
   return `contrat-gestionnaire-${displayId}.pdf`;
 }
 
+/** Données d'en-tête du contrat PROPRIÉTAIRE (option C) : même forme. */
+export type DonneesContratProprietaire = DonneesContratGestionnaire;
+
+/** Nom de fichier stable du contrat d'un propriétaire. */
+export function nomFichierContratProprietaire(displayId: string): string {
+  return `contrat-proprietaire-${displayId}.pdf`;
+}
+
 const TEXTES = {
   fr: {
     titre: "Contrat de collaboration — Gestionnaire CizaImmo",
@@ -222,16 +230,165 @@ const TEXTES = {
 } as const;
 
 /**
+ * Textes du contrat PROPRIÉTAIRE (option C, 2026-11-08) : déclinaison
+ * du contrat gestionnaire — même préambule entreprise, même clause
+ * « aucun encaissement », AUCUN article de délégation de gestion,
+ * AUCUN prix codé en dur (les tarifs vivent dans la base et
+ * s'affichent dans la plateforme), aucune mention de relecture
+ * externe (règle du fondateur). L'article de clauses de paiement
+ * détaillé sera inséré à l'étape 3, après validation du texte.
+ */
+const TEXTES_PROPRIETAIRE = {
+  fr: {
+    titre: "Contrat de service — Propriétaire CizaImmo",
+    division: "CizaImmo — division de Ciza Group",
+    entre: "Entre les soussignés :",
+    partiePlateforme:
+      "CizaImmo, division de CIZA GROUP SURL, société enregistrée au Burundi sous le numéro RC 0082870/26, NIF 4003446905, dont le siège est situé au 6ème Avenue N° 47, Quartier Buhomba, Zone Mutimbuzi, Commune Ntahangwa, Bujumbura — Burundi, représentée par Ciza Misigaro, son Président Directeur (« CizaImmo »),",
+    et: "et :",
+    partieNom: "Le propriétaire",
+    nom: "Nom",
+    dossier: "Display ID",
+    email: "E-mail",
+    telephone: "Téléphone",
+    pays: "Pays",
+    date: "Date",
+    nonRenseigne: "Non renseigné",
+    clauses: [
+      {
+        titre: "1. Objet",
+        texte:
+          "Le propriétaire utilise la plateforme CizaImmo pour gérer ses propres immeubles (immeubles, appartements, locataires, baux, loyers déclarés, dépenses, documents et rentabilité). Il peut, s'il le souhaite, rattacher son dossier à un gestionnaire de son choix au moyen du Display ID de ce dernier et lui assigner tout ou partie de ses immeubles.",
+      },
+      {
+        titre: "2. Données et preuves de propriété",
+        texte:
+          "Le propriétaire est responsable de l'exactitude des informations qu'il saisit ou déclare dans la plateforme. Pour chaque immeuble, il fournit la preuve de sa propriété (titre ou certificat foncier, ou acte d'achat) ; la plateforme peut vérifier ces documents et refuser un immeuble dont la preuve n'est pas établie. Toute fausse déclaration peut entraîner la suspension immédiate du compte.",
+      },
+      {
+        titre: "3. Aucun encaissement par CizaImmo",
+        texte:
+          "CizaImmo n'encaisse jamais les loyers et ne reçoit aucun fonds pour le compte des propriétaires, des gestionnaires ou des locataires. Les paiements de loyer sont déclarés dans la plateforme par le propriétaire ou son gestionnaire ; aucun fonds ne transite par CizaImmo.",
+      },
+      {
+        titre: "4. Abonnement et essai",
+        texte:
+          "CizaImmo est un service par abonnement. L'essai gratuit démarre à l'approbation du compte ; à son terme, l'abonnement se poursuit selon le pack choisi par le propriétaire. Les tarifs en vigueur sont ceux affichés dans la plateforme, selon la grille applicable au compte.",
+      },
+      {
+        titre: "5. Confidentialité",
+        texte:
+          "Le propriétaire s'engage à garder confidentielles les données des locataires auxquelles il accède via la plateforme et à ne les utiliser que pour la gestion de ses biens. CizaImmo traite les données du compte aux seules fins de fourniture du service ; les données du propriétaire restent sa propriété.",
+      },
+      {
+        titre: "6. Durée, résiliation et suppression de compte",
+        texte:
+          "Le présent contrat est conclu pour une durée indéterminée. Chaque partie peut y mettre fin moyennant un préavis écrit de trente (30) jours. En cas de manquement grave, CizaImmo peut suspendre l'accès sans préavis. Le propriétaire peut demander la suppression de son compte depuis son espace ; la suppression prend effet à l'issue du délai de rétractation prévu par la plateforme, les factures émises étant conservées sous forme anonymisée.",
+      },
+    ],
+    signatures: "Signatures",
+    pourPlateforme: "Pour CizaImmo — Ciza Misigaro, Président Directeur, Ciza Group",
+    pourPartie: "Le propriétaire",
+    signatureMention: "Nom, date et signature :",
+    pied: "Document généré et émis par CizaImmo — division de Ciza Group.",
+    contacts: "infos@cizagroup.com · WhatsApp +1 514 502 9503",
+  },
+  en: {
+    titre: "Service agreement — CizaImmo owner",
+    division: "CizaImmo — a division of Ciza Group",
+    entre: "Between the undersigned:",
+    partiePlateforme:
+      "CizaImmo, a division of CIZA GROUP SURL, a company registered in Burundi under number RC 0082870/26, Tax ID (NIF) 4003446905, whose head office is located at 6ème Avenue N° 47, Quartier Buhomba, Zone Mutimbuzi, Commune Ntahangwa, Bujumbura — Burundi, represented by Ciza Misigaro, its President and Chief Executive Officer (“CizaImmo”),",
+    et: "and:",
+    partieNom: "The owner",
+    nom: "Name",
+    dossier: "Display ID",
+    email: "Email",
+    telephone: "Phone",
+    pays: "Country",
+    date: "Date",
+    nonRenseigne: "Not provided",
+    clauses: [
+      {
+        titre: "1. Purpose",
+        texte:
+          "The owner uses the CizaImmo platform to manage their own buildings (buildings, units, tenants, leases, declared rent payments, expenses, documents and profitability). The owner may, if they wish, connect their file to a property manager of their choice using that manager's Display ID and assign some or all of their buildings to them.",
+      },
+      {
+        titre: "2. Data and proof of ownership",
+        texte:
+          "The owner is responsible for the accuracy of the information they enter or declare in the platform. For each building, the owner provides proof of ownership (land title or certificate, or deed of purchase); the platform may verify these documents and refuse a building whose proof is not established. Any false declaration may lead to immediate suspension of the account.",
+      },
+      {
+        titre: "3. No rent collection by CizaImmo",
+        texte:
+          "CizaImmo never collects rent and never receives funds on behalf of owners, managers or tenants. Rent payments are declared in the platform by the owner or their manager; no funds transit through CizaImmo.",
+      },
+      {
+        titre: "4. Subscription and trial",
+        texte:
+          "CizaImmo is a subscription service. The free trial starts when the account is approved; when it ends, the subscription continues under the plan chosen by the owner. The applicable rates are those displayed in the platform, under the pricing grid assigned to the account.",
+      },
+      {
+        titre: "5. Confidentiality",
+        texte:
+          "The owner undertakes to keep confidential all tenant data accessed through the platform and to use it solely for the management of their properties. CizaImmo processes account data solely to provide the service; the owner's data remains their property.",
+      },
+      {
+        titre: "6. Term, termination and account deletion",
+        texte:
+          "This agreement is entered into for an indefinite term. Either party may terminate it with thirty (30) days' written notice. In the event of a serious breach, CizaImmo may suspend access without notice. The owner may request deletion of their account from their space; deletion takes effect at the end of the retraction period provided by the platform, with issued invoices kept in anonymized form.",
+      },
+    ],
+    signatures: "Signatures",
+    pourPlateforme: "For CizaImmo — Ciza Misigaro, President and Chief Executive Officer, Ciza Group",
+    pourPartie: "The owner",
+    signatureMention: "Name, date and signature:",
+    pied: "Document generated and issued by CizaImmo — a division of Ciza Group.",
+    contacts: "infos@cizagroup.com · WhatsApp +1 514 502 9503",
+  },
+} as const;
+
+/** Forme commune des textes d'un contrat (gestionnaire ou propriétaire). */
+interface TextesContrat {
+  titre: string;
+  division: string;
+  entre: string;
+  partiePlateforme: string;
+  et: string;
+  partieNom: string;
+  nom: string;
+  dossier: string;
+  email: string;
+  telephone: string;
+  pays: string;
+  date: string;
+  nonRenseigne: string;
+  clauses: readonly { titre: string; texte: string }[];
+  signatures: string;
+  pourPlateforme: string;
+  pourPartie: string;
+  signatureMention: string;
+  pied: string;
+  contacts: string;
+}
+
+/**
  * Génère le PDF du contrat et le retourne en base64 (sans préfixe
  * data:) — prêt pour une pièce jointe Resend ou un téléchargement.
  * Fonction déterministe à données égales (hors métadonnées PDF).
+ * Moteur PARTAGÉ gestionnaire / propriétaire : seule la déclinaison
+ * des textes et le nom de fichier changent.
  */
-export async function genererContratGestionnairePdf(donnees: DonneesContratGestionnaire): Promise<{
+async function rendreContratPdf(
+  donnees: DonneesContratGestionnaire,
+  t: TextesContrat,
+  nomFichier: string
+): Promise<{
   nomFichier: string;
   contenuBase64: string;
 }> {
   const { jsPDF } = await import("jspdf");
-  const t = TEXTES[donnees.langue === "en" ? "en" : "fr"];
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const largeur = 210;
   const marge = 18;
@@ -296,7 +453,7 @@ export async function genererContratGestionnairePdf(donnees: DonneesContratGesti
   paragraphe(t.entre, true, 11);
   paragraphe(t.partiePlateforme);
   paragraphe(t.et, true, 11);
-  paragraphe(t.gestionnaire, true, 11);
+  paragraphe(t.partieNom, true, 11);
   champ(t.nom, donnees.nom);
   champ(t.dossier, donnees.displayId);
   champ(t.email, donnees.email);
@@ -388,7 +545,7 @@ export async function genererContratGestionnairePdf(donnees: DonneesContratGesti
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...NAVY);
-  doc.text(`${t.pourGestionnaire} : ${donnees.nom}`, marge, yGestionnaire);
+  doc.text(`${t.pourPartie} : ${donnees.nom}`, marge, yGestionnaire);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...GRIS);
   doc.setFontSize(9.5);
@@ -407,5 +564,38 @@ export async function genererContratGestionnairePdf(donnees: DonneesContratGesti
 
   const dataUri = doc.output("datauristring");
   const contenuBase64 = dataUri.split("base64,")[1] ?? "";
-  return { nomFichier: nomFichierContrat(donnees.displayId), contenuBase64 };
+  return { nomFichier, contenuBase64 };
+}
+
+/**
+ * Contrat de collaboration GESTIONNAIRE (v1.3) — génération d'origine,
+ * inchangée : e-mail de décision à l'approbation, signature, validation
+ * Admin qui débloque les fonctions gestionnaire.
+ */
+export async function genererContratGestionnairePdf(donnees: DonneesContratGestionnaire): Promise<{
+  nomFichier: string;
+  contenuBase64: string;
+}> {
+  const src = TEXTES[donnees.langue === "en" ? "en" : "fr"];
+  const t: TextesContrat = {
+    ...src,
+    partieNom: src.gestionnaire,
+    pourPartie: src.pourGestionnaire,
+  };
+  return rendreContratPdf(donnees, t, nomFichierContrat(donnees.displayId));
+}
+
+/**
+ * Contrat de service PROPRIÉTAIRE (option C, 2026-11-08) : joint à
+ * l'e-mail de bienvenue à l'approbation. NON BLOQUANT — l'accès et
+ * l'essai démarrent à l'approbation, sign ou non ; le contrat signé
+ * est redéposé depuis l'espace du propriétaire et validé (ou refusé
+ * avec motif) par un Admin, statut suivi en base.
+ */
+export async function genererContratProprietairePdf(donnees: DonneesContratProprietaire): Promise<{
+  nomFichier: string;
+  contenuBase64: string;
+}> {
+  const t = TEXTES_PROPRIETAIRE[donnees.langue === "en" ? "en" : "fr"];
+  return rendreContratPdf(donnees, t, nomFichierContratProprietaire(donnees.displayId));
 }

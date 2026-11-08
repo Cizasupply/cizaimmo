@@ -190,6 +190,8 @@
       "compte_supprime_definitivement": "Compte supprimé définitivement",
       "compte_suspendu": "Compte suspendu",
       "contrat_valide": "Contrat gestionnaire validé",
+      "contrat_proprietaire_valide": "Contrat propriétaire validé",
+      "contrat_proprietaire_refuse": "Contrat propriétaire refusé",
       "grille_reattribuee": "Grille réattribuée",
       "parametres_modifies": "Paramètres finance modifiés",
       "rattachement_cree": "Rattachement créé",
@@ -234,6 +236,23 @@
       "valide": "Validé"
     },
     "contractValidatedMsg": "Contrat validé — fonctions gestionnaire débloquées.",
+    "ownerContractLabel": "Contrat propriétaire",
+    "ownerContractMotifLabel": "Motif du refus :",
+    "ownerContractReasonLabel": "Motif du refus (obligatoire pour refuser)",
+    "ownerContractReasonPlaceholder": "Ex. Signature illisible, page manquante…",
+    "ownerContractRefusedMsg": "Contrat propriétaire refusé — le motif a été transmis au propriétaire.",
+    "ownerContractReviewText": "Le propriétaire a téléversé son contrat de service signé (voir les documents ci-dessous). Contrat NON BLOQUANT : son accès reste actif quelle que soit la décision.",
+    "ownerContractReviewTitle": "Contrat propriétaire signé en attente de revue",
+    "ownerContractStatus": {
+      "a_signer": "À signer",
+      "refuse": "Refusé — à corriger",
+      "sans_objet": "Sans objet",
+      "signe_depose": "Signé déposé — en revue",
+      "valide": "Validé"
+    },
+    "ownerContractValidatedMsg": "Contrat propriétaire validé.",
+    "refuseOwnerContract": "Refuser le contrat",
+    "validateOwnerContract": "Valider le contrat",
     "createAdminButton": "Créer",
     "createAdminText": "En production, passez par la promotion ci-dessus : un compte Auth ne se crée pas depuis la console.",
     "createAdminTitle": "Créer un accès Admin (démo)",
@@ -265,6 +284,7 @@
       "ERR_PRIX_INVALIDE": "Prix invalide : chaque prix doit être supérieur à 0.",
       "ERR_RATTACHEMENT_EXISTANT": "Un rattachement actif existe déjà pour ce gestionnaire dans ce contexte.",
       "ERR_STATUT_INVALIDE": "État incompatible avec cette action.",
+      "ERR_MOTIF_REQUIS": "Un motif est obligatoire pour refuser le contrat.",
       "ERR_SUPER_ADMIN_REQUIS": "Action réservée au Super Admin.",
       "generic": "Une erreur est survenue. Réessayez.",
       "ERR_SUPPRESSION_DEJA_DEMANDEE": "Une demande de suppression est déjà en cours pour ce compte.",
@@ -504,6 +524,35 @@
     "whatsappButton": "Ouvrir WhatsApp",
     "whatsappText": "Écrivez-nous directement sur WhatsApp : +1 514 502 9503.",
     "whatsappTitle": "Préférez WhatsApp ?"
+  },
+  "contratProp": {
+    "downloadContract": "Télécharger le contrat (PDF)",
+    "errorDuplicate": "Un document du même nom existe déjà dans votre dossier.",
+    "errorFormat": "Format non accepté : PDF, JPG ou PNG uniquement.",
+    "errorGeneric": "L'envoi a échoué — réessayez.",
+    "errorTooBig": "Fichier trop lourd : 10 Mo maximum.",
+    "explain": {
+      "a_signer": "Votre compte est approuvé et entièrement actif. Votre contrat de service — déjà signé et cacheté par Ciza Group — était joint à votre e-mail de bienvenue ; vous pouvez aussi le télécharger ici. Signez-le, puis téléversez le contrat signé ci-dessous, à votre convenance.",
+      "refuse": "Votre contrat signé n'a pas pu être validé (motif ci-dessous). Téléversez une copie signée corrigée — votre accès reste entièrement actif.",
+      "sans_objet": "Votre contrat de service sera généré dès l'approbation de votre compte.",
+      "signe_depose": "Votre contrat signé a bien été reçu. Un administrateur le passe en revue — vous recevrez un e-mail de confirmation. Votre accès reste entièrement actif.",
+      "valide": "Votre contrat de service signé est validé et versé à votre dossier. Merci !"
+    },
+    "nonBlockingNote": "Contrat non bloquant : votre accès et votre essai ne dépendent pas de cette signature.",
+    "refusalReason": "Motif du refus",
+    "sendSigned": "Envoyer le contrat signé",
+    "sending": "Envoi…",
+    "sentMsg": "Contrat signé envoyé — en attente de revue par un administrateur.",
+    "status": {
+      "a_signer": "À signer",
+      "refuse": "Refusé — à corriger",
+      "sans_objet": "Sans objet",
+      "signe_depose": "Signé déposé — en revue",
+      "valide": "Validé"
+    },
+    "title": "Mon contrat de service",
+    "uploadSignedLabel": "Contrat signé (PDF ou photo)",
+    "yourDisplayId": "Votre Display ID"
   },
   "crud": {
     "apartments": {

@@ -62,6 +62,8 @@ export default function ConsoleDossierPage({
   });
   // v1.7 : motifs de refus de validation d'immeuble, par immeuble.
   const [motifsRevue, setMotifsRevue] = useState<Record<string, string>>({});
+  // Option C : motif de refus du contrat PROPRIÉTAIRE signé.
+  const [motifContratProp, setMotifContratProp] = useState("");
 
   const charger = useCallback(async () => {
     try {
@@ -312,6 +314,39 @@ export default function ConsoleDossierPage({
         </section>
       ) : null}
 
+      {compte.type_intention === "proprietaire" && compte.statut_contrat_proprietaire === "signe_depose" ? (
+        <section className="mt-5 rounded-2xl border border-sky-300 bg-sky-50 p-5">
+          <h2 className="font-bold text-sky-900">{t("ownerContractReviewTitle")}</h2>
+          <p className="mt-1 text-sm text-sky-800">{t("ownerContractReviewText")}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={occupe}
+              onClick={() => agir(() => getDataProvider().validerContratProprietaire(compte.id), t("ownerContractValidatedMsg"))}
+              className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              ✓ {t("validateOwnerContract")}
+            </button>
+            <input
+              type="text"
+              aria-label={t("ownerContractReasonLabel")}
+              placeholder={t("ownerContractReasonPlaceholder")}
+              value={motifContratProp}
+              onChange={(e) => setMotifContratProp(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              disabled={occupe}
+              onClick={() => agir(() => getDataProvider().refuserContratProprietaire(compte.id, motifContratProp), t("ownerContractRefusedMsg"))}
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              ✕ {t("refuseOwnerContract")}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {demandesAdmin.length > 0 ? (
         <section className="mt-5 rounded-2xl border border-amber-300 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("linkReviewTitle")}</h2>
@@ -391,6 +426,20 @@ export default function ConsoleDossierPage({
               <dt className="shrink-0 font-semibold">{t("contractLabel")}</dt>
               <dd className="min-w-0 break-words text-right">{t(`contractStatus.${compte.statut_contrat}` as "contractStatus.valide")}</dd>
             </div>
+            {compte.type_intention === "proprietaire" ? (
+              <>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <dt className="shrink-0 font-semibold">{t("ownerContractLabel")}</dt>
+                  <dd className="min-w-0 break-words text-right">{t(`ownerContractStatus.${compte.statut_contrat_proprietaire}` as "ownerContractStatus.valide")}</dd>
+                </div>
+                {compte.statut_contrat_proprietaire === "refuse" && compte.motif_contrat_proprietaire ? (
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <dt className="shrink-0 font-semibold">{t("ownerContractMotifLabel")}</dt>
+                    <dd className="min-w-0 break-words text-right">{compte.motif_contrat_proprietaire}</dd>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             {/* v1.5 : Admin responsable du dossier (assignation Super Admin). */}
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <dt className="shrink-0 font-semibold">{t15("responsible")}</dt>

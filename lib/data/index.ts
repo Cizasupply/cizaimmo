@@ -109,6 +109,7 @@ export type {
   DemandeRattachement,
   DossierCompte,
   StatutContrat,
+  StatutContratProprietaire,
   StatutDemandeRattachement,
   TypeIntention,
   // Extension v1.5 — suppression de compte par le client, messagerie

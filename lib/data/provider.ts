@@ -691,6 +691,48 @@ export interface DataProvider {
   validerContrat(compteId: string): Promise<void>;
 
   // ==========================================================================
+  // OPTION C (2026-11-08) — Contrat de service PROPRIÉTAIRE non
+  // bloquant. Déclinaison du flux gestionnaire ci-dessus : le contrat
+  // est joint à l'e-mail de bienvenue à l'approbation, l'accès et
+  // l'essai démarrent immédiatement, le propriétaire redépose le
+  // signé depuis son espace, l'Admin valide ou refuse (avec motif).
+  // AUCUN état de ce cycle ne conditionne une écriture.
+  // ==========================================================================
+
+  /**
+   * Génère le contrat de service d'un compte PROPRIÉTAIRE (PDF,
+   * langue du compte) — plateforme, ou le propriétaire pour SON
+   * propre contrat. Retourne le nom de fichier + le contenu base64.
+   */
+  genererContratProprietaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }>;
+  /** État du contrat propriétaire du compte CONNECTÉ (page « Mon contrat »). */
+  getMonContratProprietaire(): Promise<{
+    statut: import("./types").StatutContratProprietaire;
+    motif: string | null;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }>;
+  /**
+   * Le propriétaire téléverse son contrat SIGNÉ (PDF ou photo) →
+   * statut_contrat_proprietaire « signe_depose », en attente de revue
+   * Admin. Redépôt possible après un refus (le motif est effacé).
+   */
+  televerserContratProprietaireSigne(input: DocumentInput): Promise<Document>;
+  /**
+   * L'Admin valide le contrat propriétaire signé → « valide »,
+   * e-mail de confirmation. Journalisé.
+   */
+  validerContratProprietaire(compteId: string): Promise<void>;
+  /**
+   * L'Admin refuse le contrat propriétaire signé → « refuse » +
+   * motif (obligatoire), e-mail au propriétaire. Journalisé.
+   */
+  refuserContratProprietaire(compteId: string, motif: string): Promise<void>;
+
+  // ==========================================================================
   // EXTENSION v1.5 — Suppression de compte par le client, messagerie
   // directe supervisée, assignation des dossiers, page Équipe, espace
   // « Mes dossiers ». Voir docs/messagerie-suppression-v15.md.

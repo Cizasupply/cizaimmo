@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AppShell from "@/components/AppShell";
 import DiscussionRattachement from "@/components/DiscussionRattachement";
+import SectionContratProprietaire from "@/components/SectionContratProprietaire";
 import DocumentUpload from "@/components/DocumentUpload";
 import { getDataProvider } from "@/lib/data";
 import type { DemandeRattachement, Profil, StatutContrat } from "@/lib/data";
@@ -141,6 +142,17 @@ export default function ContratPage() {
   }
 
   const verrouille = statut !== "valide";
+
+  // Option C : un compte à intention PROPRIÉTAIRE voit ici son contrat
+  // de service (non bloquant) — pas la section gestionnaire ni le
+  // verrou « fonctions débloquées », qui ne le concernent pas.
+  if (profil?.type_intention === "proprietaire") {
+    return (
+      <AppShell title={t("contractTitle")}>
+        <SectionContratProprietaire />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={t("contractTitle")}>

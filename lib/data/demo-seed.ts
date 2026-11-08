@@ -32,6 +32,7 @@ import type {
   Role,
   StatutAbonnement,
   StatutContrat,
+  StatutContratProprietaire,
   TarifPlateforme,
   TauxChange,
   TypeIntention,
@@ -100,6 +101,9 @@ export interface CompteClientDemo {
   telephone: string | null;
   type_intention: TypeIntention;
   statut_contrat: StatutContrat;
+  /** Option C : contrat propriétaire non bloquant (défaut « sans_objet »). */
+  statut_contrat_proprietaire?: StatutContratProprietaire;
+  motif_contrat_proprietaire?: string | null;
   /** Photo de profil reçue + pièce d'identité reçue. */
   dossier_complet: boolean;
   // --- v1.5 : suppression demandée, assignation, accès admin (miroir
@@ -236,6 +240,12 @@ export function buildDemoDb(): DemoDb {
     type_intention: "proprietaire",
     photo_profil_path: "demo:photo-profil-amina",
     statut_contrat: "sans_objet",
+    // Option C — RÉTROACTIVITÉ (miroir du backfill SQL) : compte
+    // propriétaire DÉJÀ approuvé → son contrat de service est
+    // disponible dans son espace, statut « a_signer », AUCUN e-mail
+    // de rattrapage (cas Kaneza CIM-000002 en réel).
+    statut_contrat_proprietaire: "a_signer",
+    motif_contrat_proprietaire: null,
     // v1.5 : aucune suppression en cours, aucun Admin responsable.
     suppression_demandee_le: null,
     admin_responsable_id: null,
@@ -642,25 +652,25 @@ export function buildDemoDb(): DemoDb {
       {
         id: "client-demo-1", email: "jean.bosco.demo@exemple.bi", nom: "Jean Bosco Ndayisenga", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-95),
         pays_declare: "Burundi", pays_ip: "BI", pays_paiement: "BI", grille_statut: "ok",
-        display_id: "CIM-000003", telephone: "+257 79 11 22 33", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
+        display_id: "CIM-000003", telephone: "+257 79 11 22 33", type_intention: "proprietaire", statut_contrat: "sans_objet", statut_contrat_proprietaire: "a_signer", dossier_complet: true,
         abonnement: { plan: "pro", grille: "afrique", statut: "actif", debut_periode: dans(-10), fin_periode: dans(20), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
         id: "client-demo-2", email: "marie.dubois.demo@exemple.ca", nom: "Marie-Claire Dubois", role: "proprietaire", pays: "Canada", langue: "fr", created_at: dans(-27),
         pays_declare: "Canada", pays_ip: "CA", pays_paiement: null, grille_statut: "ok",
-        display_id: "CIM-000004", telephone: "+1 514 555 0142", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
+        display_id: "CIM-000004", telephone: "+1 514 555 0142", type_intention: "proprietaire", statut_contrat: "sans_objet", statut_contrat_proprietaire: "a_signer", dossier_complet: true,
         abonnement: { plan: "starter", grille: "internationale", statut: "essai", debut_periode: dans(-27), fin_periode: dans(3), trial_ends_at: dans(3), echec_paiement: false, grace_ends_at: null },
       },
       {
         id: "client-demo-3", email: "patrick.m.demo@exemple.rw", nom: "Patrick Mugisha", role: "proprietaire", pays: "Rwanda", langue: "en", created_at: dans(-140),
         pays_declare: "Rwanda", pays_ip: "RW", pays_paiement: "RW", grille_statut: "ok",
-        display_id: "CIM-000005", telephone: "+250 788 000 111", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
+        display_id: "CIM-000005", telephone: "+250 788 000 111", type_intention: "proprietaire", statut_contrat: "sans_objet", statut_contrat_proprietaire: "a_signer", dossier_complet: false,
         abonnement: { plan: "agence", grille: "afrique", statut: "actif", debut_periode: dans(-28), fin_periode: dans(2), trial_ends_at: null, echec_paiement: true, grace_ends_at: dans(2) },
       },
       {
         id: "client-demo-4", email: "sarah.t.demo@exemple.com", nom: "Sarah Thompson", role: "proprietaire", pays: "États-Unis", langue: "en", created_at: dans(-200),
         pays_declare: "États-Unis", pays_ip: "US", pays_paiement: "US", grille_statut: "ok",
-        display_id: "CIM-000006", telephone: "+1 212 555 0187", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: true,
+        display_id: "CIM-000006", telephone: "+1 212 555 0187", type_intention: "proprietaire", statut_contrat: "sans_objet", statut_contrat_proprietaire: "a_signer", dossier_complet: true,
         abonnement: { plan: "pro", grille: "internationale", statut: "actif", debut_periode: dans(-40), fin_periode: dans(-10), trial_ends_at: null, echec_paiement: false, grace_ends_at: null },
       },
       {
@@ -669,7 +679,7 @@ export function buildDemoDb(): DemoDb {
         // (le compte a ensuite été suspendu pour impayé).
         id: "client-demo-5", email: "divine.i.demo@exemple.bi", nom: "Divine Irakoze", role: "proprietaire", pays: "Burundi", langue: "fr", created_at: dans(-60),
         pays_declare: "Burundi", pays_ip: "CA", pays_paiement: null, grille_statut: "a_verifier",
-        display_id: "CIM-000007", telephone: "+257 79 44 55 66", type_intention: "proprietaire", statut_contrat: "sans_objet", dossier_complet: false,
+        display_id: "CIM-000007", telephone: "+257 79 44 55 66", type_intention: "proprietaire", statut_contrat: "sans_objet", statut_contrat_proprietaire: "a_signer", dossier_complet: false,
         abonnement: { plan: "starter", grille: "internationale", statut: "suspendu", debut_periode: dans(-45), fin_periode: dans(-15), trial_ends_at: null, echec_paiement: false, grace_ends_at: null, statut_pre_suspension: "actif" },
       },
       {

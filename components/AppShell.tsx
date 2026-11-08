@@ -368,7 +368,12 @@ export default function AppShell({
       ...(estProprietaire ? ownerLinks : []),
       // v1.3 : espace gestionnaire (contrat + demandes) — comptes à
       // intention gestionnaire et gestionnaires rattachés.
-      ...(profil?.type_intention === "gestionnaire" || role === "gestionnaire"
+      // Option C : les comptes à intention PROPRIÉTAIRE ont aussi leur
+      // entrée « Mon contrat » (contrat de service non bloquant, même
+      // page /contrat, section dédiée).
+      ...(profil?.type_intention === "gestionnaire" ||
+      profil?.type_intention === "proprietaire" ||
+      role === "gestionnaire"
         ? [{ key: "contract", href: "/contrat" }]
         : []),
       { key: "settings", href: "/parametres" },

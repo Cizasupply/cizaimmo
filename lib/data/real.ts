@@ -42,6 +42,7 @@ import type {
   ProfilPatch,
   RattachementGestionnaire,
   StatutContrat,
+  StatutContratProprietaire,
   StatutWhatsApp,
   SupervisionGestionnaire,
   TarifPlateforme,
@@ -92,9 +93,15 @@ import {
   rendreActivationGestionnaire,
   rendreAvis,
   rendreBienvenue,
+  rendreBienvenueProprietaire,
   rendreDecisionGestionnaire,
+  rendreRefusContratProprietaire,
+  rendreValidationContratProprietaire,
 } from "../avis";
-import { genererContratGestionnairePdf } from "../contrat";
+import {
+  genererContratGestionnairePdf,
+  genererContratProprietairePdf,
+} from "../contrat";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -2957,6 +2964,9 @@ export class RealProvider implements DataProvider {
         telephone: p.telephone ?? null,
         type_intention: p.type_intention ?? "proprietaire",
         statut_contrat: p.statut_contrat ?? "sans_objet",
+        // Option C : contrat propriétaire non bloquant (console).
+        statut_contrat_proprietaire: p.statut_contrat_proprietaire ?? "sans_objet",
+        motif_contrat_proprietaire: p.motif_contrat_proprietaire ?? null,
         dossier_complet: Boolean(p.photo_profil_path) && dossiersAvecPiece.has(p.id),
         // v1.5 : assignation + suppression en cours (champs requis).
         admin_responsable_id: p.admin_responsable_id ?? null,
@@ -3092,11 +3102,16 @@ export class RealProvider implements DataProvider {
         grille_attribuee: abo.grille,
         // v1.3 : l'approbation d'un GESTIONNAIRE déclenche le contrat.
         ...(estGestionnaire ? { statut_contrat: "a_signer" } : {}),
+        // Option C : l'approbation d'un PROPRIÉTAIRE déclenche son
+        // contrat de service (non bloquant — simple suivi).
+        ...(!estGestionnaire ? { statut_contrat_proprietaire: "a_signer" } : {}),
       })
       .eq("id", compteId);
     const langue = profil.langue === "en" ? "en" : "fr";
     // v1.3 : gestionnaire → e-mail de DÉCISION avec le contrat en pièce
     // jointe ; propriétaire → e-mail de bienvenue (flux v1.2 inchangé).
+    // Option C : la bienvenue PROPRIÉTAIRE emporte son contrat de
+    // service en pièce jointe — l'accès et l'essai sont déjà actifs.
     let emailStatut: Avis["statut_envoi"];
     let contratJoint = false;
     if (estGestionnaire && profil.display_id) {
@@ -3118,6 +3133,37 @@ export class RealProvider implements DataProvider {
         [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
       );
       contratJoint = true;
+    } else if (profil.display_id) {
+      // Option C — propriétaire : bienvenue + contrat de service joint.
+      // Repli NON BLOQUANT : si la génération du PDF échoue, la
+      // bienvenue part sans pièce jointe — le contrat reste
+      // téléchargeable depuis l'espace du propriétaire (régénéré à
+      // la demande par getMonContratProprietaire). L'approbation et
+      // l'essai ne dépendent jamais de la pièce jointe.
+      let piecesJointes: { nom: string; contenuBase64: string }[] | undefined;
+      try {
+        const contrat = await genererContratProprietairePdf({
+          nom: profil.nom,
+          displayId: profil.display_id,
+          email: profil.email,
+          telephone: profil.telephone ?? null,
+          pays: profil.pays ?? null,
+          langue,
+          date: maintenant.toISOString().slice(0, 10),
+        });
+        piecesJointes = [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }];
+        contratJoint = true;
+      } catch {
+        piecesJointes = undefined;
+      }
+      const bienvenue = rendreBienvenueProprietaire(profil.nom, profil.display_id, langue);
+      emailStatut = await this.envoyerEmailPlateforme(
+        profil.email,
+        bienvenue.sujet,
+        bienvenue.corps,
+        langue,
+        piecesJointes
+      );
     } else {
       const bienvenue = rendreBienvenue(profil.nom, langue);
       emailStatut = await this.envoyerEmailPlateforme(
@@ -3142,7 +3188,13 @@ export class RealProvider implements DataProvider {
           }
         : {}),
       ...(contratJoint
-        ? { contrat_envoye: true, display_id: profil.display_id }
+        ? {
+            contrat_envoye: true,
+            display_id: profil.display_id,
+            // Option C : distingue le contrat propriétaire (bienvenue)
+            // du contrat gestionnaire (e-mail de décision).
+            ...(estGestionnaire ? {} : { contrat_proprietaire_envoye: true }),
+          }
         : {}),
     });
   }
@@ -4397,6 +4449,150 @@ export class RealProvider implements DataProvider {
     await this.journaliserAudit(acteur, "contrat_valide", "compte", compteId, profil.email, {
       display_id: profil.display_id,
       email_activation: emailStatut,
+    });
+  }
+
+  // ==========================================================================
+  // OPTION C (2026-11-08) — Contrat de service PROPRIÉTAIRE non
+  // bloquant. Même patron que le flux gestionnaire ci-dessus, cycle
+  // propre (profils.statut_contrat_proprietaire) : aucun état ne
+  // conditionne l'accès ni l'essai. Rétroactivité : les comptes déjà
+  // approuvés ont été basculés « a_signer » par le SQL
+  // (module-contrat-proprietaire.sql) — leur contrat est donc
+  // disponible ici sans aucun e-mail de rattrapage.
+  // ==========================================================================
+
+  async genererContratProprietaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const session = await this.requireSession();
+    if (compteId !== session.id) await this.acteurPlateforme();
+    const { data: profil } = await this.client()
+      .from("profils")
+      .select("nom, email, telephone, pays, langue, display_id")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil || !profil.display_id) throw err("ERR_INTROUVABLE");
+    return genererContratProprietairePdf({
+      nom: profil.nom,
+      displayId: profil.display_id,
+      email: profil.email,
+      telephone: profil.telephone ?? null,
+      pays: profil.pays ?? null,
+      langue: profil.langue === "en" ? "en" : "fr",
+      date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async getMonContratProprietaire(): Promise<{
+    statut: StatutContratProprietaire;
+    motif: string | null;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }> {
+    const profil = await this.getProfil();
+    if (!profil) throw err("ERR_NOT_FOUND");
+    if (!profil.display_id) {
+      return {
+        statut: profil.statut_contrat_proprietaire ?? "sans_objet",
+        motif: profil.motif_contrat_proprietaire ?? null,
+        display_id: null,
+        nomFichier: "",
+        contenuBase64: null,
+      };
+    }
+    const pdf = await genererContratProprietairePdf({
+      nom: profil.nom,
+      displayId: profil.display_id,
+      email: profil.email,
+      telephone: profil.telephone ?? null,
+      pays: profil.pays ?? null,
+      langue: profil.langue === "en" ? "en" : "fr",
+      date: new Date().toISOString().slice(0, 10),
+    });
+    return {
+      statut: profil.statut_contrat_proprietaire ?? "sans_objet",
+      motif: profil.motif_contrat_proprietaire ?? null,
+      display_id: profil.display_id,
+      nomFichier: pdf.nomFichier,
+      contenuBase64: pdf.contenuBase64,
+    };
+  }
+
+  async televerserContratProprietaireSigne(input: DocumentInput): Promise<Document> {
+    const document = await this.soumettreDocumentCompte("contrat", input);
+    const profil = await this.getProfil();
+    if (
+      profil &&
+      profil.type_intention === "proprietaire" &&
+      (profil.statut_contrat_proprietaire === "a_signer" ||
+        profil.statut_contrat_proprietaire === "refuse")
+    ) {
+      await this.client()
+        .from("profils")
+        .update({ statut_contrat_proprietaire: "signe_depose", motif_contrat_proprietaire: null })
+        .eq("id", profil.id);
+    }
+    return document;
+  }
+
+  async validerContratProprietaire(compteId: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue, display_id, statut_contrat_proprietaire")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.statut_contrat_proprietaire !== "signe_depose") throw err("ERR_STATUT_INVALIDE");
+    await client
+      .from("profils")
+      .update({ statut_contrat_proprietaire: "valide", motif_contrat_proprietaire: null })
+      .eq("id", compteId);
+    const langue = profil.langue === "en" ? "en" : "fr";
+    const validation = rendreValidationContratProprietaire(profil.nom, langue);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      profil.email,
+      validation.sujet,
+      validation.corps,
+      langue
+    );
+    await this.journaliserAudit(acteur, "contrat_proprietaire_valide", "compte", compteId, profil.email, {
+      display_id: profil.display_id,
+      email_validation: emailStatut,
+    });
+  }
+
+  async refuserContratProprietaire(compteId: string, motif: string): Promise<void> {
+    const acteur = await this.acteurPlateforme();
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const client = this.client();
+    const { data: profil } = await client
+      .from("profils")
+      .select("email, nom, langue, display_id, statut_contrat_proprietaire")
+      .eq("id", compteId)
+      .maybeSingle();
+    if (!profil) throw err("ERR_INTROUVABLE");
+    if (profil.statut_contrat_proprietaire !== "signe_depose") throw err("ERR_STATUT_INVALIDE");
+    await client
+      .from("profils")
+      .update({ statut_contrat_proprietaire: "refuse", motif_contrat_proprietaire: motifNet })
+      .eq("id", compteId);
+    const langue = profil.langue === "en" ? "en" : "fr";
+    const refus = rendreRefusContratProprietaire(profil.nom, motifNet, langue);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      profil.email,
+      refus.sujet,
+      refus.corps,
+      langue
+    );
+    await this.journaliserAudit(acteur, "contrat_proprietaire_refuse", "compte", compteId, profil.email, {
+      display_id: profil.display_id,
+      motif: motifNet,
+      email_refus: emailStatut,
     });
   }
 

@@ -69,6 +69,7 @@ import type {
   SignUpInput,
   StatutAppartement,
   StatutContrat,
+  StatutContratProprietaire,
   StatutWhatsApp,
   SupervisionGestionnaire,
   SuppressionEnAttente,
@@ -127,9 +128,15 @@ import {
   rendreActivationGestionnaire,
   rendreAvis,
   rendreBienvenue,
+  rendreBienvenueProprietaire,
   rendreDecisionGestionnaire,
+  rendreRefusContratProprietaire,
+  rendreValidationContratProprietaire,
 } from "../avis";
-import { genererContratGestionnairePdf } from "../contrat";
+import {
+  genererContratGestionnairePdf,
+  genererContratProprietairePdf,
+} from "../contrat";
 import {
   construirePrixPlans,
   estEnRetardPaiement,
@@ -341,6 +348,13 @@ function loadDb(): DemoDb {
       if (!rec.type_intention) { rec.type_intention = "proprietaire"; migre = true; }
       if (rec.photo_profil_path === undefined) { rec.photo_profil_path = null; migre = true; }
       if (!rec.statut_contrat) { rec.statut_contrat = "sans_objet"; migre = true; }
+      // Option C : contrat propriétaire — défaut repris de la graine
+      // (compte déjà approuvé -> « a_signer », rétroactivité).
+      if (!rec.statut_contrat_proprietaire) {
+        rec.statut_contrat_proprietaire = frais.profil.statut_contrat_proprietaire ?? "sans_objet";
+        migre = true;
+      }
+      if (rec.motif_contrat_proprietaire === undefined) { rec.motif_contrat_proprietaire = null; migre = true; }
     }
     if (db.plateforme) {
       if (!Array.isArray(db.plateforme.demandesRattachement)) {
@@ -3650,6 +3664,8 @@ export class DemoProvider implements DataProvider {
       telephone: db.profil.telephone,
       type_intention: db.profil.type_intention ?? "proprietaire",
       statut_contrat: db.profil.statut_contrat ?? "sans_objet",
+      statut_contrat_proprietaire: db.profil.statut_contrat_proprietaire ?? "sans_objet",
+      motif_contrat_proprietaire: db.profil.motif_contrat_proprietaire ?? null,
       dossier_complet: this.dossierCompletPrincipal(db),
       // v1.5 : assignation + suppression (champs OBLIGATOIRES du type).
       admin_responsable_id: db.profil.admin_responsable_id ?? null,
@@ -3681,6 +3697,8 @@ export class DemoProvider implements DataProvider {
       telephone: entree.telephone,
       type_intention: entree.type_intention,
       statut_contrat: entree.statut_contrat,
+      statut_contrat_proprietaire: entree.statut_contrat_proprietaire ?? "sans_objet",
+      motif_contrat_proprietaire: entree.motif_contrat_proprietaire ?? null,
       dossier_complet: entree.dossier_complet,
       // v1.5 : assignation + suppression (champs OBLIGATOIRES du type).
       admin_responsable_id: entree.admin_responsable_id ?? null,
@@ -3835,6 +3853,8 @@ export class DemoProvider implements DataProvider {
       paysCible = db.profil.pays;
       // v1.3 : l'approbation d'un GESTIONNAIRE déclenche le contrat.
       if (intentionCible === "gestionnaire") db.profil.statut_contrat = "a_signer";
+      // Option C : l'approbation d'un PROPRIÉTAIRE déclenche le sien.
+      if (intentionCible === "proprietaire") db.profil.statut_contrat_proprietaire = "a_signer";
     } else {
       const abo = cible.entree!.abonnement;
       if (abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
@@ -3854,6 +3874,7 @@ export class DemoProvider implements DataProvider {
       telephoneCible = cible.entree!.telephone;
       paysCible = cible.entree!.pays;
       if (intentionCible === "gestionnaire") cible.entree!.statut_contrat = "a_signer";
+      if (intentionCible === "proprietaire") cible.entree!.statut_contrat_proprietaire = "a_signer";
     }
     // v1.3 : compte à intention GESTIONNAIRE → e-mail de DÉCISION avec
     // le contrat de collaboration en pièce jointe (PDF personnalisé
@@ -3880,6 +3901,36 @@ export class DemoProvider implements DataProvider {
         [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
       );
       contratJoint = true;
+    } else if (displayIdCible) {
+      // Option C — propriétaire : bienvenue + contrat de service joint
+      // (non bloquant : l'essai vient de démarrer ci-dessus). Repli :
+      // si la génération du PDF échoue (harnais sans DOM complet),
+      // bienvenue sans pièce jointe — le contrat reste téléchargeable
+      // depuis l'espace (getMonContratProprietaire le régénère).
+      let piecesJointes: { nom: string; contenuBase64: string }[] | undefined;
+      try {
+        const contrat = await genererContratProprietairePdf({
+          nom: nomCible,
+          displayId: displayIdCible,
+          email: emailCible,
+          telephone: telephoneCible,
+          pays: paysCible,
+          langue: langueCible,
+          date: maintenant.slice(0, 10),
+        });
+        piecesJointes = [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }];
+        contratJoint = true;
+      } catch {
+        piecesJointes = undefined;
+      }
+      const bienvenue = rendreBienvenueProprietaire(nomCible, displayIdCible, langueCible);
+      emailStatut = await this.envoyerEmailPlateforme(
+        emailCible,
+        bienvenue.sujet,
+        bienvenue.corps,
+        langueCible,
+        piecesJointes
+      );
     } else {
       const bienvenue = rendreBienvenue(nomCible, langueCible);
       emailStatut = await this.envoyerEmailPlateforme(
@@ -3905,7 +3956,13 @@ export class DemoProvider implements DataProvider {
           }
         : {}),
       ...(contratJoint
-        ? { contrat_envoye: true, display_id: displayIdCible }
+        ? {
+            contrat_envoye: true,
+            display_id: displayIdCible,
+            ...(intentionCible === "proprietaire"
+              ? { contrat_proprietaire_envoye: true }
+              : {}),
+          }
         : {}),
     });
     saveDb(db);
@@ -5138,6 +5195,172 @@ export class DemoProvider implements DataProvider {
     this.journaliserAudit(db, acteur, "contrat_valide", "compte", compteId, emailCible, {
       display_id: displayIdCible,
       email_activation: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  // ==========================================================================
+  // OPTION C (2026-11-08) — Contrat de service PROPRIÉTAIRE non
+  // bloquant (miroir démo du réel). Rétroactivité : la graine pose
+  // « a_signer » sur les propriétaires déjà approuvés (profil
+  // principal inclus) — aucun e-mail de rattrapage.
+  // ==========================================================================
+
+  async genererContratProprietaire(
+    compteId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const donnees = this.donneesContrat(db, compteId);
+    if (!donnees) throw err("ERR_INTROUVABLE");
+    const estPlateforme = session.id.startsWith("plateforme:");
+    const estSoi = compteId === db.profil.id;
+    if (!estPlateforme && !estSoi) throw err("ERR_INTROUVABLE");
+    return genererContratProprietairePdf({
+      ...donnees,
+      date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  async getMonContratProprietaire(): Promise<{
+    statut: StatutContratProprietaire;
+    motif: string | null;
+    display_id: string | null;
+    nomFichier: string;
+    contenuBase64: string | null;
+  }> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    if (
+      session.id.startsWith("gestionnaire:") ||
+      session.id.startsWith("plateforme:") ||
+      session.id.startsWith("coprop:")
+    ) {
+      throw err("ERR_NOT_FOUND");
+    }
+    const db = loadDb();
+    const donnees = this.donneesContrat(db, db.profil.id);
+    const pdf = donnees
+      ? await genererContratProprietairePdf({
+          ...donnees,
+          date: new Date().toISOString().slice(0, 10),
+        })
+      : null;
+    return {
+      statut: db.profil.statut_contrat_proprietaire ?? "sans_objet",
+      motif: db.profil.motif_contrat_proprietaire ?? null,
+      display_id: db.profil.display_id ?? null,
+      nomFichier: pdf?.nomFichier ?? "",
+      contenuBase64: pdf?.contenuBase64 ?? null,
+    };
+  }
+
+  async televerserContratProprietaireSigne(input: DocumentInput): Promise<Document> {
+    const document = await this.ajouterDocumentCompte("contrat", input);
+    const session = await this.getSession();
+    const db = loadDb();
+    if (
+      session &&
+      !session.id.startsWith("gestionnaire:") &&
+      !session.id.startsWith("plateforme:") &&
+      !session.id.startsWith("coprop:") &&
+      db.profil.type_intention === "proprietaire" &&
+      (db.profil.statut_contrat_proprietaire === "a_signer" ||
+        db.profil.statut_contrat_proprietaire === "refuse")
+    ) {
+      db.profil.statut_contrat_proprietaire = "signe_depose";
+      db.profil.motif_contrat_proprietaire = null;
+      saveDb(db);
+    }
+    return document;
+  }
+
+  async validerContratProprietaire(compteId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const cible = this.trouverCible(db, compteId);
+    let emailCible: string;
+    let nomCible: string;
+    let langueCible: "fr" | "en";
+    let displayIdCible: string | null;
+    if (cible.principal) {
+      if (db.profil.statut_contrat_proprietaire !== "signe_depose") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      db.profil.statut_contrat_proprietaire = "valide";
+      db.profil.motif_contrat_proprietaire = null;
+      emailCible = db.profil.email;
+      nomCible = db.profil.nom;
+      langueCible = db.profil.langue;
+      displayIdCible = db.profil.display_id ?? null;
+    } else {
+      if (cible.entree!.statut_contrat_proprietaire !== "signe_depose") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      cible.entree!.statut_contrat_proprietaire = "valide";
+      cible.entree!.motif_contrat_proprietaire = null;
+      emailCible = cible.entree!.email;
+      nomCible = cible.entree!.nom;
+      langueCible = cible.entree!.langue;
+      displayIdCible = cible.entree!.display_id;
+    }
+    const validation = rendreValidationContratProprietaire(nomCible, langueCible);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      emailCible,
+      validation.sujet,
+      validation.corps,
+      langueCible
+    );
+    this.journaliserAudit(db, acteur, "contrat_proprietaire_valide", "compte", compteId, emailCible, {
+      display_id: displayIdCible,
+      email_validation: emailStatut,
+    });
+    saveDb(db);
+  }
+
+  async refuserContratProprietaire(compteId: string, motif: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const cible = this.trouverCible(db, compteId);
+    let emailCible: string;
+    let nomCible: string;
+    let langueCible: "fr" | "en";
+    let displayIdCible: string | null;
+    if (cible.principal) {
+      if (db.profil.statut_contrat_proprietaire !== "signe_depose") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      db.profil.statut_contrat_proprietaire = "refuse";
+      db.profil.motif_contrat_proprietaire = motifNet;
+      emailCible = db.profil.email;
+      nomCible = db.profil.nom;
+      langueCible = db.profil.langue;
+      displayIdCible = db.profil.display_id ?? null;
+    } else {
+      if (cible.entree!.statut_contrat_proprietaire !== "signe_depose") {
+        throw err("ERR_STATUT_INVALIDE");
+      }
+      cible.entree!.statut_contrat_proprietaire = "refuse";
+      cible.entree!.motif_contrat_proprietaire = motifNet;
+      emailCible = cible.entree!.email;
+      nomCible = cible.entree!.nom;
+      langueCible = cible.entree!.langue;
+      displayIdCible = cible.entree!.display_id;
+    }
+    const refus = rendreRefusContratProprietaire(nomCible, motifNet, langueCible);
+    const emailStatut = await this.envoyerEmailPlateforme(
+      emailCible,
+      refus.sujet,
+      refus.corps,
+      langueCible
+    );
+    this.journaliserAudit(db, acteur, "contrat_proprietaire_refuse", "compte", compteId, emailCible, {
+      display_id: displayIdCible,
+      motif: motifNet,
+      email_refus: emailStatut,
     });
     saveDb(db);
   }

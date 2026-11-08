@@ -408,6 +408,23 @@ else
   ECHEC=1
 fi
 
+# Option C (2026-11-08) — Contrat de service PROPRIÉTAIRE non
+# bloquant (variante C validée par le fondateur) : déclinaison du
+# flux gestionnaire v1.3 — PDF personnalisé joint à la bienvenue,
+# cycle a_signer / signe_depose / valide / refuse (motif) suivi en
+# base (profils.statut_contrat_proprietaire, module SQL dédié),
+# dépôt depuis l'espace, revue console, rétroactivité des comptes
+# déjà approuvés (Kaneza) SANS e-mail. Aucune garde d'écriture ne
+# dépend du contrat : accès + essai dès l'approbation.
+echo ""
+echo "===== Option C (Contrat propriétaire non bloquant) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-contrat-proprietaire.cjs"; then
+  echo "Option C : OK"
+else
+  echo "Option C : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Micro-correctifs des captures annotées du fondateur (2026-11-08) :
 # navigation de l'en-tête public sur UNE ligne en mobile (les 4
 # liens au même niveau), libellés des boutons CTA publics centrés

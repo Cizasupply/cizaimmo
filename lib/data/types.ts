@@ -75,6 +75,14 @@ export interface Profil {
    * validation Admin), valide (fonctions gestionnaire débloquées).
    */
   statut_contrat?: StatutContrat;
+  /**
+   * Option C (2026-11-08) : état du contrat de service PROPRIÉTAIRE
+   * (comptes à intention « proprietaire » uniquement) — voir
+   * StatutContratProprietaire. Non bloquant.
+   */
+  statut_contrat_proprietaire?: StatutContratProprietaire;
+  /** Motif du refus du contrat propriétaire signé (si statut « refuse »). */
+  motif_contrat_proprietaire?: string | null;
   // --- Extension v1.5 : suppression de compte, assignation, accès admin.
   /** Demande de suppression par le client (base) : date de la demande, null sinon. Échéance = demande + 30 jours. */
   suppression_demandee_le?: string | null;
@@ -92,6 +100,23 @@ export type TypeIntention = "proprietaire" | "gestionnaire";
 
 /** Cycle de vie du contrat gestionnaire (v1.3). */
 export type StatutContrat = "sans_objet" | "a_signer" | "signe_recu" | "valide";
+
+/**
+ * Cycle de vie du contrat PROPRIÉTAIRE (option C, 2026-11-08) —
+ * NON BLOQUANT : aucun de ces états ne conditionne l'accès ni
+ * l'essai. sans_objet (pas encore approuvé, ou compte gestionnaire),
+ * a_signer (approuvé, contrat joint à l'e-mail de bienvenue — ou
+ * rattrapage pour les comptes déjà approuvés), signe_depose (contrat
+ * signé redéposé, en attente de revue Admin), valide (validé par un
+ * Admin), refuse (refusé par un Admin, motif conservé — le
+ * propriétaire peut redéposer une copie corrigée).
+ */
+export type StatutContratProprietaire =
+  | "sans_objet"
+  | "a_signer"
+  | "signe_depose"
+  | "valide"
+  | "refuse";
 
 export type Plan = "starter" | "pro" | "agence";
 export type Grille = "afrique" | "internationale";
@@ -1097,6 +1122,9 @@ export interface ComptePlateforme {
   telephone: string | null;
   type_intention: TypeIntention;
   statut_contrat: StatutContrat;
+  /** Option C : contrat propriétaire (non bloquant) + motif de refus. */
+  statut_contrat_proprietaire: StatutContratProprietaire;
+  motif_contrat_proprietaire: string | null;
   /** Dossier complet = photo de profil + pièce d'identité reçues. */
   dossier_complet: boolean;
   // --- v1.5 : assignation + suppression.

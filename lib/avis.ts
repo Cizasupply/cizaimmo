@@ -235,6 +235,114 @@ export function rendreDecisionGestionnaire(
 }
 
 /**
+ * E-mail de bienvenue PROPRIÉTAIRE (option C, 2026-11-08) : envoyé à
+ * l'approbation d'un compte à intention PROPRIÉTAIRE, avec le contrat
+ * de service en PIÈCE JOINTE (PDF personnalisé avec le Display ID).
+ * NON BLOQUANT : l'accès et l'essai sont déjà actifs — la signature
+ * est une invitation, jamais une condition d'accès.
+ */
+export function rendreBienvenueProprietaire(
+  nom: string,
+  displayId: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "Welcome to CizaImmo — your account is approved (your agreement is attached)",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Good news: your CizaImmo account has been approved. Your free trial " +
+        "starts today — sign in to create your first building and add your tenants.\n\n" +
+        `Your file number (Display ID): ${displayId}.\n\n` +
+        "Attached is your CizaImmo service agreement (PDF), already signed and stamped " +
+        "by Ciza Group. Please sign it at your convenience and upload the signed copy " +
+        "from the “My agreement” page in your CizaImmo space. Your access is already " +
+        "active: nothing is blocked while your signature is pending.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "Bienvenue sur CizaImmo — votre compte est approuvé (votre contrat est joint)",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Bonne nouvelle : votre compte CizaImmo est approuvé. Votre essai gratuit " +
+      "démarre aujourd'hui — connectez-vous pour créer votre premier immeuble et " +
+      "ajouter vos locataires.\n\n" +
+      `Votre numéro de dossier (Display ID) : ${displayId}.\n\n` +
+      "Vous trouverez en pièce jointe votre contrat de service CizaImmo (PDF), déjà " +
+      "signé et cacheté par Ciza Group. Signez-le à votre convenance, puis téléversez " +
+      "le contrat signé depuis la page « Mon contrat » de votre espace CizaImmo. Votre " +
+      "accès est déjà actif : rien n'est bloqué en attendant votre signature.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
+ * E-mail de VALIDATION du contrat propriétaire signé (option C) :
+ * un Admin a validé le contrat redéposé — simple confirmation, aucun
+ * déblocage (l'accès n'a jamais été bloqué).
+ */
+export function rendreValidationContratProprietaire(
+  nom: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your signed service agreement is validated",
+      corps:
+        `Hello ${nom},\n\n` +
+        "Your signed CizaImmo service agreement has been validated by our team. " +
+        "It is now on file in your account — thank you.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre contrat de service signé est validé",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Votre contrat de service CizaImmo signé a été validé par notre équipe. " +
+      "Il est maintenant versé à votre dossier — merci.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
+ * E-mail de REFUS du contrat propriétaire signé (option C) : un Admin
+ * a refusé le contrat redéposé, avec un motif — le propriétaire peut
+ * redéposer une copie corrigée depuis son espace. Son accès reste
+ * actif (contrat non bloquant).
+ */
+export function rendreRefusContratProprietaire(
+  nom: string,
+  motif: string,
+  langue: "fr" | "en"
+): { sujet: string; corps: string } {
+  if (langue === "en") {
+    return {
+      sujet: "CizaImmo — your signed agreement could not be validated",
+      corps:
+        `Hello ${nom},\n\n` +
+        "We could not validate the signed agreement you uploaded.\n" +
+        `Reason: ${motif}\n\n` +
+        "Please upload a corrected signed copy from the “My agreement” page in " +
+        "your CizaImmo space. Your access remains fully active in the meantime.\n\n" +
+        "The CizaImmo team — Ciza Group",
+    };
+  }
+  return {
+    sujet: "CizaImmo — votre contrat signé n'a pas pu être validé",
+    corps:
+      `Bonjour ${nom},\n\n` +
+      "Nous n'avons pas pu valider le contrat signé que vous avez téléversé.\n" +
+      `Motif : ${motif}\n\n` +
+      "Vous pouvez téléverser une copie signée corrigée depuis la page « Mon " +
+      "contrat » de votre espace CizaImmo. Votre accès reste entièrement actif " +
+      "en attendant.\n\n" +
+      "L'équipe CizaImmo — Ciza Group",
+  };
+}
+
+/**
  * E-mail d'ACTIVATION gestionnaire (v1.3) : le contrat signé a été
  * validé par un Admin — les fonctions gestionnaire sont débloquées.
  */

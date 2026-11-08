@@ -87,12 +87,15 @@ check("client : barre supérieure — cloche et avatar icônes (largeur fixe)",
 const dossier = lire("app/[locale]/console/comptes/[id]/page.tsx");
 check("dossier : grille des cartes en colonne unique explicite (minmax(0,1fr))",
   dossier.includes("grid grid-cols-1 gap-6 lg:grid-cols-2"));
-check("dossier : lignes libellé/valeur enroulables (flex-wrap, 11 lignes)",
-  occurrences(dossier, "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5") === 11);
-check("dossier : valeurs protégées (min-w-0 + break-words, 11 valeurs)",
-  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 11);
-check("dossier : libellés jamais compressés (shrink-0, 12 libellés)",
-  occurrences(dossier, '<dt className="shrink-0 font-semibold">') === 12);
+// Compteurs 11/11/12 à l'origine ; +2 lignes au même patron exact
+// depuis l'option C (2026-11-08) : « Contrat propriétaire » + son
+// motif de refus, dans la même carte Identité.
+check("dossier : lignes libellé/valeur enroulables (flex-wrap, 13 lignes)",
+  occurrences(dossier, "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5") === 13);
+check("dossier : valeurs protégées (min-w-0 + break-words, 13 valeurs)",
+  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 13);
+check("dossier : libellés jamais compressés (shrink-0, 14 libellés)",
+  occurrences(dossier, '<dt className="shrink-0 font-semibold">') === 14);
 check("dossier : documents — bloc nom réductible (flex-1, tronque réel)",
   occurrences(dossier, '<span className="min-w-0 flex-1 text-sm">') === 2);
 check("dossier : aucune ancienne ligne rigide libellé/valeur",

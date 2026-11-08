@@ -190,6 +190,8 @@
       "compte_supprime_definitivement": "Account permanently deleted",
       "compte_suspendu": "Account suspended",
       "contrat_valide": "Manager agreement validated",
+      "contrat_proprietaire_valide": "Owner agreement validated",
+      "contrat_proprietaire_refuse": "Owner agreement refused",
       "grille_reattribuee": "Grid reassigned",
       "parametres_modifies": "Finance parameters updated",
       "rattachement_cree": "Attachment created",
@@ -234,6 +236,23 @@
       "valide": "Validated"
     },
     "contractValidatedMsg": "Agreement validated — manager features unlocked.",
+    "ownerContractLabel": "Owner agreement",
+    "ownerContractMotifLabel": "Refusal reason:",
+    "ownerContractReasonLabel": "Refusal reason (required to refuse)",
+    "ownerContractReasonPlaceholder": "E.g. Illegible signature, missing page…",
+    "ownerContractRefusedMsg": "Owner agreement refused — the reason was sent to the owner.",
+    "ownerContractReviewText": "The owner uploaded their signed service agreement (see documents below). NON-BLOCKING agreement: their access stays active whatever the decision.",
+    "ownerContractReviewTitle": "Signed owner agreement awaiting review",
+    "ownerContractStatus": {
+      "a_signer": "To sign",
+      "refuse": "Refused — to correct",
+      "sans_objet": "Not applicable",
+      "signe_depose": "Signed — under review",
+      "valide": "Validated"
+    },
+    "ownerContractValidatedMsg": "Owner agreement validated.",
+    "refuseOwnerContract": "Refuse the agreement",
+    "validateOwnerContract": "Validate the agreement",
     "createAdminButton": "Create",
     "createAdminText": "In production, use the promotion above: an Auth account cannot be created from the console.",
     "createAdminTitle": "Create an Admin access (demo)",
@@ -265,6 +284,7 @@
       "ERR_PRIX_INVALIDE": "Invalid price: every price must be above 0.",
       "ERR_RATTACHEMENT_EXISTANT": "An active attachment already exists for this manager in this context.",
       "ERR_STATUT_INVALIDE": "State incompatible with this action.",
+      "ERR_MOTIF_REQUIS": "A reason is required to refuse the agreement.",
       "ERR_SUPER_ADMIN_REQUIS": "This action is restricted to the Super Admin.",
       "generic": "Something went wrong. Please try again.",
       "ERR_SUPPRESSION_DEJA_DEMANDEE": "A deletion request is already pending for this account.",
@@ -504,6 +524,35 @@
     "whatsappButton": "Open WhatsApp",
     "whatsappText": "Message us directly on WhatsApp: +1 514 502 9503.",
     "whatsappTitle": "Prefer WhatsApp?"
+  },
+  "contratProp": {
+    "downloadContract": "Download the agreement (PDF)",
+    "errorDuplicate": "A document with the same name is already in your file.",
+    "errorFormat": "Unsupported format: PDF, JPG or PNG only.",
+    "errorGeneric": "The upload failed — please try again.",
+    "errorTooBig": "File too large: 10 MB maximum.",
+    "explain": {
+      "a_signer": "Your account is approved and fully active. Your service agreement — already signed and stamped by Ciza Group — was attached to your welcome email; you can also download it here. Sign it, then upload the signed agreement below, at your convenience.",
+      "refuse": "Your signed agreement could not be validated (reason below). Please upload a corrected signed copy — your access remains fully active.",
+      "sans_objet": "Your service agreement will be generated as soon as your account is approved.",
+      "signe_depose": "Your signed agreement has been received. An administrator is reviewing it — you will receive a confirmation email. Your access remains fully active.",
+      "valide": "Your signed service agreement is validated and on file. Thank you!"
+    },
+    "nonBlockingNote": "Non-blocking agreement: your access and your trial do not depend on this signature.",
+    "refusalReason": "Refusal reason",
+    "sendSigned": "Send the signed agreement",
+    "sending": "Sending…",
+    "sentMsg": "Signed agreement sent — awaiting review by an administrator.",
+    "status": {
+      "a_signer": "To sign",
+      "refuse": "Refused — to correct",
+      "sans_objet": "Not applicable",
+      "signe_depose": "Signed — under review",
+      "valide": "Validated"
+    },
+    "title": "My service agreement",
+    "uploadSignedLabel": "Signed agreement (PDF or photo)",
+    "yourDisplayId": "Your Display ID"
   },
   "crud": {
     "apartments": {
