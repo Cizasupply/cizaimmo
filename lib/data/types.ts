@@ -1392,6 +1392,120 @@ export interface VerificationEmploye {
   valide: boolean;
 }
 
+/**
+ * FINANCES DE LA PLATEFORME (2026-11-08, décision VALIDÉE par le
+ * fondateur) : paie des employés émise DEPUIS le dossier employé
+ * (montant/devise/modalités copiés du contrat d'engagement en base)
+ * et dépenses de fonctionnement saisies par la plateforme, VALIDÉES
+ * par le Super Admin seul. Voir lib/finances-plateforme.ts,
+ * supabase/module-finances-plateforme.sql et
+ * docs/finances-paie-depenses-2026-11-08.md.
+ */
+export interface PaieEmploye {
+  id: string;
+  /** L'employé payé (compte plateforme). */
+  profil_id: string;
+  /** Mois de paie « AAAA-MM ». */
+  mois: string;
+  /** Montant copié du contrat d'engagement à l'émission. */
+  montant: number;
+  devise: string;
+  /** Modalités copiées du contrat (virement, mobile money…). */
+  modalites: string | null;
+  /** Référence libre de l'émission (optionnelle). */
+  reference: string | null;
+  statut: "emise";
+  /** Super Admin émetteur. */
+  emis_par: string;
+  emis_le: string;
+  created_at: string;
+  // --- Champs d'affichage (jointures faites par le fournisseur) -----
+  employe_nom?: string;
+  employe_email?: string;
+}
+
+/** Une dépense de fonctionnement de la plateforme (supervisée). */
+export interface DepensePlateforme {
+  id: string;
+  /** Date de la dépense (ISO « AAAA-MM-JJ »). */
+  date: string;
+  libelle: string;
+  categorie: import("../finances-plateforme").CategorieDepensePlateforme;
+  montant: number;
+  devise: string;
+  /** Chemin du justificatif dans le bucket privé (si joint). */
+  justificatif_path: string | null;
+  /** Lien signé temporaire vers le justificatif (lecture). */
+  justificatif_url?: string | null;
+  /** Membre plateforme auteur de la saisie. */
+  saisi_par: string;
+  saisi_par_nom?: string;
+  statut: import("../finances-plateforme").StatutDepensePlateforme;
+  motif_refus: string | null;
+  valide_par: string | null;
+  valide_le: string | null;
+  created_at: string;
+}
+
+/** Saisie d'une dépense (formulaire console Finances). */
+export interface DepensePlateformeInput {
+  date: string;
+  libelle: string;
+  categorie: import("../finances-plateforme").CategorieDepensePlateforme;
+  montant: number;
+  devise: string;
+  /** Justificatif joint (contenu data URL), optionnel. */
+  justificatif?: {
+    nom_fichier: string;
+    contenu: string;
+    mime_type?: string | null;
+    taille_octets?: number | null;
+  } | null;
+}
+
+/**
+ * Ligne du bloc « Paie » de la page Finances : un membre plateforme,
+ * son dossier (complétude calculée), son contrat d'engagement (champs
+ * employeur en base) et sa paie éventuelle du mois demandé.
+ */
+export interface LignePaieEmploye {
+  compte_id: string;
+  email: string;
+  nom: string;
+  display_id: string | null;
+  role: "admin" | "super_admin";
+  dossier_complet: boolean;
+  dossier_manquants: import("../dossier-employe").ElementDossierEmploye[];
+  /** Contrat d'engagement préparé en base (voie fixée). */
+  contrat_prepare: boolean;
+  contrat_montant: number | null;
+  contrat_devise: string | null;
+  contrat_modalites: string | null;
+  /** Paie déjà émise pour le mois demandé (null = pas encore). */
+  paie: PaieEmploye | null;
+  /** Blocages d'émission calculés (vide = émission possible). */
+  blocages: import("../finances-plateforme").BlocagePaie[];
+}
+
+/**
+ * Vue complète de la page console « Finances » pour un mois donné.
+ * Super Admin : toutes les lignes de paie, toutes les dépenses,
+ * l'historique global. Admin : sa seule ligne de paie, SES dépenses,
+ * SON historique — la validation lui est refusée partout.
+ */
+export interface VueFinancesPlateforme {
+  mois: string;
+  /** Rôle de l'acteur (pilote l'affichage des actions). */
+  acteur_role: "admin" | "super_admin";
+  lignes_paie: LignePaieEmploye[];
+  /** Dépenses du mois (filtrées par rôle, voir ci-dessus). */
+  depenses: DepensePlateforme[];
+  /** Historique des paies émises (tous mois, récentes d'abord). */
+  historique_paies: PaieEmploye[];
+  /** Totaux du mois PAR DEVISE (aucune conversion). */
+  totaux: import("../finances-plateforme").TotauxDevise[];
+}
+
 /** Champs texte modifiables du dossier employé (formulaire). */
 export interface DossierEmployePatch {
   telephone?: string | null;

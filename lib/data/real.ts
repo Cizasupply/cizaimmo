@@ -27,6 +27,8 @@ import type {
   Devise,
   Document,
   DocumentInput,
+  DepensePlateforme,
+  DepensePlateformeInput,
   ChecklistDossier,
   RevueImmeubleGestion,
   ChecklistDossierSaisie,
@@ -72,7 +74,9 @@ import type {
   LocatairePatch,
   MembreEquipe,
   PackEmploye,
+  PaieEmploye,
   VerificationEmploye,
+  VueFinancesPlateforme,
   MessageDirect,
   OperateurMobileMoney,
   Paiement,
@@ -123,6 +127,12 @@ import {
 } from "../pack-employe";
 import { piecesJointesAvecGuide } from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
+import {
+  blocagesPaie,
+  categorieDepenseValide,
+  moisValide,
+  totauxParDevise,
+} from "../finances-plateforme";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -4519,6 +4529,430 @@ export class RealProvider implements DataProvider {
         accesConsoleActif: acces,
       }),
     };
+  }
+
+  // ==========================================================================
+  // FINANCES DE LA PLATEFORME (2026-11-08, décision VALIDÉE par le
+  // fondateur) : paie des employés émise DEPUIS le dossier employé
+  // (montant/devise/modalités copiés du contrat d'engagement — les
+  // colonnes contrat_employe_* lues via lignePack) + dépenses de
+  // fonctionnement supervisées. Tables : module-finances-plateforme
+  // .sql (RLS : lecture plateforme, émission et validation Super
+  // Admin seul, saisie sous son propre identifiant). Transitions
+  // journalisées dans journal_audit.
+  // ==========================================================================
+
+  /** Noms/e-mails d'affichage par id de profil (jointure légère). */
+  private async nomsProfils(
+    ids: string[]
+  ): Promise<Map<string, { nom: string; email: string }>> {
+    const carte = new Map<string, { nom: string; email: string }>();
+    const uniques = Array.from(new Set(ids)).filter(Boolean);
+    if (uniques.length === 0) return carte;
+    const { data } = await this.client()
+      .from("profils")
+      .select("id,nom,email")
+      .in("id", uniques);
+    for (const ligne of (data ?? []) as { id: string; nom: string; email: string }[]) {
+      carte.set(ligne.id, { nom: ligne.nom, email: ligne.email });
+    }
+    return carte;
+  }
+
+  /** Ligne de paie brute -> type d'affichage (noms joints). */
+  private paieAvecNom(
+    ligne: Record<string, unknown>,
+    noms: Map<string, { nom: string; email: string }>
+  ): PaieEmploye {
+    const paie = ligne as unknown as PaieEmploye;
+    const identite = noms.get(paie.profil_id);
+    return {
+      ...paie,
+      montant: Number(paie.montant),
+      employe_nom: identite?.nom,
+      employe_email: identite?.email,
+    };
+  }
+
+  /** Ligne de dépense brute -> type d'affichage (nom + lien signé). */
+  private async depenseAvecDetails(
+    ligne: Record<string, unknown>,
+    noms: Map<string, { nom: string; email: string }>
+  ): Promise<DepensePlateforme> {
+    const depense = ligne as unknown as DepensePlateforme;
+    let justificatifUrl: string | null = null;
+    if (depense.justificatif_path) {
+      const signe = await this.client()
+        .storage.from("documents-prives")
+        .createSignedUrl(depense.justificatif_path, 3600);
+      justificatifUrl = signe.data?.signedUrl ?? null;
+    }
+    return {
+      ...depense,
+      montant: Number(depense.montant),
+      saisi_par_nom: noms.get(depense.saisi_par)?.nom,
+      justificatif_url: justificatifUrl,
+    };
+  }
+
+  async getVueFinancesPlateforme(
+    mois: string
+  ): Promise<VueFinancesPlateforme> {
+    const acteur = await this.acteurPlateforme();
+    if (!moisValide(mois)) throw err("ERR_MOIS_INVALIDE");
+    const client = this.client();
+    const estSuper = acteur.role === "super_admin";
+
+    // Membres plateforme concernés : tous (Super Admin) ou le seul
+    // acteur (Admin — sa ligne de paie, rien d'autre).
+    const { data: lignesProfils, error: errProfils } = await client
+      .from("profils")
+      .select(this.colonnesPack)
+      .in("role", ["admin", "super_admin"])
+      .order("created_at", { ascending: true });
+    if (errProfils) throw new Error(errProfils.message);
+    const toutes = (lignesProfils ?? []) as unknown as Record<string, unknown>[];
+    const lignesCibles = estSuper
+      ? toutes
+      : toutes.filter((l) => String(l.id) === acteur.id);
+
+    // Paies : historique (filtré par rôle) + repérage du mois.
+    let requetePaies = client
+      .from("paies_employes")
+      .select("*")
+      .order("emis_le", { ascending: false });
+    if (!estSuper) requetePaies = requetePaies.eq("profil_id", acteur.id);
+    const { data: lignesPaies, error: errPaies } = await requetePaies;
+    if (errPaies) throw new Error(errPaies.message);
+    const paiesBrutes = (lignesPaies ?? []) as unknown as Record<string, unknown>[];
+
+    // Dépenses du mois demandé (filtrées par rôle).
+    const [annee, numMois] = mois.split("-").map(Number);
+    const debut = `${mois}-01`;
+    const fin =
+      numMois === 12
+        ? `${annee + 1}-01-01`
+        : `${annee}-${String(numMois + 1).padStart(2, "0")}-01`;
+    let requeteDepenses = client
+      .from("depenses_plateforme")
+      .select("*")
+      .gte("date", debut)
+      .lt("date", fin)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (!estSuper) requeteDepenses = requeteDepenses.eq("saisi_par", acteur.id);
+    const { data: lignesDepenses, error: errDepenses } = await requeteDepenses;
+    if (errDepenses) throw new Error(errDepenses.message);
+    const depensesBrutes = (lignesDepenses ?? []) as unknown as Record<
+      string,
+      unknown
+    >[];
+
+    const noms = await this.nomsProfils([
+      ...paiesBrutes.map((p) => String(p.profil_id)),
+      ...depensesBrutes.map((d) => String(d.saisi_par)),
+    ]);
+    const historique = paiesBrutes.map((p) => this.paieAvecNom(p, noms));
+    const paieDuMois = new Map(
+      historique
+        .filter((p) => p.mois === mois)
+        .map((p) => [p.profil_id, p] as const)
+    );
+    const depenses = await Promise.all(
+      depensesBrutes.map((d) => this.depenseAvecDetails(d, noms))
+    );
+
+    const lignes = [];
+    for (const ligne of lignesCibles) {
+      const dossier = await this.construireDossierEmploye(ligne);
+      const params = this.parametresDepuisLigne(ligne);
+      const paie = paieDuMois.get(String(ligne.id)) ?? null;
+      lignes.push({
+        compte_id: String(ligne.id),
+        email: dossier.email,
+        nom: dossier.nom,
+        display_id:
+          typeof ligne.display_id === "string" ? ligne.display_id : null,
+        role: (ligne.role === "super_admin"
+          ? "super_admin"
+          : "admin") as "admin" | "super_admin",
+        dossier_complet: dossier.complet,
+        dossier_manquants: dossier.manquants,
+        contrat_prepare: !!params,
+        contrat_montant: params?.montant ?? null,
+        contrat_devise: params?.devise ?? null,
+        contrat_modalites: params?.modalites_paiement ?? null,
+        paie,
+        blocages: blocagesPaie({
+          dossierComplet: dossier.complet,
+          contratPrepare: !!params,
+          montant: params?.montant ?? null,
+          dejaEmise: !!paie,
+        }),
+      });
+    }
+
+    return {
+      mois,
+      acteur_role: acteur.role,
+      lignes_paie: lignes,
+      depenses,
+      historique_paies: historique,
+      totaux: totauxParDevise({
+        paies: historique.filter((p) => p.mois === mois),
+        depenses,
+      }),
+    };
+  }
+
+  async emettrePaieEmploye(
+    profilId: string,
+    mois: string,
+    reference?: string | null
+  ): Promise<PaieEmploye> {
+    const acteur = await this.acteurSuperAdmin();
+    if (!moisValide(mois)) throw err("ERR_MOIS_INVALIDE");
+    const ligne = await this.lignePack(profilId);
+    const dossier = await this.construireDossierEmploye(ligne);
+    if (!dossier.complet) throw err("ERR_DOSSIER_INCOMPLET");
+    const params = this.parametresDepuisLigne(ligne);
+    if (!params || params.montant === null || !(params.montant > 0)) {
+      throw err("ERR_PAIE_SANS_CONTRAT");
+    }
+    const client = this.client();
+    const { data: existante } = await client
+      .from("paies_employes")
+      .select("id")
+      .eq("profil_id", profilId)
+      .eq("mois", mois)
+      .eq("statut", "emise")
+      .limit(1);
+    if (existante && existante.length > 0) throw err("ERR_PAIE_DEJA_EMISE");
+    const { data, error } = await client
+      .from("paies_employes")
+      .insert({
+        profil_id: profilId,
+        mois,
+        montant: params.montant,
+        devise: params.devise,
+        modalites: params.modalites_paiement || null,
+        reference: (reference ?? "").trim() || null,
+        statut: "emise",
+        emis_par: acteur.id,
+      })
+      .select()
+      .single();
+    if (error) {
+      // Course contre l'index unique (profil_id, mois) partiel.
+      if ((error as { code?: string }).code === "23505") {
+        throw err("ERR_PAIE_DEJA_EMISE");
+      }
+      throw new Error(error.message);
+    }
+    await this.journaliserAudit(
+      acteur,
+      "paie_emise",
+      "compte",
+      profilId,
+      dossier.email,
+      {
+        display_id:
+          typeof ligne.display_id === "string" ? ligne.display_id : null,
+        mois,
+        montant: params.montant,
+        devise: params.devise,
+      }
+    );
+    const noms = await this.nomsProfils([profilId]);
+    return this.paieAvecNom(data as Record<string, unknown>, noms);
+  }
+
+  async saisirDepensePlateforme(
+    input: DepensePlateformeInput
+  ): Promise<DepensePlateforme> {
+    const acteur = await this.acteurPlateforme();
+    const libelle = (input?.libelle ?? "").trim();
+    const devise = (input?.devise ?? "").trim();
+    const montant = Number(input?.montant);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(input?.date ?? "") ||
+      !libelle ||
+      !categorieDepenseValide(input?.categorie) ||
+      !Number.isFinite(montant) ||
+      montant <= 0 ||
+      !devise
+    ) {
+      throw err("ERR_DEPENSE_INVALIDE");
+    }
+    const client = this.client();
+    let justificatifPath: string | null = null;
+    if (input.justificatif) {
+      const nom = input.justificatif.nom_fichier.trim();
+      const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+      if (!["pdf", "jpg", "jpeg", "png"].includes(extension)) {
+        throw err("ERR_DOCUMENT_FORMAT");
+      }
+      if (
+        input.justificatif.taille_octets !== undefined &&
+        input.justificatif.taille_octets !== null &&
+        input.justificatif.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+      ) {
+        throw err("ERR_DOCUMENT_TROP_GROS");
+      }
+      if (!input.justificatif.contenu) throw err("ERR_DOCUMENT_FORMAT");
+      justificatifPath = `${acteur.id}/depenses-plateforme/${Date.now()}-${nom}`;
+      const blob = await (await fetch(input.justificatif.contenu)).blob();
+      const { error: uploadError } = await client.storage
+        .from("documents-prives")
+        .upload(justificatifPath, blob, {
+          contentType: input.justificatif.mime_type ?? blob.type,
+          upsert: false,
+        });
+      if (uploadError) {
+        if (/bucket not found/i.test(uploadError.message)) {
+          throw err("ERR_BUCKET_MANQUANT");
+        }
+        throw new Error(uploadError.message);
+      }
+    }
+    const { data, error } = await client
+      .from("depenses_plateforme")
+      .insert({
+        date: input.date,
+        libelle,
+        categorie: input.categorie,
+        montant,
+        devise,
+        justificatif_path: justificatifPath,
+        saisi_par: acteur.id,
+        statut: "en_attente",
+      })
+      .select()
+      .single();
+    if (error) {
+      if (justificatifPath) {
+        await client.storage.from("documents-prives").remove([justificatifPath]);
+      }
+      throw new Error(error.message);
+    }
+    await this.journaliserAudit(
+      acteur,
+      "depense_plateforme_saisie",
+      "plateforme",
+      (data as DepensePlateforme).id,
+      null,
+      { libelle, categorie: input.categorie, montant, devise }
+    );
+    const noms = await this.nomsProfils([acteur.id]);
+    return this.depenseAvecDetails(data as Record<string, unknown>, noms);
+  }
+
+  async validerDepensePlateforme(
+    depenseId: string
+  ): Promise<DepensePlateforme> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data: existante, error: errLecture } = await client
+      .from("depenses_plateforme")
+      .select("*")
+      .eq("id", depenseId)
+      .maybeSingle();
+    if (errLecture) throw new Error(errLecture.message);
+    if (!existante) throw err("ERR_INTROUVABLE");
+    if ((existante as DepensePlateforme).statut !== "en_attente") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const { data, error } = await client
+      .from("depenses_plateforme")
+      .update({
+        statut: "validee",
+        motif_refus: null,
+        valide_par: acteur.id,
+        valide_le: new Date().toISOString(),
+      })
+      .eq("id", depenseId)
+      .eq("statut", "en_attente")
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const depense = data as DepensePlateforme;
+    await this.journaliserAudit(
+      acteur,
+      "depense_plateforme_validee",
+      "plateforme",
+      depense.id,
+      null,
+      {
+        libelle: depense.libelle,
+        montant: Number(depense.montant),
+        devise: depense.devise,
+      }
+    );
+    const noms = await this.nomsProfils([depense.saisi_par]);
+    return this.depenseAvecDetails(data as Record<string, unknown>, noms);
+  }
+
+  async refuserDepensePlateforme(
+    depenseId: string,
+    motif: string
+  ): Promise<DepensePlateforme> {
+    const acteur = await this.acteurSuperAdmin();
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const client = this.client();
+    const { data: existante, error: errLecture } = await client
+      .from("depenses_plateforme")
+      .select("*")
+      .eq("id", depenseId)
+      .maybeSingle();
+    if (errLecture) throw new Error(errLecture.message);
+    if (!existante) throw err("ERR_INTROUVABLE");
+    if ((existante as DepensePlateforme).statut !== "en_attente") {
+      throw err("ERR_STATUT_INVALIDE");
+    }
+    const { data, error } = await client
+      .from("depenses_plateforme")
+      .update({
+        statut: "refusee",
+        motif_refus: motifNet,
+        valide_par: acteur.id,
+        valide_le: new Date().toISOString(),
+      })
+      .eq("id", depenseId)
+      .eq("statut", "en_attente")
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const depense = data as DepensePlateforme;
+    await this.journaliserAudit(
+      acteur,
+      "depense_plateforme_refusee",
+      "plateforme",
+      depense.id,
+      null,
+      {
+        libelle: depense.libelle,
+        montant: Number(depense.montant),
+        devise: depense.devise,
+        motif: motifNet,
+      }
+    );
+    const noms = await this.nomsProfils([depense.saisi_par]);
+    return this.depenseAvecDetails(data as Record<string, unknown>, noms);
+  }
+
+  async listerMesPaies(): Promise<PaieEmploye[]> {
+    const acteur = await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("paies_employes")
+      .select("*")
+      .eq("profil_id", acteur.id)
+      .order("emis_le", { ascending: false });
+    if (error) throw new Error(error.message);
+    const noms = await this.nomsProfils([acteur.id]);
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map((p) =>
+      this.paieAvecNom(p, noms)
+    );
   }
 
   async listerDossier(compteId: string): Promise<DossierCompte> {

@@ -22,6 +22,8 @@ import type {
   Depense,
   DepenseInput,
   DepensePatch,
+  DepensePlateforme,
+  DepensePlateformeInput,
   Document,
   DocumentInput,
   DossierCompte,
@@ -55,6 +57,7 @@ import type {
   MotifRefus,
   OperateurMobileMoney,
   PackEmploye,
+  PaieEmploye,
   Paiement,
   PaiementMobileMoney,
   ParametresFinance,
@@ -77,6 +80,7 @@ import type {
   TypeAlerte,
   Devise,
   VerificationEmploye,
+  VueFinancesPlateforme,
 } from "./types";
 import type { ParametresContratEmploye } from "../pack-employe";
 
@@ -741,6 +745,70 @@ export interface DataProvider {
    * Retourne null si aucun compte plateforme ne porte ce Display ID.
    */
   verifierEmploye(displayId: string): Promise<VerificationEmploye | null>;
+
+  // ==========================================================================
+  // FINANCES DE LA PLATEFORME (2026-11-08, décision VALIDÉE par le
+  // fondateur) : paie des employés émise DEPUIS le dossier employé +
+  // dépenses de fonctionnement SUPERVISÉES. Voir
+  // docs/finances-paie-depenses-2026-11-08.md,
+  // supabase/module-finances-plateforme.sql et
+  // lib/finances-plateforme.ts. Nouveaux codes d'erreur :
+  //  ERR_DOSSIER_INCOMPLET — paie refusée, dossier employé incomplet.
+  //  ERR_PAIE_SANS_CONTRAT — aucun contrat préparé / sans montant.
+  //  ERR_PAIE_DEJA_EMISE — une paie existe déjà pour ce mois.
+  //  ERR_DEPENSE_INVALIDE — saisie de dépense incomplète/invalide.
+  // ==========================================================================
+
+  /**
+   * Vue Finances d'un mois (« AAAA-MM ») : lignes de paie des membres
+   * plateforme, dépenses du mois, historique des paies et totaux par
+   * devise. Super Admin : tout. Admin : SA ligne, SES dépenses, SON
+   * historique (la validation lui est refusée partout).
+   */
+  getVueFinancesPlateforme(mois: string): Promise<VueFinancesPlateforme>;
+  /**
+   * SUPER ADMIN : émet la paie d'un employé pour un mois — montant,
+   * devise et modalités COPIÉS de son contrat d'engagement en base.
+   * Refusée si le dossier employé est incomplet
+   * (ERR_DOSSIER_INCOMPLET), si aucun contrat avec montant n'est
+   * préparé (ERR_PAIE_SANS_CONTRAT) ou si une paie existe déjà pour
+   * ce mois (ERR_PAIE_DEJA_EMISE, doublé par la contrainte base).
+   * Journalisé.
+   */
+  emettrePaieEmploye(
+    profilId: string,
+    mois: string,
+    reference?: string | null
+  ): Promise<PaieEmploye>;
+  /**
+   * PLATEFORME (Admin ou Super Admin) : saisit une dépense de
+   * fonctionnement — statut « en_attente », justificatif optionnel
+   * dans le bucket privé. Journalisé.
+   */
+  saisirDepensePlateforme(
+    input: DepensePlateformeInput
+  ): Promise<DepensePlateforme>;
+  /**
+   * SUPER ADMIN : valide une dépense en attente -> « validee ».
+   * Un Admin est refusé même pour ses propres dépenses
+   * (ERR_SUPER_ADMIN_REQUIS ; la RLS réserve aussi la mise à jour au
+   * Super Admin en réel). Journalisé.
+   */
+  validerDepensePlateforme(depenseId: string): Promise<DepensePlateforme>;
+  /**
+   * SUPER ADMIN : refuse une dépense en attente -> « refusee »,
+   * motif OBLIGATOIRE (ERR_MOTIF_REQUIS). Journalisé.
+   */
+  refuserDepensePlateforme(
+    depenseId: string,
+    motif: string
+  ): Promise<DepensePlateforme>;
+  /**
+   * Les paies émises du compte plateforme CONNECTÉ (section « Ma
+   * paie » de son dossier employé) — lecture seule, ses données
+   * uniquement. Un client : ERR_ACCES_PLATEFORME.
+   */
+  listerMesPaies(): Promise<PaieEmploye[]>;
   /**
    * Recherche publique minimale par Display ID (propriétaire) : retourne
    * UNIQUEMENT le nom + le Display ID du compte gestionnaire trouvé —

@@ -57,6 +57,11 @@ const LIENS = [
   { key: "suppressions", href: "/console/suppressions", superSeul: true },
   { key: "admins", href: "/console/admins", superSeul: true },
   { key: "finances", href: "/console/finances", superSeul: true },
+  // Finances de la plateforme (2026-11-08) : paie + dépenses
+  // supervisées — visible par les DEUX rôles (l'Admin y saisit ses
+  // dépenses et voit sa paie ; l'émission et la validation restent
+  // réservées au Super Admin, gardées par le fournisseur).
+  { key: "platformFinances", href: "/console/finances-plateforme" },
 ] as const;
 
 type CleLien = (typeof LIENS)[number]["key"];
@@ -65,13 +70,15 @@ type CleLien = (typeof LIENS)[number]["key"];
  * Regroupement visuel sobre de la barre latérale et du panneau
  * mobile (même patron que l'espace client) : mêmes routes et mêmes
  * libellés, aucune entrée supprimée. Le groupe « Plateforme » est
- * réservé au Super Admin (ses trois entrées sont superSeul) ; un
- * groupe sans entrée visible n'est pas rendu.
+ * réservé au Super Admin (suppressions, admins, paramètres finances
+ * sont superSeul), SAUF « Paie & Dépenses » (finances de la
+ * plateforme, 2026-11-08) visible aussi par l'Admin ; un groupe sans
+ * entrée visible n'est pas rendu.
  */
 const GROUPES: { cle: "groupManagement" | "groupSupervision" | "groupPlatform"; cles: CleLien[] }[] = [
   { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles", "myEmployeeFile", "verifyEmployee"] },
   { cle: "groupSupervision", cles: ["messages", "supervisedMessages", "vitrine", "journal"] },
-  { cle: "groupPlatform", cles: ["suppressions", "admins", "finances"] },
+  { cle: "groupPlatform", cles: ["suppressions", "admins", "finances", "platformFinances"] },
 ];
 
 /**

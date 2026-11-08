@@ -24,6 +24,8 @@ import type {
   Depense,
   DepenseInput,
   DepensePatch,
+  DepensePlateforme,
+  DepensePlateformeInput,
   Devise,
   Document,
   DocumentInput,
@@ -54,7 +56,9 @@ import type {
   LocatairePatch,
   MembreEquipe,
   PackEmploye,
+  PaieEmploye,
   VerificationEmploye,
+  VueFinancesPlateforme,
   MessageDirect,
   ModeleAvis,
   MotifRefus,
@@ -159,6 +163,12 @@ import {
 } from "../pack-employe";
 import { piecesJointesAvecGuide } from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
+import {
+  blocagesPaie,
+  categorieDepenseValide,
+  moisValide,
+  totauxParDevise,
+} from "../finances-plateforme";
 import {
   construirePrixPlans,
   estEnRetardPaiement,
@@ -5559,6 +5569,278 @@ export class DemoProvider implements DataProvider {
         accesConsoleActif: membre.acces,
       }),
     };
+  }
+
+  // ==========================================================================
+  // FINANCES DE LA PLATEFORME (2026-11-08, décision VALIDÉE par le
+  // fondateur) — miroir démo du réel : les paies émises vivent dans
+  // db.plateforme.paiesEmployes, les dépenses supervisées dans
+  // db.plateforme.depensesPlateforme (initialisation paresseuse,
+  // anciennes sauvegardes). Mêmes gardes que le réel : émission
+  // Super Admin sur dossier COMPLET et contrat avec montant,
+  // unicité employé + mois, validation des dépenses Super Admin
+  // seul (celui qui saisit ne valide pas).
+  // ==========================================================================
+
+  /** Registre des paies (initialisation paresseuse). */
+  private paiesDe(db: DemoDb): PaieEmploye[] {
+    if (!db.plateforme.paiesEmployes) db.plateforme.paiesEmployes = [];
+    return db.plateforme.paiesEmployes;
+  }
+
+  /** Registre des dépenses plateforme (initialisation paresseuse). */
+  private depensesPlateformeDe(db: DemoDb): DepensePlateforme[] {
+    if (!db.plateforme.depensesPlateforme) db.plateforme.depensesPlateforme = [];
+    return db.plateforme.depensesPlateforme;
+  }
+
+  /** Dépense enrichie du nom de son auteur (affichage). */
+  private depenseAvecNom(db: DemoDb, dep: DepensePlateforme): DepensePlateforme {
+    const auteur = this.resoudreMembre(db, dep.saisi_par);
+    return { ...dep, saisi_par_nom: auteur?.nom ?? dep.saisi_par_nom };
+  }
+
+  async getVueFinancesPlateforme(mois: string): Promise<VueFinancesPlateforme> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    if (!moisValide(mois)) throw err("ERR_MOIS_INVALIDE");
+    const estSuper = acteur.role === "super_admin";
+    const membres = await this.listerEquipeAdmins();
+    const lignes = membres
+      .filter((m) => estSuper || m.id === acteur.id)
+      .map((m) => {
+        const stocke = this.packStockeDe(db, m.id);
+        const params = stocke.parametres;
+        const paie =
+          this.paiesDe(db).find(
+            (p) => p.profil_id === m.id && p.mois === mois && p.statut === "emise"
+          ) ?? null;
+        const resolu = this.resoudreMembre(db, m.id);
+        return {
+          compte_id: m.id,
+          email: m.email,
+          nom: m.nom,
+          display_id: resolu?.display_id ?? null,
+          role: m.role,
+          dossier_complet: m.dossier_employe_complet,
+          dossier_manquants: m.dossier_employe_manquants,
+          contrat_prepare: !!params,
+          contrat_montant: params?.montant ?? null,
+          contrat_devise: params?.devise ?? null,
+          contrat_modalites: params?.modalites_paiement ?? null,
+          paie: paie
+            ? { ...paie, employe_nom: m.nom, employe_email: m.email }
+            : null,
+          blocages: blocagesPaie({
+            dossierComplet: m.dossier_employe_complet,
+            contratPrepare: !!params,
+            montant: params?.montant ?? null,
+            dejaEmise: !!paie,
+          }),
+        };
+      });
+    const depenses = this.depensesPlateformeDe(db)
+      .filter((d) => d.date.startsWith(mois))
+      .filter((d) => estSuper || d.saisi_par === acteur.id)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((d) => this.depenseAvecNom(db, d));
+    const historique = this.paiesDe(db)
+      .filter((p) => estSuper || p.profil_id === acteur.id)
+      .sort((a, b) => b.emis_le.localeCompare(a.emis_le))
+      .map((p) => {
+        const membre = this.resoudreMembre(db, p.profil_id);
+        return {
+          ...p,
+          employe_nom: membre?.nom ?? p.employe_nom,
+          employe_email: membre?.email ?? p.employe_email,
+        };
+      });
+    const paiesMois = historique.filter((p) => p.mois === mois);
+    return {
+      mois,
+      acteur_role: acteur.role,
+      lignes_paie: lignes,
+      depenses,
+      historique_paies: historique,
+      totaux: totauxParDevise({ paies: paiesMois, depenses }),
+    };
+  }
+
+  async emettrePaieEmploye(
+    profilId: string,
+    mois: string,
+    reference?: string | null
+  ): Promise<PaieEmploye> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    if (!moisValide(mois)) throw err("ERR_MOIS_INVALIDE");
+    // Le pack construit lève ERR_INTROUVABLE si le membre n'existe pas.
+    const pack = this.construirePackEmployeDemo(db, profilId);
+    if (!pack.dossier.complet) throw err("ERR_DOSSIER_INCOMPLET");
+    const params = pack.contrat_parametres;
+    if (!params || params.montant === null || !(params.montant > 0)) {
+      throw err("ERR_PAIE_SANS_CONTRAT");
+    }
+    if (
+      this.paiesDe(db).some(
+        (p) => p.profil_id === profilId && p.mois === mois && p.statut === "emise"
+      )
+    ) {
+      throw err("ERR_PAIE_DEJA_EMISE");
+    }
+    const membre = this.resoudreMembre(db, profilId);
+    if (!membre) throw err("ERR_INTROUVABLE");
+    const maintenant = new Date().toISOString();
+    const paie: PaieEmploye = {
+      id: uid(),
+      profil_id: profilId,
+      mois,
+      montant: params.montant,
+      devise: params.devise,
+      modalites: params.modalites_paiement || null,
+      reference: (reference ?? "").trim() || null,
+      statut: "emise",
+      emis_par: acteur.id,
+      emis_le: maintenant,
+      created_at: maintenant,
+      employe_nom: membre.nom,
+      employe_email: membre.email,
+    };
+    this.paiesDe(db).push(paie);
+    this.journaliserAudit(db, acteur, "paie_emise", "compte", profilId, membre.email, {
+      display_id: membre.display_id,
+      mois,
+      montant: params.montant,
+      devise: params.devise,
+    });
+    saveDb(db);
+    return paie;
+  }
+
+  async saisirDepensePlateforme(
+    input: DepensePlateformeInput
+  ): Promise<DepensePlateforme> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const libelle = (input?.libelle ?? "").trim();
+    const devise = (input?.devise ?? "").trim();
+    const montant = Number(input?.montant);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(input?.date ?? "") ||
+      !libelle ||
+      !categorieDepenseValide(input?.categorie) ||
+      !Number.isFinite(montant) ||
+      montant <= 0 ||
+      !devise
+    ) {
+      throw err("ERR_DEPENSE_INVALIDE");
+    }
+    let justificatifPath: string | null = null;
+    if (input.justificatif) {
+      const nom = input.justificatif.nom_fichier.trim();
+      const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+      if (!["pdf", "jpg", "jpeg", "png"].includes(extension)) {
+        throw err("ERR_DOCUMENT_FORMAT");
+      }
+      if (
+        input.justificatif.taille_octets !== undefined &&
+        input.justificatif.taille_octets !== null &&
+        input.justificatif.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+      ) {
+        throw err("ERR_DOCUMENT_TROP_GROS");
+      }
+      justificatifPath = `demo:justificatif-${uid()}`;
+    }
+    const maintenant = new Date().toISOString();
+    const depense: DepensePlateforme = {
+      id: uid(),
+      date: input.date,
+      libelle,
+      categorie: input.categorie,
+      montant,
+      devise,
+      justificatif_path: justificatifPath,
+      justificatif_url: null,
+      saisi_par: acteur.id,
+      saisi_par_nom: acteur.nom,
+      statut: "en_attente",
+      motif_refus: null,
+      valide_par: null,
+      valide_le: null,
+      created_at: maintenant,
+    };
+    this.depensesPlateformeDe(db).push(depense);
+    this.journaliserAudit(db, acteur, "depense_plateforme_saisie", "plateforme", depense.id, null, {
+      libelle,
+      categorie: input.categorie,
+      montant,
+      devise,
+    });
+    saveDb(db);
+    return depense;
+  }
+
+  async validerDepensePlateforme(
+    depenseId: string
+  ): Promise<DepensePlateforme> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const depense = this.depensesPlateformeDe(db).find((d) => d.id === depenseId);
+    if (!depense) throw err("ERR_INTROUVABLE");
+    if (depense.statut !== "en_attente") throw err("ERR_STATUT_INVALIDE");
+    depense.statut = "validee";
+    depense.motif_refus = null;
+    depense.valide_par = acteur.id;
+    depense.valide_le = new Date().toISOString();
+    this.journaliserAudit(db, acteur, "depense_plateforme_validee", "plateforme", depense.id, null, {
+      libelle: depense.libelle,
+      montant: depense.montant,
+      devise: depense.devise,
+    });
+    saveDb(db);
+    return this.depenseAvecNom(db, depense);
+  }
+
+  async refuserDepensePlateforme(
+    depenseId: string,
+    motif: string
+  ): Promise<DepensePlateforme> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const motifNet = (motif ?? "").trim();
+    if (!motifNet) throw err("ERR_MOTIF_REQUIS");
+    const depense = this.depensesPlateformeDe(db).find((d) => d.id === depenseId);
+    if (!depense) throw err("ERR_INTROUVABLE");
+    if (depense.statut !== "en_attente") throw err("ERR_STATUT_INVALIDE");
+    depense.statut = "refusee";
+    depense.motif_refus = motifNet;
+    depense.valide_par = acteur.id;
+    depense.valide_le = new Date().toISOString();
+    this.journaliserAudit(db, acteur, "depense_plateforme_refusee", "plateforme", depense.id, null, {
+      libelle: depense.libelle,
+      montant: depense.montant,
+      devise: depense.devise,
+      motif: motifNet,
+    });
+    saveDb(db);
+    return this.depenseAvecNom(db, depense);
+  }
+
+  async listerMesPaies(): Promise<PaieEmploye[]> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const id = this.idMoiEmploye(db);
+    if (!id) throw err("ERR_ACCES_PLATEFORME");
+    const membre = this.resoudreMembre(db, id);
+    return this.paiesDe(db)
+      .filter((p) => p.profil_id === id)
+      .sort((a, b) => b.emis_le.localeCompare(a.emis_le))
+      .map((p) => ({
+        ...p,
+        employe_nom: membre?.nom ?? p.employe_nom,
+        employe_email: membre?.email ?? p.employe_email,
+      }));
   }
 
   async listerDossier(compteId: string): Promise<DossierCompte> {

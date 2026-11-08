@@ -14,12 +14,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { DossierEmploye, PackEmploye } from "@/lib/data";
+import type { DossierEmploye, PackEmploye, PaieEmploye } from "@/lib/data";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 
 function fichierVersDataUrl(fichier: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,9 +39,11 @@ const BOUTON_OR =
 export default function MonDossierEmployePage() {
   const t = useTranslations("dossierEmploye");
   const tp = useTranslations("packEmploye");
+  const tf = useTranslations("financesPlateforme");
   const locale = useLocale();
   const [dossier, setDossier] = useState<DossierEmploye | null>(null);
   const [pack, setPack] = useState<PackEmploye | null>(null);
+  const [paies, setPaies] = useState<PaieEmploye[]>([]);
   const [fichierContrat, setFichierContrat] = useState<File | null>(null);
   const [occupePack, setOccupePack] = useState(false);
   const [chargement, setChargement] = useState(true);
@@ -67,6 +69,11 @@ export default function MonDossierEmployePage() {
       getDataProvider()
         .getMonPackEmploye()
         .then(setPack)
+        .catch(() => undefined);
+      // Finances de la plateforme : MES paies émises (lecture seule).
+      getDataProvider()
+        .listerMesPaies()
+        .then(setPaies)
         .catch(() => undefined);
       setForm({
         telephone: d.telephone ?? "",
@@ -581,6 +588,37 @@ export default function MonDossierEmployePage() {
               </section>
             </>
           ) : null}
+
+          {/* Ma paie : paies émises par la plateforme (lecture seule,
+              mes données uniquement — finances de la plateforme). */}
+          <section className={CARTE}>
+            <h2 className="text-base font-bold text-navy">{tf("myPayTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-600">{tf("myPayIntro")}</p>
+            {paies.length > 0 ? (
+              <ul className="mt-3 divide-y divide-slate-100">
+                {paies.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                  >
+                    <span>
+                      <span className="font-semibold text-navy">{p.mois}</span>{" "}
+                      <span className="text-slate-500">
+                        · {tf("colIssuedOn")} {formatDate(p.emis_le, locale)}
+                        {p.reference ? ` · ${p.reference}` : ""}
+                        {p.modalites ? ` · ${p.modalites}` : ""}
+                      </span>
+                    </span>
+                    <span className="font-bold text-navy">
+                      {formatMoney(p.montant, p.devise, locale)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-slate-600">{tf("myPayEmpty")}</p>
+            )}
+          </section>
         </>
       ) : null}
     </div>

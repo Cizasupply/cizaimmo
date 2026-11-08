@@ -27,6 +27,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   lib/code128.ts \
   lib/pack-employe.ts \
   lib/contrat-employe.ts \
+  lib/finances-plateforme.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -506,6 +507,25 @@ if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" &
   echo "Pack employé : OK"
 else
   echo "Pack employé : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Finances de la plateforme (2026-11-08, décision VALIDÉE par le
+# fondateur) : paie émise DEPUIS le dossier employé (montant /
+# devise / modalités copiés du contrat d'engagement en base ;
+# dossier incomplet = émission impossible, manquants listés ;
+# unicité par employé et par mois) + dépenses de fonctionnement
+# saisies par l'Admin et VALIDÉES par le Super Admin seul (celui
+# qui saisit ne valide pas, même les siennes) ; totaux du mois PAR
+# DEVISE ; l'employé ne voit que sa paie ; journalisation complète.
+# Module SQL : supabase/module-finances-plateforme.sql (NON
+# appliqué — à appliquer au live après le push).
+echo ""
+echo "===== Finances plateforme (Paie + Dépenses supervisées) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-finances-plateforme.cjs"; then
+  echo "Finances plateforme : OK"
+else
+  echo "Finances plateforme : ÉCHEC" >&2
   ECHEC=1
 fi
 

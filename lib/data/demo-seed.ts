@@ -158,6 +158,17 @@ export interface PlateformeDemo {
    * « sans_objet ») : la rétroactivité est donc naturelle.
    */
   packsEmployes: Record<string, PackEmployeStocke>;
+  /**
+   * Finances de la plateforme (2026-11-08) : paies émises aux
+   * employés — miroir de la table réelle paies_employes. Vide au
+   * départ : aucune paie n'est inventée.
+   */
+  paiesEmployes: import("./types").PaieEmploye[];
+  /**
+   * Finances de la plateforme (2026-11-08) : dépenses de
+   * fonctionnement supervisées — miroir de depenses_plateforme.
+   */
+  depensesPlateforme: import("./types").DepensePlateforme[];
 }
 
 /**
@@ -780,6 +791,11 @@ export function buildDemoDb(): DemoDb {
     // membre démarre « sans_objet » / charte en attente (défaut lu
     // par le fournisseur), rétroactivité incluse.
     packsEmployes: {},
+    // Finances de la plateforme (2026-11-08) : aucune paie ni
+    // dépense pré-remplie — les registres naissent vides, comme les
+    // tables réelles du module SQL.
+    paiesEmployes: [],
+    depensesPlateforme: [],
     // v1.3 : demandes de rattachement par Display ID. Marc Dubois
     // (CIM-000002, contrat « valide ») est le gestionnaire démo ; son
     // identifiant de compte = celui de son invitation.

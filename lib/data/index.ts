@@ -125,9 +125,28 @@ export type {
   // Pack employé (2026-11-08) : contrat à deux voies, charte, carte.
   PackEmploye,
   VerificationEmploye,
+  // Finances de la plateforme (2026-11-08) : paie + dépenses.
+  DepensePlateforme,
+  DepensePlateformeInput,
+  LignePaieEmploye,
+  PaieEmploye,
+  VueFinancesPlateforme,
 } from "./types";
 export type { ElementDossierEmploye } from "../dossier-employe";
 export { evaluerDossierEmploye } from "../dossier-employe";
+export type {
+  BlocagePaie,
+  CategorieDepensePlateforme,
+  StatutDepensePlateforme,
+  TotauxDevise,
+} from "../finances-plateforme";
+export {
+  CATEGORIES_DEPENSE_PLATEFORME,
+  blocagesPaie,
+  moisCourant,
+  moisValide,
+  totauxParDevise,
+} from "../finances-plateforme";
 export type {
   BlocageCarte,
   EtapePack,

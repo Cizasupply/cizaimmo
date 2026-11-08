@@ -41,6 +41,8 @@ const ICONES: Record<string, string[]> = {
   suppressions: ["M4 7h16", "M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2", "M6.5 7l.8 12.2A1 1 0 0 0 8.3 20h7.4a1 1 0 0 0 1-.8L17.5 7", "M10 11v6", "M14 11v6"],
   admins: ["M12 3l7 2.5V11c0 4.6-3 7.7-7 9.5-4-1.8-7-4.9-7-9.5V5.5z", "m9.2 11.8 2 2 3.8-4"],
   finances: ["M3 7h18v10H3z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"],
+  // Paie & Dépenses (finances de la plateforme) : grand livre / relevé.
+  platformFinances: ["M6 2.5h12V21l-2-1.3L14 21l-2-1.3L10 21l-2-1.3L6 21z", "M9 7.5h6", "M9 11h6", "M9 14.5h4"],
 };
 
 export default function IconeNav({ nom, className = "h-5 w-5" }: { nom: string; className?: string }) {
