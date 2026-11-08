@@ -474,6 +474,41 @@ async function principal() {
   } catch (e) { erreurInconnu = e; }
   check("talon : paie inexistante refusée proprement", erreurInconnu?.message === "ERR_TALON_INTROUVABLE");
 
+  // --- PÉRIMÈTRE DES DÉPENSES (fondateur, 2026-11-08) : un Admin ne
+  // reçoit QUE ses propres dépenses (liste ET totaux) ; le Super
+  // Admin voit tout. La session est DÉJÀ celle de l'Admin (section
+  // talon ci-dessus). Les 2 dépenses semées sont du Super Admin.
+  const vueAdminPerim = await provider.getVueFinancesPlateforme("2026-12");
+  check("périmètre réel : vue Admin — AUCUNE dépense d'un autre auteur",
+    vueAdminPerim.depenses.length === 0,
+    JSON.stringify(vueAdminPerim.depenses.map((d) => d.libelle)));
+  const totAdminPerim = vueAdminPerim.totaux.find((t) => t.devise === "USD");
+  check("périmètre réel : totaux Admin sans les dépenses du Super",
+    !totAdminPerim ||
+      (totAdminPerim.depenses_validees === 0 && totAdminPerim.depenses_en_attente === 0),
+    JSON.stringify(vueAdminPerim.totaux));
+  const depAdmin = await provider.saisirDepensePlateforme({
+    date: "2026-12-10", libelle: "Déplacement de l'Admin", categorie: "deplacements",
+    montant: 30, devise: "USD", justificatif: null,
+  });
+  check("périmètre réel : saisie Admin enregistrée à son nom, en attente",
+    depAdmin.saisi_par === ADMIN_ID && depAdmin.statut === "en_attente");
+  const vueAdminPerim2 = await provider.getVueFinancesPlateforme("2026-12");
+  check("périmètre réel : vue Admin — SA dépense seulement",
+    vueAdminPerim2.depenses.length === 1 && vueAdminPerim2.depenses[0].id === depAdmin.id,
+    JSON.stringify(vueAdminPerim2.depenses.map((d) => d.libelle)));
+  const totAdminPerim2 = vueAdminPerim2.totaux.find((t) => t.devise === "USD");
+  check("périmètre réel : totaux Admin = sa seule dépense en attente (30 USD)",
+    !!totAdminPerim2 && totAdminPerim2.depenses_en_attente === 30 &&
+      totAdminPerim2.depenses_validees === 0,
+    JSON.stringify(totAdminPerim2));
+  fauxClient.__setUtilisateur(superAdmin);
+  const vueSuperPerim = await provider.getVueFinancesPlateforme("2026-12");
+  check("périmètre réel : vue Super Admin — TOUTES les dépenses de décembre (la sienne + celle de l'Admin)",
+    vueSuperPerim.depenses.length === 2 &&
+      vueSuperPerim.depenses.some((d) => d.id === depAdmin.id),
+    JSON.stringify(vueSuperPerim.depenses.map((d) => d.libelle)));
+
   console.log(`\nFinances (fournisseur réel, faux PostgREST contraint) : ${ok} OK, ${ko} KO`);
   process.exit(ko > 0 ? 1 : 0);
 }

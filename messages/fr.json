@@ -1230,6 +1230,7 @@
     "colIssuedOn": "Émise le",
     "colReference": "Référence",
     "expensesTitle": "Dépenses de fonctionnement",
+    "expensesTitleAdmin": "Mes dépenses",
     "expensesIntroSuper": "Dépenses saisies par l'équipe. Vous seul pouvez les valider ou les refuser (motif obligatoire) : celui qui saisit ne valide pas.",
     "expensesIntroAdmin": "Saisissez vos dépenses de fonctionnement : elles partent en attente et sont validées par le Super Admin. Vous ne pouvez pas valider vos propres dépenses.",
     "formDate": "Date",

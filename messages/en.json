@@ -1230,6 +1230,7 @@
     "colIssuedOn": "Issued on",
     "colReference": "Reference",
     "expensesTitle": "Operating expenses",
+    "expensesTitleAdmin": "My expenses",
     "expensesIntroSuper": "Expenses entered by the team. Only you can validate or refuse them (reason required): whoever enters an expense never validates it.",
     "expensesIntroAdmin": "Enter your operating expenses: they start as pending and are validated by the Super Admin. You cannot validate your own expenses.",
     "formDate": "Date",

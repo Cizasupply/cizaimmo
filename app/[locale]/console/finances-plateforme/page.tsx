@@ -465,7 +465,9 @@ export default function FinancesPlateformePage() {
 
       {/* ---- Dépenses de fonctionnement ---- */}
       <section className={CARTE}>
-        <h2 className="text-base font-bold text-navy">{tf("expensesTitle")}</h2>
+        <h2 className="text-base font-bold text-navy">
+          {estSuper ? tf("expensesTitle") : tf("expensesTitleAdmin")}
+        </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("expensesIntroSuper") : tf("expensesIntroAdmin")}
         </p>

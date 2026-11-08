@@ -5820,6 +5820,10 @@ export class DemoProvider implements DataProvider {
           }),
         };
       });
+    // PÉRIMÈTRE (fondateur, 2026-11-08) : un Admin ne reçoit QUE
+    // SES propres dépenses (saisi_par = lui) — liste ET totaux ;
+    // le Super Admin reçoit tout. Même verrou que le fournisseur
+    // réel, dans le fournisseur (pas dans l'affichage).
     const depenses = this.depensesPlateformeDe(db)
       .filter((d) => d.date.startsWith(mois))
       .filter((d) => estSuper || d.saisi_par === acteur.id)

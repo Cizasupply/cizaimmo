@@ -4786,7 +4786,11 @@ export class RealProvider implements DataProvider {
     if (errPaies) throw new Error(errPaies.message);
     const paiesBrutes = (lignesPaies ?? []) as unknown as Record<string, unknown>[];
 
-    // Dépenses du mois demandé (filtrées par rôle).
+    // Dépenses du mois demandé. PÉRIMÈTRE (fondateur, 2026-11-08) :
+    // un Admin ne reçoit QUE SES propres dépenses (saisi_par = lui)
+    // — ni la liste ni les totaux ne contiennent celles des autres ;
+    // le Super Admin reçoit tout. Le verrou vit ICI, dans le
+    // fournisseur : la page ne voit jamais les autres dépenses.
     const [annee, numMois] = mois.split("-").map(Number);
     const debut = `${mois}-01`;
     const fin =

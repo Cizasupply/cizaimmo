@@ -407,6 +407,35 @@ const PARAMS_CONTRAT = {
   check("l'Admin voit le statut de sa dépense en attente (aucune action)",
     !!dep2vue && dep2vue.statut === "en_attente");
 
+  console.log("== Périmètre des dépenses : l'Admin ne voit QUE les siennes ==");
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  const depSuper = await p.saisirDepensePlateforme({
+    date: "2026-11-09", libelle: "Dépense saisie par le Super Admin",
+    categorie: "communication", montant: 999, devise: "USD", justificatif: null,
+  });
+  await connecter(ADMIN_DEMO_EMAIL);
+  const vuePerimetre = await p.getVueFinancesPlateforme(MOIS);
+  check("périmètre : la dépense du Super Admin est ABSENTE de la vue Admin",
+    vuePerimetre.depenses.length === 3 &&
+    !vuePerimetre.depenses.some((d) => d.id === depSuper.id),
+    JSON.stringify(vuePerimetre.depenses.map((d) => d.libelle)));
+  check("périmètre : l'Admin voit SES dépenses avec leurs statuts (validée, en attente, refusée)",
+    vuePerimetre.depenses.some((d) => d.id === dep1.id && d.statut === "validee") &&
+    vuePerimetre.depenses.some((d) => d.id === dep2.id && d.statut === "en_attente") &&
+    vuePerimetre.depenses.some((d) => d.id === dep3.id && d.statut === "refusee"));
+  const totUsdAdmin = vuePerimetre.totaux.find((t) => t.devise === "USD");
+  check("périmètre : totaux Admin limités à SES dépenses (en attente 75 ; les 999 du Super exclus)",
+    !!totUsdAdmin && totUsdAdmin.depenses_en_attente === 75 &&
+    totUsdAdmin.depenses_validees === 0,
+    JSON.stringify(totUsdAdmin));
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
+  const vueSuperPerimetre = await p.getVueFinancesPlateforme(MOIS);
+  check("périmètre : la vue Super Admin contient TOUTES les dépenses (3 de l'Admin + la sienne)",
+    vueSuperPerimetre.depenses.length === 4 &&
+    vueSuperPerimetre.depenses.some((d) => d.id === depSuper.id) &&
+    vueSuperPerimetre.depenses.some((d) => d.id === dep1.id),
+    JSON.stringify(vueSuperPerimetre.depenses.map((d) => d.libelle)));
+
   console.log("== Journal d'audit ==");
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
   const journal = await p.listerJournalAudit();
