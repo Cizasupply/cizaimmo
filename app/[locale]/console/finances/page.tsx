@@ -133,7 +133,7 @@ export default function ConsoleFinancesPage() {
               <h2 className="font-semibold text-navy">
                 {grille === "afrique" ? t("grid.afrique") : t("grid.internationale")}
               </h2>
-              <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                 {PLANS.map((plan) => (
                   <label key={plan} className="block">
                     <span className="text-sm font-semibold text-slate-700">{t(`plan.${plan}` as "plan.pro")}</span>
@@ -157,7 +157,7 @@ export default function ConsoleFinancesPage() {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="font-semibold text-navy">{t("financeParamsTitle")}</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {champNombre(t("annualDiscount"), parametres.remise_annuelle_pct, (n) =>
                 setParametres({ ...parametres, remise_annuelle_pct: n }), "%")}
               {champNombre(t("trialDays"), parametres.jours_essai, (n) =>

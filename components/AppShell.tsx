@@ -466,14 +466,18 @@ export default function AppShell({
       </aside>
       {/* Barre supérieure mobile (design « Marine & Or ») : logo, langue,
           cloche et avatar — le menu complet s'ouvre par « Plus » dans la
-          barre inférieure, il n'y a plus de bouton hamburger. */}
+          barre inférieure, il n'y a plus de bouton hamburger.
+          Correctif mobile 2026-11-08 : même discipline que la console —
+          logo réduit et langue en pastille compacte, pour que logo +
+          langue + cloche + avatar tiennent dans la largeur des petits
+          téléphones sans rien tronquer. */}
       <header className="flex items-center gap-2 bg-navy px-4 py-3 md:hidden">
         <Link href={`/${locale}/dashboard`} aria-label="CizaImmo" className="min-w-0 shrink-0">
           <Image
             src="/cizaimmo-logo-compact.png"
             alt="CizaImmo"
-            width={120}
-            height={38}
+            width={96}
+            height={30}
             priority
           />
         </Link>
@@ -484,7 +488,7 @@ export default function AppShell({
         ) : (
           <span className="flex-1" />
         )}
-        <LanguageSwitcher className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        <LanguageSwitcher compact className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
         <AlertBell />
         {profil ? (
           <Link

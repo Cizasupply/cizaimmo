@@ -299,21 +299,30 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
       {/* Barre supérieure mobile (design « Marine & Or ») : logo,
           titre console, langue et déconnexion — le menu complet
           s'ouvre par « Plus » dans la barre inférieure, il n'y a
-          plus de bouton hamburger. */}
+          plus de bouton hamburger.
+          Correctif mobile 2026-11-08 (capture annotée du fondateur) :
+          la pastille texte « Se déconnecter » débordait hors écran à
+          droite. La barre tient maintenant dans la largeur : logo
+          réduit, langue en pastille compacte (« EN » / « FR ») et
+          déconnexion en BOUTON ICÔNE SEUL ici — la déconnexion en
+          texte reste dans le panneau « Plus » et le pied de la barre
+          latérale bureau. Aucun élément ne dépasse ni n'est tronqué. */}
       <header className="flex items-center gap-2 bg-navy px-4 py-3 md:hidden">
         <Link href={`/${locale}/console`} aria-label="CizaImmo Console" className="min-w-0 shrink-0">
-          <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={120} height={38} priority />
+          <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={96} height={30} priority />
         </Link>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
           {t("title")}
         </span>
-        <LanguageSwitcher className="shrink-0 border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+        <LanguageSwitcher compact className="shrink-0 border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
         <button
           type="button"
           onClick={handleLogout}
-          className="shrink-0 rounded-full border border-slate-500 px-4 py-2 text-sm font-semibold text-white"
+          aria-label={tc("logout")}
+          title={tc("logout")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-500 text-white hover:border-gold hover:text-gold"
         >
-          {tc("logout")}
+          <IconeNav nom="logout" className="h-5 w-5" />
         </button>
       </header>
 

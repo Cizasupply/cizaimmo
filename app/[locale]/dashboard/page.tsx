@@ -283,10 +283,15 @@ export default function DashboardPage() {
 
           {/* Carte héros marine (design « Marine & Or ») — synthèse du
               mois dans la devise d'affichage : collecté en or, attendu
-              et taux de collecte, à partir des totaux déjà convertis. */}
+              et taux de collecte, à partir des totaux déjà convertis.
+              Correctif mobile 2026-11-08 : le montant n'utilise PLUS
+              break-all (il cassait en plein milieu, ex. « 680 000 B » /
+              « IF ») — un montant formaté est un jeton insécable
+              (espaces insécables Intl), il reste entier sur sa ligne ;
+              le repli multi-devises ne coupe qu'ENTRE les montants. */}
           <section className="mb-4 rounded-2xl bg-navy p-5 text-white shadow-sm sm:p-6">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">{td("collectedMonth")}</p>
-            <p className="mt-1 break-all text-3xl font-bold text-gold sm:text-4xl">
+            <p className="mt-1 text-3xl font-bold text-gold sm:text-4xl">
               {collectesConv.totalConverti !== null
                 ? formatMoney(collectesConv.totalConverti, deviseAffichage, locale)
                 : collectesConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
@@ -309,12 +314,17 @@ export default function DashboardPage() {
           </section>
 
           {/* 4 chiffres clés — code couleur : vert = ok / collecté, rouge = en retard,
-              marine = attendu (à venir), ambre = vacant / attention. */}
+              marine = attendu (à venir), ambre = vacant / attention.
+              Correctif mobile 2026-11-08 (capture annotée du fondateur) :
+              les montants/valeurs ne coupent JAMAIS en plein milieu —
+              whitespace-nowrap + taille réduite sur mobile (pleine taille
+              dès sm) ; les libellés et sous-lignes s'enroulent librement,
+              et la sous-ligne de conversion (≈) repasse en flux normal. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
               <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-navy" />
               <p className="text-sm font-semibold text-slate-600">{td("occupancy")}</p>
-              <p className={`mt-1 text-3xl font-bold ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
+              <p className={`mt-1 whitespace-nowrap text-2xl font-bold sm:text-3xl ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
                 {indicateurs.occupation === null ? "—" : formatPct(indicateurs.occupation, locale)}
               </p>
               <p className="break-words text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
@@ -323,10 +333,10 @@ export default function DashboardPage() {
               <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-green-500" />
               <p className="text-sm font-semibold text-slate-600">{td("collectedMonth")}</p>
               {collectesConv.lignes.map((l) => (
-                <p key={l.devise} className="mt-1 break-all text-2xl font-bold text-green-700">
+                <p key={l.devise} className="mt-1 whitespace-nowrap text-xl font-bold text-green-700 sm:text-2xl">
                   {formatMoney(l.total, l.devise, locale)}
                   {l.converti !== null && l.devise !== deviseAffichage ? (
-                    <span className="block text-sm font-normal text-green-700">
+                    <span className="block whitespace-normal break-words text-sm font-normal text-green-700">
                       ≈ {formatMoney(l.converti, deviseAffichage, locale)}
                       {l.dateTaux ? ` · ${td("rateDate", { date: formatDate(l.dateTaux.slice(0, 10), locale) })}${l.source === "manuel" ? ` · ${td("manualRate")}` : ""}` : ""}
                     </span>
@@ -341,13 +351,13 @@ export default function DashboardPage() {
               <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-500" />
               <p className="text-sm font-semibold text-slate-600">{td("lateAmount")}</p>
               {retardsConv.lignes.length === 0 ? (
-                <p className="mt-1 text-3xl font-bold text-green-700">0</p>
+                <p className="mt-1 whitespace-nowrap text-2xl font-bold text-green-700 sm:text-3xl">0</p>
               ) : (
                 retardsConv.lignes.map((l) => (
-                  <p key={l.devise} className="mt-1 break-all text-2xl font-bold text-red-700">
+                  <p key={l.devise} className="mt-1 whitespace-nowrap text-xl font-bold text-red-700 sm:text-2xl">
                     {formatMoney(l.total, l.devise, locale)}
                     {l.converti !== null && l.devise !== deviseAffichage ? (
-                      <span className="block text-sm font-normal text-red-700">
+                      <span className="block whitespace-normal break-words text-sm font-normal text-red-700">
                         ≈ {formatMoney(l.converti, deviseAffichage, locale)}
                         {l.dateTaux ? ` · ${td("rateDate", { date: formatDate(l.dateTaux.slice(0, 10), locale) })}` : ""}
                       </span>
@@ -360,7 +370,7 @@ export default function DashboardPage() {
             <div className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
               <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-amber-500" />
               <p className="text-sm font-semibold text-slate-600">{td("vacant")}</p>
-              <p className="mt-1 text-3xl font-bold text-amber-700">{indicateurs.nbVacants}</p>
+              <p className="mt-1 whitespace-nowrap text-2xl font-bold text-amber-700 sm:text-3xl">{indicateurs.nbVacants}</p>
               <p className="text-sm text-slate-600">{td("vacantHint")}</p>
             </div>
           </div>

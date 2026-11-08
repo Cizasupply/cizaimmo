@@ -187,7 +187,7 @@ export default function ConsoleDossierPage({
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-navy md:text-3xl">{compte.nom}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 break-words text-sm text-slate-500">
             {compte.email}
             {compte.display_id ? (
               <>
@@ -346,14 +346,19 @@ export default function ConsoleDossierPage({
         </section>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Identité */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Identité — correctif mobile 2026-11-08 (capture annotée du
+            fondateur) : la carte débordait horizontalement, valeurs
+            coupées au bord droit. La grille passe en colonne unique
+            explicite (minmax(0,1fr)) et chaque ligne libellé/valeur
+            peut s'enrouler : libellé jamais compressé (shrink-0),
+            valeur en min-w-0 + break-words, alignée à droite. */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("fileIdentity")}</h2>
           <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("filePhoto")}</dt>
-              <dd>{dossier.photo_profil_path ? `✓ ${t("received")}` : t("missing")}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("filePhoto")}</dt>
+              <dd className="min-w-0 break-words text-right">{dossier.photo_profil_path ? `✓ ${t("received")}` : t("missing")}</dd>
             </div>
             {dossier.photo_profil_url ? (
               <div className="pt-2">
@@ -366,30 +371,30 @@ export default function ConsoleDossierPage({
                 </a>
               </div>
             ) : null}
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("phoneLabel")}</dt>
-              <dd>{compte.telephone ?? "—"}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("phoneLabel")}</dt>
+              <dd className="min-w-0 break-words text-right">{compte.telephone ?? "—"}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("declaredCountry")}</dt>
-              <dd>{compte.pays_declare ?? "—"}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("declaredCountry")}</dt>
+              <dd className="min-w-0 break-words text-right">{compte.pays_declare ?? "—"}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("ipCountry")}</dt>
-              <dd>{compte.pays_ip ? `${nomPaysDepuisCode(compte.pays_ip)} (${compte.pays_ip})` : t("ipUnknown")}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("ipCountry")}</dt>
+              <dd className="min-w-0 break-words text-right">{compte.pays_ip ? `${nomPaysDepuisCode(compte.pays_ip)} (${compte.pays_ip})` : t("ipUnknown")}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("sinceLabel")}</dt>
-              <dd>{formatDate(compte.created_at, locale)}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("sinceLabel")}</dt>
+              <dd className="min-w-0 break-words text-right">{formatDate(compte.created_at, locale)}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="font-semibold">{t("contractLabel")}</dt>
-              <dd>{t(`contractStatus.${compte.statut_contrat}` as "contractStatus.valide")}</dd>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 font-semibold">{t("contractLabel")}</dt>
+              <dd className="min-w-0 break-words text-right">{t(`contractStatus.${compte.statut_contrat}` as "contractStatus.valide")}</dd>
             </div>
             {/* v1.5 : Admin responsable du dossier (assignation Super Admin). */}
-            <div className="flex items-center justify-between gap-3">
-              <dt className="font-semibold">{t15("responsible")}</dt>
-              <dd className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <dt className="shrink-0 font-semibold">{t15("responsible")}</dt>
+              <dd className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                 <span>{compte.admin_responsable_nom ?? t15("unassigned")}</span>
                 {moi?.role === "super_admin" ? (
                   <button
@@ -410,29 +415,29 @@ export default function ConsoleDossierPage({
           <h2 className="font-semibold text-navy">{t("fileSubscription")}</h2>
           {compte.abonnement ? (
             <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold">{t("planLabel")}</dt>
-                <dd>{t(`plan.${compte.abonnement.plan}` as "plan.pro")}</dd>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <dt className="shrink-0 font-semibold">{t("planLabel")}</dt>
+                <dd className="min-w-0 break-words text-right">{t(`plan.${compte.abonnement.plan}` as "plan.pro")}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold">{t("gridLabel")}</dt>
-                <dd>{t(`grid.${compte.abonnement.grille}` as "grid.afrique")}</dd>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <dt className="shrink-0 font-semibold">{t("gridLabel")}</dt>
+                <dd className="min-w-0 break-words text-right">{t(`grid.${compte.abonnement.grille}` as "grid.afrique")}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold">{t("filterStatus")}</dt>
-                <dd>{t(`status.${compte.abonnement.statut}` as "status.actif")}</dd>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <dt className="shrink-0 font-semibold">{t("filterStatus")}</dt>
+                <dd className="min-w-0 break-words text-right">{t(`status.${compte.abonnement.statut}` as "status.actif")}</dd>
               </div>
               {compte.abonnement.trial_ends_at ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="font-semibold">{t("trialEndsLabel")}</dt>
-                  <dd>{formatDate(compte.abonnement.trial_ends_at, locale)}</dd>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <dt className="shrink-0 font-semibold">{t("trialEndsLabel")}</dt>
+                  <dd className="min-w-0 break-words text-right">{formatDate(compte.abonnement.trial_ends_at, locale)}</dd>
                 </div>
               ) : null}
               {compte.abonnement.plan_apres_essai &&
               compte.abonnement.plan_apres_essai !== compte.abonnement.plan ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="font-semibold">{t("planAfterTrialLabel")}</dt>
-                  <dd>{t(`plan.${compte.abonnement.plan_apres_essai}` as "plan.pro")}</dd>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <dt className="shrink-0 font-semibold">{t("planAfterTrialLabel")}</dt>
+                  <dd className="min-w-0 break-words text-right">{t(`plan.${compte.abonnement.plan_apres_essai}` as "plan.pro")}</dd>
                 </div>
               ) : null}
             </dl>
@@ -450,7 +455,7 @@ export default function ConsoleDossierPage({
             <ul className="mt-3 space-y-2">
               {dossier.documents_compte.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                  <span className="min-w-0 text-sm">
+                  <span className="min-w-0 flex-1 text-sm">
                     <span className="block truncate font-semibold text-navy">{d.nom_fichier}</span>
                     <span className="text-xs text-slate-500">
                       {t(`docType.${d.type}` as "docType.contrat")} · {formatDate(d.created_at, locale)}
@@ -467,7 +472,7 @@ export default function ConsoleDossierPage({
               ))}
               {dossier.preuves_propriete.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                  <span className="min-w-0 text-sm">
+                  <span className="min-w-0 flex-1 text-sm">
                     <span className="block truncate font-semibold text-navy">{d.nom_fichier}</span>
                     <span className="text-xs text-slate-500">
                       {t("ownershipProof")} · {formatDate(d.created_at, locale)}
@@ -496,7 +501,7 @@ export default function ConsoleDossierPage({
           ) : (
             <div className="mt-3 space-y-3 text-sm text-slate-600">
               {dossier.rattachements_comme_gestionnaire.map((r) => (
-                <p key={r.id}>
+                <p key={r.id} className="break-words">
                   {t("managesFor")} : <strong>{r.proprietaire_nom ?? r.proprietaire_id}</strong>{" "}
                   ({r.immeuble_ids.length} {t("buildingsAssigned")})
                   {r.proprietaire_email ? ` · ${r.proprietaire_email}` : ""}
@@ -504,7 +509,7 @@ export default function ConsoleDossierPage({
                 </p>
               ))}
               {dossier.rattachements_comme_proprietaire.map((r) => (
-                <p key={r.id}>
+                <p key={r.id} className="break-words">
                   {t("managedBy")} : <strong>{r.gestionnaire_nom ?? r.gestionnaire_email}</strong>{" "}
                   ({r.immeuble_ids.length} {t("buildingsAssigned")})
                   {r.gestionnaire_nom && r.gestionnaire_email ? ` · ${r.gestionnaire_email}` : ""}
@@ -512,7 +517,7 @@ export default function ConsoleDossierPage({
                 </p>
               ))}
               {dossier.demandes.map((d) => (
-                <p key={d.id}>
+                <p key={d.id} className="break-words">
                   {d.proprietaire_nom} → {d.gestionnaire_nom} :{" "}
                   <strong>{t(`requestStatus.${d.statut}` as "requestStatus.actif")}</strong>
                 </p>
@@ -537,7 +542,7 @@ export default function ConsoleDossierPage({
                   ) : (
                     <span aria-hidden>🏠</span>
                   )}
-                  <span>{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
+                  <span className="min-w-0 break-words">{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
                 </li>
               ))}
               {dossier.immeubles_geres.map((i) => (
@@ -548,7 +553,7 @@ export default function ConsoleDossierPage({
                   ) : (
                     <span aria-hidden>🔑</span>
                   )}
-                  <span>{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
+                  <span className="min-w-0 break-words">{i.nom} — {i.adresse ? `${i.adresse}, ` : ""}{i.ville}</span>
                 </li>
               ))}
             </ul>
@@ -582,10 +587,10 @@ export default function ConsoleDossierPage({
                       <img src={r.photo_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
                     ) : null}
                     <div className="min-w-0 flex-1 text-sm">
-                      <p className="font-bold text-navy">
+                      <p className="break-words font-bold text-navy">
                         {r.nom} — {r.adresse ? `${r.adresse}, ` : ""}{r.ville}
                       </p>
-                      <p className="mt-0.5 text-slate-600">
+                      <p className="mt-0.5 break-words text-slate-600">
                         {t17("declaredOwnerLabel")} :{" "}
                         <strong>{r.proprietaire_declare_nom ?? "—"}</strong>
                         {r.proprietaire_declare_email ? ` · ${r.proprietaire_declare_email}` : ""}
@@ -700,7 +705,7 @@ export default function ConsoleDossierPage({
           ) : (
             <ul className="mt-3 space-y-2">
               {dossier.audit.map((e) => (
-                <li key={e.id} className="border-b border-slate-100 pb-2 text-sm last:border-0">
+                <li key={e.id} className="break-words border-b border-slate-100 pb-2 text-sm last:border-0">
                   <span className="font-semibold text-navy">
                     {t(`audit.${e.action}` as "audit.compte_approuve")}
                   </span>{" "}

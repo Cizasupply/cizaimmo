@@ -175,7 +175,7 @@ export default function ConsoleComptesPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t15("statUnassigned")}
           </p>
-          <p className="mt-1 text-2xl font-bold text-amber-600">
+          <p className="mt-1 whitespace-nowrap text-xl font-bold text-amber-600 sm:text-2xl">
             {comptes.filter((c) => !c.admin_responsable_id).length}
           </p>
         </div>

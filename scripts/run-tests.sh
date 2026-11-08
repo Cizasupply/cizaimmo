@@ -325,6 +325,25 @@ else
   ECHEC=1
 fi
 
+# Correctifs mobile « annotations du fondateur » (2026-11-08) :
+# 3 captures annotées au doigt — (1) barre supérieure console :
+# « Se déconnecter » débordait (logo réduit, langue compacte,
+# déconnexion icône seule ; même discipline AppShell) ; (2) page
+# Dossier : carte Identité débordante (grille grid-cols-1, lignes
+# libellé/valeur enroulables, balayage grilles console) ; (3) KPI
+# client « 680 000 BIF » cassé en plein milieu (break-all) :
+# montants nowrap + taille responsive, client ET console ; héros
+# sans break-all ; (4) héros console : libellés collés en 3
+# colonnes étroites -> empilés sur mobile. Design uniquement.
+echo ""
+echo "===== Correctifs mobile (annotations du fondateur) ====="
+if node "scripts/test-correctif-mobile-annotations.cjs"; then
+  echo "Correctifs mobile : OK"
+else
+  echo "Correctifs mobile : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

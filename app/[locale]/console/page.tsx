@@ -97,7 +97,9 @@ export default function ConsoleAccueilPage() {
   // blanche bordée porte une barre d'accent métier de 4 px, alignée
   // sur la couleur de sa valeur (attente = ambre, retard = rouge,
   // actif/MRR = vert, neutre = marine) — même patron que le tableau
-  // de bord client.
+  // de bord client. Correctif mobile 2026-11-08 : la valeur ne coupe
+  // jamais en plein milieu (whitespace-nowrap, taille réduite sur
+  // mobile, pleine taille dès sm) — même patron que le client.
   const cartes = [
     { label: t("statAccounts"), valeur: comptes.length, couleur: "text-navy", accent: "bg-navy" },
     { label: t("statPending"), valeur: enAttente.length, couleur: "text-amber-600", accent: "bg-amber-500" },
@@ -126,9 +128,13 @@ export default function ConsoleAccueilPage() {
           2026-11-07) : synthèse plateforme construite UNIQUEMENT
           à partir des compteurs déjà calculés par la page —
           dossiers en attente, comptes, messages non lus — chiffres
-          en or, aucun nouveau calcul métier. */}
+          en or, aucun nouveau calcul métier.
+          Correctif mobile 2026-11-08 (capture annotée du fondateur) :
+          en 3 colonnes étroites, les libellés se touchaient (« EN
+          ATTENTE D'APPROBATION » collé à « COMPTES CLIENTS ») — les
+          3 compteurs s'empilent sur mobile, 3 colonnes dès sm. */}
       <section className="mt-6 rounded-2xl bg-navy p-5 text-white shadow-sm">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
           <div className="min-w-0">
             <p className="text-3xl font-bold text-gold">{enAttente.length}</p>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
@@ -155,7 +161,7 @@ export default function ConsoleAccueilPage() {
           <div key={c.label} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
             <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${c.accent}`} />
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{c.label}</p>
-            <p className={`mt-1 text-2xl font-bold ${c.couleur}`}>{c.valeur}</p>
+            <p className={`mt-1 whitespace-nowrap text-xl font-bold sm:text-2xl ${c.couleur}`}>{c.valeur}</p>
           </div>
         ))}
       </div>

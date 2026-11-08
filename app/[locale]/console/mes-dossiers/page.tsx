@@ -96,7 +96,7 @@ export default function ConsoleMesDossiersPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {a.label}
               </p>
-              <p className={`mt-1 text-2xl font-bold ${a.couleur}`}>{a.valeur}</p>
+              <p className={`mt-1 whitespace-nowrap text-xl font-bold sm:text-2xl ${a.couleur}`}>{a.valeur}</p>
             </div>
           ))}
         </div>

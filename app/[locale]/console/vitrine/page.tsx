@@ -154,7 +154,7 @@ export default function ConsoleVitrinePage() {
               .join(", ");
             return (
               <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="grid gap-5 md:grid-cols-[240px_1fr]">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-[240px_1fr]">
                   <div className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
                     {a.photos.length > 0 ? (
                       // eslint-disable-next-line @next/next/no-img-element

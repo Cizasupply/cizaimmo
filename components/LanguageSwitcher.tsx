@@ -18,7 +18,20 @@ export function switchPathForLocale(pathname: string, targetLocale: string): str
   return targetLocale === "fr" ? rest || "/" : `/${targetLocale}${rest}`;
 }
 
-export default function LanguageSwitcher({ className = "" }: { className?: string }) {
+export default function LanguageSwitcher({
+  className = "",
+  compact = false,
+}: {
+  className?: string;
+  /**
+   * Variante « pastille compacte » (correctif mobile 2026-11-08) :
+   * code langue court (« EN » / « FR ») et pastille réduite, pour les
+   * barres supérieures mobiles où la pastille pleine (« English » /
+   * « Français ») + logo + déconnexion débordaient hors écran. Le nom
+   * complet reste annoncé par l'aria-label.
+   */
+  compact?: boolean;
+}) {
   const locale = useLocale();
   const pathname = usePathname();
   const t = useTranslations("common");
@@ -57,9 +70,15 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
       href={switchPathForLocale(pathname ?? "/", otherLocale)}
       onClick={handleClick}
       aria-label={`${t("language")} : ${otherLocale === "fr" ? "Français" : "English"}`}
-      className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold ${className}`}
+      className={`inline-flex items-center justify-center rounded-full border font-semibold ${
+        compact ? "min-h-10 px-3 py-1.5 text-xs" : "min-h-11 px-4 py-2 text-sm"
+      } ${className}`}
     >
-      {otherLocale === "fr" ? "Français" : "English"}
+      {compact
+        ? otherLocale.toUpperCase()
+        : otherLocale === "fr"
+          ? "Français"
+          : "English"}
     </a>
   );
 }
