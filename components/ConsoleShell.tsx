@@ -45,6 +45,9 @@ const LIENS = [
   { key: "accounts", href: "/console/comptes" },
   { key: "managers", href: "/console/gestionnaires" },
   { key: "myFiles", href: "/console/mes-dossiers", adminSeul: true },
+  // Dossier employé (2026-11-08) : visible par les DEUX rôles
+  // plateforme (admin ET super_admin remplissent leur dossier).
+  { key: "myEmployeeFile", href: "/console/mon-dossier" },
   { key: "messages", href: "/console/messages" },
   { key: "supervisedMessages", href: "/console/messages-supervises" },
   { key: "vitrine", href: "/console/vitrine" },
@@ -64,7 +67,7 @@ type CleLien = (typeof LIENS)[number]["key"];
  * groupe sans entrée visible n'est pas rendu.
  */
 const GROUPES: { cle: "groupManagement" | "groupSupervision" | "groupPlatform"; cles: CleLien[] }[] = [
-  { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles"] },
+  { cle: "groupManagement", cles: ["overview", "accounts", "managers", "myFiles", "myEmployeeFile"] },
   { cle: "groupSupervision", cles: ["messages", "supervisedMessages", "vitrine", "journal"] },
   { cle: "groupPlatform", cles: ["suppressions", "admins", "finances"] },
 ];

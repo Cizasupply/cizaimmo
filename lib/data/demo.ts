@@ -39,6 +39,8 @@ import type {
   DemandeRattachement,
   ChecklistDossierSaisie,
   DossierCompte,
+  DossierEmploye,
+  DossierEmployePatch,
   GestionnaireInvite,
   Grille,
   Immeuble,
@@ -138,6 +140,7 @@ import {
   genererContratProprietairePdf,
 } from "../contrat";
 import { piecesJointesAvecGuide } from "../guide";
+import { evaluerDossierEmploye } from "../dossier-employe";
 import {
   construirePrixPlans,
   estEnRetardPaiement,
@@ -2595,6 +2598,16 @@ export class DemoProvider implements DataProvider {
       telephone: patch.telephone !== undefined ? patch.telephone : db.profil.telephone ?? null,
       langue: patch.langue ?? db.profil.langue,
       devise_principale: patch.devise_principale ?? db.profil.devise_principale,
+      // Dossier employé (2026-11-08) : adresse postale de l'employé.
+      adresse: patch.adresse !== undefined ? patch.adresse : db.profil.adresse ?? null,
+      adresse_ville:
+        patch.adresse_ville !== undefined ? patch.adresse_ville : db.profil.adresse_ville ?? null,
+      adresse_code_postal:
+        patch.adresse_code_postal !== undefined
+          ? patch.adresse_code_postal
+          : db.profil.adresse_code_postal ?? null,
+      adresse_pays:
+        patch.adresse_pays !== undefined ? patch.adresse_pays : db.profil.adresse_pays ?? null,
     };
     saveDb(db);
     return db.profil;
@@ -4679,6 +4692,323 @@ export class DemoProvider implements DataProvider {
     return chemin;
   }
 
+  // ==========================================================================
+  // DOSSIER EMPLOYÉ DES ADMINS (2026-11-08) — miroir démo du réel.
+  // Stockage : entrée `comptesAdmins` (sessions plateforme) ou profil
+  // principal (Admin promu connecté comme lui-même) ; la pièce vit
+  // dans documentsComptes (plateforme) ou db.documents (profil).
+  // Complétude CALCULÉE (lib/dossier-employe.ts), jamais stockée.
+  // ==========================================================================
+
+  /** Dernière pièce d'identité d'une liste de documents de compte. */
+  private pieceLaPlusRecente(
+    docs: Document[],
+    entiteId: string
+  ): Document | null {
+    const pieces = docs
+      .filter(
+        (d) =>
+          d.entite_type === "compte" &&
+          d.entite_id === entiteId &&
+          d.type === "piece_identite"
+      )
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return pieces[0] ?? null;
+  }
+
+  /** Assemble la vue DossierEmploye à partir d'ingrédients résolus. */
+  private assemblerDossierEmploye(champs: {
+    compte_id: string;
+    email: string;
+    nom: string;
+    role: "admin" | "super_admin";
+    photo_profil_path: string | null;
+    piece_identite: Document | null;
+    telephone: string | null;
+    adresse: string | null;
+    adresse_ville: string | null;
+    adresse_code_postal: string | null;
+    adresse_pays: string | null;
+  }): DossierEmploye {
+    const evaluation = evaluerDossierEmploye({
+      photoPresente: !!champs.photo_profil_path,
+      piecePresente: !!champs.piece_identite,
+      telephone: champs.telephone,
+      adresse: champs.adresse,
+      adresseVille: champs.adresse_ville,
+      adressePays: champs.adresse_pays,
+    });
+    return {
+      ...champs,
+      photo_profil_url: null,
+      complet: evaluation.complet,
+      manquants: evaluation.manquants,
+    };
+  }
+
+  /** Dossier employé depuis une entrée `comptesAdmins` (plateforme). */
+  private dossierDepuisEntreeAdmin(
+    db: DemoDb,
+    entree: CompteAdmin
+  ): DossierEmploye {
+    return this.assemblerDossierEmploye({
+      compte_id: entree.id,
+      email: entree.email,
+      nom: entree.nom,
+      role: entree.role,
+      photo_profil_path: entree.photo_profil_path ?? null,
+      piece_identite: this.pieceLaPlusRecente(
+        db.plateforme.documentsComptes,
+        entree.id
+      ),
+      telephone: entree.telephone ?? null,
+      adresse: entree.adresse ?? null,
+      adresse_ville: entree.adresse_ville ?? null,
+      adresse_code_postal: entree.adresse_code_postal ?? null,
+      adresse_pays: entree.adresse_pays ?? null,
+    });
+  }
+
+  /** Dossier employé depuis le profil principal (Admin promu). */
+  private dossierDepuisProfilPrincipal(db: DemoDb): DossierEmploye {
+    return this.assemblerDossierEmploye({
+      compte_id: db.profil.id,
+      email: db.profil.email,
+      nom: db.profil.nom,
+      role: db.profil.role === "super_admin" ? "super_admin" : "admin",
+      photo_profil_path: db.profil.photo_profil_path ?? null,
+      piece_identite: this.pieceLaPlusRecente(db.documents, db.profil.id),
+      telephone: db.profil.telephone ?? null,
+      adresse: db.profil.adresse ?? null,
+      adresse_ville: db.profil.adresse_ville ?? null,
+      adresse_code_postal: db.profil.adresse_code_postal ?? null,
+      adresse_pays: db.profil.adresse_pays ?? null,
+    });
+  }
+
+  /** Dossier employé depuis un compte client promu (vue Équipe). */
+  private dossierDepuisClientPlateforme(
+    db: DemoDb,
+    client: CompteClientDemo
+  ): DossierEmploye {
+    return this.assemblerDossierEmploye({
+      compte_id: client.id,
+      email: client.email,
+      nom: client.nom,
+      role: client.role === "super_admin" ? "super_admin" : "admin",
+      // Synthèse démo : le drapeau dossier_complet porte la photo,
+      // comme la vue Dossier client démo.
+      photo_profil_path: client.dossier_complet ? `demo:photo-profil` : null,
+      piece_identite: this.pieceLaPlusRecente(
+        db.plateforme.documentsComptes,
+        client.id
+      ),
+      telephone: client.telephone ?? null,
+      adresse: null,
+      adresse_ville: null,
+      adresse_code_postal: null,
+      adresse_pays: null,
+    });
+  }
+
+  /**
+   * Résout le « moi employé » de la session : entrée plateforme ou
+   * profil principal au rôle plateforme. null si la session n'est pas
+   * celle d'un admin/super_admin.
+   */
+  private moiEmploye(db: DemoDb):
+    | { kind: "entree"; entree: CompteAdmin }
+    | { kind: "profil" }
+    | null {
+    const emailPlateforme = this.sessionPlateformeEmail();
+    if (emailPlateforme) {
+      const entree = db.plateforme.comptesAdmins.find(
+        (a) => a.email.toLowerCase() === emailPlateforme
+      );
+      return entree ? { kind: "entree", entree } : null;
+    }
+    if (db.profil.role === "admin" || db.profil.role === "super_admin") {
+      return { kind: "profil" };
+    }
+    return null;
+  }
+
+  async getMonDossierEmploye(): Promise<DossierEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const moi = this.moiEmploye(db);
+    if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    return moi.kind === "entree"
+      ? this.dossierDepuisEntreeAdmin(db, moi.entree)
+      : this.dossierDepuisProfilPrincipal(db);
+  }
+
+  async mettreAJourDossierEmploye(
+    patch: DossierEmployePatch
+  ): Promise<DossierEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const moi = this.moiEmploye(db);
+    if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    if (moi.kind === "entree") {
+      const entree = moi.entree;
+      if (patch.telephone !== undefined) entree.telephone = patch.telephone;
+      if (patch.adresse !== undefined) entree.adresse = patch.adresse;
+      if (patch.adresse_ville !== undefined) entree.adresse_ville = patch.adresse_ville;
+      if (patch.adresse_code_postal !== undefined)
+        entree.adresse_code_postal = patch.adresse_code_postal;
+      if (patch.adresse_pays !== undefined) entree.adresse_pays = patch.adresse_pays;
+      saveDb(db);
+      return this.dossierDepuisEntreeAdmin(db, entree);
+    }
+    await this.modifierProfil({
+      telephone: patch.telephone,
+      adresse: patch.adresse,
+      adresse_ville: patch.adresse_ville,
+      adresse_code_postal: patch.adresse_code_postal,
+      adresse_pays: patch.adresse_pays,
+    });
+    return this.dossierDepuisProfilPrincipal(loadDb());
+  }
+
+  /** Validation partagée des téléversements du dossier employé. */
+  private validerTeleversementEmploye(
+    input: DocumentInput,
+    extensions: string[]
+  ): string {
+    const nom = input.nom_fichier.trim();
+    if (!nom) throw err("ERR_NOT_FOUND");
+    const extension = nom.split(".").pop()?.toLowerCase() ?? "";
+    const mimeOk =
+      !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
+    if (!extensions.includes(extension) || !mimeOk) {
+      throw err("ERR_DOCUMENT_FORMAT");
+    }
+    if (
+      input.taille_octets !== undefined &&
+      input.taille_octets !== null &&
+      input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS
+    ) {
+      throw err("ERR_DOCUMENT_TROP_GROS");
+    }
+    return nom;
+  }
+
+  async televerserPhotoDossierEmploye(
+    input: DocumentInput
+  ): Promise<DossierEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const moi = this.moiEmploye(db);
+    if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    this.validerTeleversementEmploye(input, ["jpg", "jpeg", "png"]);
+    if (moi.kind === "entree") {
+      moi.entree.photo_profil_path = `demo:photo-profil-${uid()}`;
+      saveDb(db);
+      return this.dossierDepuisEntreeAdmin(db, moi.entree);
+    }
+    await this.televerserPhotoProfil(input);
+    return this.dossierDepuisProfilPrincipal(loadDb());
+  }
+
+  async televerserPieceDossierEmploye(
+    input: DocumentInput
+  ): Promise<DossierEmploye> {
+    const session = await this.getSession();
+    if (!session) throw err("ERR_NOT_FOUND");
+    const db = loadDb();
+    const moi = this.moiEmploye(db);
+    if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    if (moi.kind === "entree") {
+      const nom = this.validerTeleversementEmploye(input, [
+        "pdf",
+        "jpg",
+        "jpeg",
+        "png",
+      ]);
+      const entree = moi.entree;
+      if (
+        db.plateforme.documentsComptes.some(
+          (d) =>
+            d.entite_type === "compte" &&
+            d.entite_id === entree.id &&
+            d.type === "piece_identite" &&
+            d.nom_fichier.trim().toLowerCase() === nom.toLowerCase()
+        )
+      ) {
+        throw err("ERR_DOCUMENT_DOUBLON");
+      }
+      const taille = input.taille_octets ?? null;
+      const contenuConserve =
+        input.contenu && taille !== null && taille <= LIMITE_DEMO_CONTENU_OCTETS
+          ? input.contenu
+          : null;
+      db.plateforme.documentsComptes.push({
+        id: uid(),
+        owner_id: entree.id,
+        type: "piece_identite",
+        entite_type: "compte",
+        entite_id: entree.id,
+        nom_fichier: nom,
+        storage_path: `demo:${uid()}`,
+        taille_octets: taille,
+        mime_type: input.mime_type ?? null,
+        ajoute_par: entree.id,
+        created_at: new Date().toISOString(),
+        contenu: contenuConserve,
+        contenu_non_conserve: Boolean(input.contenu) && !contenuConserve,
+      });
+      saveDb(db);
+      return this.dossierDepuisEntreeAdmin(db, entree);
+    }
+    await this.ajouterDocumentCompte("piece_identite", input);
+    return this.dossierDepuisProfilPrincipal(loadDb());
+  }
+
+  async listerDossierEmploye(adminId: string): Promise<DossierEmploye> {
+    const db = loadDb();
+    this.acteurSuperAdmin(db);
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === adminId);
+    if (entree) return this.dossierDepuisEntreeAdmin(db, entree);
+    if (
+      db.profil.id === adminId &&
+      (db.profil.role === "admin" || db.profil.role === "super_admin")
+    ) {
+      return this.dossierDepuisProfilPrincipal(db);
+    }
+    const client = db.plateforme.comptesClients.find(
+      (c) =>
+        c.id === adminId && (c.role === "admin" || c.role === "super_admin")
+    );
+    if (client) return this.dossierDepuisClientPlateforme(db, client);
+    throw err("ERR_INTROUVABLE");
+  }
+
+  /** Complétude du dossier employé d'un membre (vue Équipe démo). */
+  private evaluationEquipe(
+    db: DemoDb,
+    id: string
+  ): { complet: boolean; manquants: DossierEmploye["manquants"] } {
+    const entree = db.plateforme.comptesAdmins.find((a) => a.id === id);
+    if (entree) {
+      const d = this.dossierDepuisEntreeAdmin(db, entree);
+      return { complet: d.complet, manquants: d.manquants };
+    }
+    if (db.profil.id === id) {
+      const d = this.dossierDepuisProfilPrincipal(db);
+      return { complet: d.complet, manquants: d.manquants };
+    }
+    const client = db.plateforme.comptesClients.find((c) => c.id === id);
+    if (client) {
+      const d = this.dossierDepuisClientPlateforme(db, client);
+      return { complet: d.complet, manquants: d.manquants };
+    }
+    return { complet: false, manquants: ["photo", "piece_identite", "telephone", "adresse"] };
+  }
+
   async listerDossier(compteId: string): Promise<DossierCompte> {
     const db = loadDb();
     this.acteurPlateforme(db);
@@ -6305,6 +6635,8 @@ export class DemoProvider implements DataProvider {
             e.acteur_email.toLowerCase() === email.toLowerCase()
         )
         .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      // Dossier employé (2026-11-08) : complétude CALCULÉE du membre.
+      const evaluation = this.evaluationEquipe(db, id);
       return {
         id,
         email,
@@ -6315,6 +6647,8 @@ export class DemoProvider implements DataProvider {
         dossiers_assignes: this.compterDossiersAssignes(db, alias),
         derniere_activite: activitesActeur[0]?.created_at ?? null,
         created_at: createdAt,
+        dossier_employe_complet: evaluation.complet,
+        dossier_employe_manquants: evaluation.manquants,
       };
     };
     for (const a of db.plateforme.comptesAdmins) {

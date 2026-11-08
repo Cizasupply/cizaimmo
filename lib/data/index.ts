@@ -119,7 +119,12 @@ export type {
   MessageDirect,
   SuppressionEnAttente,
   TypeConversation,
+  // Dossier employé des Admins (2026-11-08).
+  DossierEmploye,
+  DossierEmployePatch,
 } from "./types";
+export type { ElementDossierEmploye } from "../dossier-employe";
+export { evaluerDossierEmploye } from "../dossier-employe";
 export { CATEGORIES_DEPENSES, DEVISES, OPERATEURS_MOBILE_MONEY, TYPES_APPARTEMENT, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT_OCTETS, limiteBlocs, LIMITE_BLOCS } from "./types";
 export {
   ESSAI_JOURS,

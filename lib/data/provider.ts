@@ -25,6 +25,8 @@ import type {
   Document,
   DocumentInput,
   DossierCompte,
+  DossierEmploye,
+  DossierEmployePatch,
   EcheanceLoyer,
   EntreeAudit,
   FactureAbonnement,
@@ -626,6 +628,43 @@ export interface DataProvider {
   televerserPhotoProfil(input: DocumentInput): Promise<string>;
   /** Page DOSSIER console d'un compte (plateforme uniquement). */
   listerDossier(compteId: string): Promise<DossierCompte>;
+
+  // ==========================================================================
+  // DOSSIER EMPLOYÉ DES ADMINS (2026-11-08, décision du fondateur) :
+  // identité + ADRESSE, comme le dossier d'un client, en plus complet.
+  // Voir docs/dossier-employe-admin-2026-11-08.md. Accès réservé aux
+  // rôles admin / super_admin (un client : ERR_ACCES_PLATEFORME).
+  // Exigence suivie, NON bloquante : aucune méthode console n'est
+  // conditionnée à la complétude du dossier.
+  // ==========================================================================
+
+  /**
+   * Le dossier employé du compte plateforme CONNECTÉ (admin ou
+   * super_admin) : éléments présents + complétude calculée.
+   */
+  getMonDossierEmploye(): Promise<DossierEmploye>;
+  /**
+   * Met à jour les champs texte de SON dossier employé (téléphone +
+   * adresse postale). Retourne le dossier réévalué.
+   */
+  mettreAJourDossierEmploye(patch: DossierEmployePatch): Promise<DossierEmploye>;
+  /**
+   * Téléverse SA photo de profil (bucket privé, patron du dossier
+   * client) dans le cadre du dossier employé. Retourne le dossier
+   * réévalué.
+   */
+  televerserPhotoDossierEmploye(input: DocumentInput): Promise<DossierEmploye>;
+  /**
+   * Dépose SA pièce d'identité (bucket privé, entite « compte », type
+   * « piece_identite » — même patron que le dossier client). Retourne
+   * le dossier réévalué.
+   */
+  televerserPieceDossierEmploye(input: DocumentInput): Promise<DossierEmploye>;
+  /**
+   * SUPER ADMIN : le dossier employé DÉTAILLÉ d'un membre de l'équipe
+   * (documents avec liens signés, adresse) — page Équipe.
+   */
+  listerDossierEmploye(adminId: string): Promise<DossierEmploye>;
   /**
    * Recherche publique minimale par Display ID (propriétaire) : retourne
    * UNIQUEMENT le nom + le Display ID du compte gestionnaire trouvé —

@@ -67,6 +67,15 @@ export interface Profil {
   type_intention?: TypeIntention;
   /** Chemin Storage (bucket privé) de la photo de profil du dossier. */
   photo_profil_path?: string | null;
+  // --- Dossier employé des Admins (2026-11-08, module-dossier-
+  // employe.sql) : adresse postale complète de l'EMPLOYÉ (adresse,
+  // ville, code postal optionnel, pays). Réservée aux rôles admin /
+  // super_admin — jamais demandée aux clients (leur dossier reste
+  // photo + pièce + téléphone, sans adresse).
+  adresse?: string | null;
+  adresse_ville?: string | null;
+  adresse_code_postal?: string | null;
+  adresse_pays?: string | null;
   /**
    * État du contrat de collaboration — comptes à intention
    * « gestionnaire » uniquement : sans_objet (propriétaires et
@@ -863,6 +872,11 @@ export interface ProfilPatch {
   telephone?: string | null;
   langue?: Langue;
   devise_principale?: Devise;
+  // Dossier employé (2026-11-08) : adresse postale de l'employé.
+  adresse?: string | null;
+  adresse_ville?: string | null;
+  adresse_code_postal?: string | null;
+  adresse_pays?: string | null;
 }
 
 // --- MODULE 6 : indivision familiale (spec §6 suite, §2, §13) --------------
@@ -1260,6 +1274,50 @@ export interface DossierCompte {
   audit: EntreeAudit[];
 }
 
+/**
+ * Dossier EMPLOYÉ d'un Admin / Super Admin (2026-11-08, décision du
+ * fondateur) : identité + adresse, comme le dossier d'un client, en
+ * plus complet. 4 éléments : photo de profil, pièce d'identité,
+ * téléphone, adresse postale (adresse + ville + pays ; code postal
+ * optionnel). La complétude est CALCULÉE (lib/dossier-employe.ts) —
+ * jamais stockée. Exigence suivie, NON bloquante : l'accès console
+ * n'est jamais conditionné au dossier.
+ */
+export interface DossierEmploye {
+  /** Id du profil de l'employé. */
+  compte_id: string;
+  email: string;
+  nom: string;
+  role: "admin" | "super_admin";
+  /** Chemin Storage (bucket privé) de la photo, si téléversée. */
+  photo_profil_path: string | null;
+  /**
+   * Lien signé temporaire (1 h) vers la photo (réel uniquement ;
+   * null en démo et si la signature échoue — le dossier reste lisible).
+   */
+  photo_profil_url: string | null;
+  /** Pièce d'identité déposée au dossier (la plus récente), si présente. */
+  piece_identite: Document | null;
+  telephone: string | null;
+  adresse: string | null;
+  adresse_ville: string | null;
+  adresse_code_postal: string | null;
+  adresse_pays: string | null;
+  /** Calculé : les 4 éléments sont présents. */
+  complet: boolean;
+  /** Éléments manquants (vide si complet). */
+  manquants: import("../dossier-employe").ElementDossierEmploye[];
+}
+
+/** Champs texte modifiables du dossier employé (formulaire). */
+export interface DossierEmployePatch {
+  telephone?: string | null;
+  adresse?: string | null;
+  adresse_ville?: string | null;
+  adresse_code_postal?: string | null;
+  adresse_pays?: string | null;
+}
+
 /** Vue console d'un compte Admin / Super Admin. */
 export interface CompteAdmin {
   id: string;
@@ -1272,6 +1330,15 @@ export interface CompteAdmin {
   acces_admin_actif?: boolean;
   /** v1.5 : nombre de dossiers clients assignés à cet Admin. */
   dossiers_assignes?: number;
+  // Dossier employé (2026-11-08) : stockage DÉMO des éléments portés
+  // par l'entrée Admin elle-même (en réel, ils vivent sur la ligne
+  // `profils` + la table `documents`). Optionnels ; absents = vides.
+  telephone?: string | null;
+  adresse?: string | null;
+  adresse_ville?: string | null;
+  adresse_code_postal?: string | null;
+  adresse_pays?: string | null;
+  photo_profil_path?: string | null;
 }
 
 // ============================================================================
@@ -1360,6 +1427,15 @@ export interface MembreEquipe {
   /** Dernière entrée du journal d'audit signée par cet acteur. */
   derniere_activite: string | null;
   created_at: string;
+  /**
+   * Dossier employé (2026-11-08) : complétude CALCULÉE des 4
+   * éléments (photo, pièce, téléphone, adresse). Tout compte
+   * admin/super_admin démarre « incomplet » — rétroactivité
+   * incluse — tant que les 4 éléments ne sont pas présents.
+   */
+  dossier_employe_complet: boolean;
+  /** Éléments manquants du dossier employé (vide si complet). */
+  dossier_employe_manquants: import("../dossier-employe").ElementDossierEmploye[];
 }
 
 /** Résumé de supervision d'un gestionnaire rattaché (lecture, journalisée). */

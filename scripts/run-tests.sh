@@ -23,6 +23,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   lib/loyers.ts lib/module4.ts lib/exports.ts lib/email.ts lib/format.ts \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
   lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts lib/guide.ts \
+  lib/dossier-employe.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -467,6 +468,23 @@ if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" &
   echo "Guide d'utilisation : OK"
 else
   echo "Guide d'utilisation : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Dossier employé complet des Admins (2026-11-08, décision du
+# fondateur) : photo + pièce + téléphone + ADRESSE postale (nouveau
+# champ, module SQL dédié NON appliqué par le code) ; complétude
+# CALCULÉE (lib/dossier-employe.ts), exigence suivie NON bloquante ;
+# page console « Mon dossier employé » (admin + super_admin, client
+# refusé) ; page Équipe : statut par membre + détail Super Admin ;
+# rétroactivité (fondateur et promus démarrent « incomplet ») ;
+# parcours client inchangé (aucune adresse côté client).
+echo ""
+echo "===== Dossier employé des Admins (identité + adresse) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-dossier-employe.cjs"; then
+  echo "Dossier employé : OK"
+else
+  echo "Dossier employé : ÉCHEC" >&2
   ECHEC=1
 fi
 

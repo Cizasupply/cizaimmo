@@ -31,6 +31,8 @@ import type {
   RevueImmeubleGestion,
   ChecklistDossierSaisie,
   DossierCompte,
+  DossierEmploye,
+  DossierEmployePatch,
   EntreeAudit,
   FiltreDocuments,
   GestionnaireInvite,
@@ -103,6 +105,7 @@ import {
   genererContratProprietairePdf,
 } from "../contrat";
 import { piecesJointesAvecGuide } from "../guide";
+import { evaluerDossierEmploye } from "../dossier-employe";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -1944,6 +1947,17 @@ export class RealProvider implements DataProvider {
         telephone: patch.telephone !== undefined ? patch.telephone : undefined,
         langue: patch.langue,
         devise_principale: patch.devise_principale,
+        // Dossier employé (2026-11-08) : adresse postale de l'employé
+        // (module-dossier-employe.sql — undefined = colonne intacte).
+        adresse: patch.adresse !== undefined ? patch.adresse : undefined,
+        adresse_ville:
+          patch.adresse_ville !== undefined ? patch.adresse_ville : undefined,
+        adresse_code_postal:
+          patch.adresse_code_postal !== undefined
+            ? patch.adresse_code_postal
+            : undefined,
+        adresse_pays:
+          patch.adresse_pays !== undefined ? patch.adresse_pays : undefined,
       })
       .eq("id", session.id)
       .select()
@@ -3913,6 +3927,143 @@ export class RealProvider implements DataProvider {
     return storagePath;
   }
 
+  // ==========================================================================
+  // DOSSIER EMPLOYÉ DES ADMINS (2026-11-08) — identité + adresse.
+  // Les ingrédients vivent sur la ligne `profils` (photo, téléphone,
+  // adresse — module-dossier-employe.sql) et dans la table `documents`
+  // (pièce d'identité, entite « compte ») : la complétude est CALCULÉE
+  // à chaque lecture (lib/dossier-employe.ts), jamais stockée.
+  // ==========================================================================
+
+  /** Construit le dossier employé d'une ligne profils plateforme. */
+  private async construireDossierEmploye(
+    ligne: Record<string, unknown>
+  ): Promise<DossierEmploye> {
+    const client = this.client();
+    const id = String(ligne.id);
+    const photoPath =
+      typeof ligne.photo_profil_path === "string" && ligne.photo_profil_path
+        ? (ligne.photo_profil_path as string)
+        : null;
+    let photoUrl: string | null = null;
+    if (photoPath) {
+      const signe = await client.storage
+        .from("documents-prives")
+        .createSignedUrl(photoPath, 3600);
+      photoUrl = signe.data?.signedUrl ?? null;
+    }
+    const { data: docs } = await client
+      .from("documents")
+      .select("*")
+      .eq("entite_type", "compte")
+      .eq("entite_id", id)
+      .eq("type", "piece_identite")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const piece = docs && docs.length > 0 ? (docs[0] as Document) : null;
+    const texte = (cle: string): string | null =>
+      typeof ligne[cle] === "string" && (ligne[cle] as string).trim() !== ""
+        ? (ligne[cle] as string)
+        : null;
+    const telephone = texte("telephone");
+    const adresse = texte("adresse");
+    const adresseVille = texte("adresse_ville");
+    const adressePays = texte("adresse_pays");
+    const evaluation = evaluerDossierEmploye({
+      photoPresente: !!photoPath,
+      piecePresente: !!piece,
+      telephone,
+      adresse,
+      adresseVille,
+      adressePays,
+    });
+    return {
+      compte_id: id,
+      email: typeof ligne.email === "string" ? (ligne.email as string) : "",
+      nom: typeof ligne.nom === "string" ? (ligne.nom as string) : "",
+      role: ligne.role === "super_admin" ? "super_admin" : "admin",
+      photo_profil_path: photoPath,
+      photo_profil_url: photoUrl,
+      piece_identite: piece,
+      telephone,
+      adresse,
+      adresse_ville: adresseVille,
+      adresse_code_postal: texte("adresse_code_postal"),
+      adresse_pays: adressePays,
+      complet: evaluation.complet,
+      manquants: evaluation.manquants,
+    };
+  }
+
+  async getMonDossierEmploye(): Promise<DossierEmploye> {
+    const acteur = await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("profils")
+      .select(
+        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays"
+      )
+      .eq("id", acteur.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw err("ERR_INTROUVABLE");
+    return this.construireDossierEmploye(data as Record<string, unknown>);
+  }
+
+  async mettreAJourDossierEmploye(
+    patch: DossierEmployePatch
+  ): Promise<DossierEmploye> {
+    const profil = await this.getProfil();
+    if (!profil || (profil.role !== "admin" && profil.role !== "super_admin")) {
+      throw err("ERR_ACCES_PLATEFORME");
+    }
+    await this.modifierProfil({
+      telephone: patch.telephone,
+      adresse: patch.adresse,
+      adresse_ville: patch.adresse_ville,
+      adresse_code_postal: patch.adresse_code_postal,
+      adresse_pays: patch.adresse_pays,
+    });
+    return this.getMonDossierEmploye();
+  }
+
+  async televerserPhotoDossierEmploye(
+    input: DocumentInput
+  ): Promise<DossierEmploye> {
+    const profil = await this.getProfil();
+    if (!profil || (profil.role !== "admin" && profil.role !== "super_admin")) {
+      throw err("ERR_ACCES_PLATEFORME");
+    }
+    await this.televerserPhotoProfil(input);
+    return this.getMonDossierEmploye();
+  }
+
+  async televerserPieceDossierEmploye(
+    input: DocumentInput
+  ): Promise<DossierEmploye> {
+    const profil = await this.getProfil();
+    if (!profil || (profil.role !== "admin" && profil.role !== "super_admin")) {
+      throw err("ERR_ACCES_PLATEFORME");
+    }
+    await this.soumettreDocumentCompte("piece_identite", input);
+    return this.getMonDossierEmploye();
+  }
+
+  async listerDossierEmploye(adminId: string): Promise<DossierEmploye> {
+    await this.acteurSuperAdmin();
+    const { data, error } = await this.client()
+      .from("profils")
+      .select(
+        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays"
+      )
+      .eq("id", adminId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || (data.role !== "admin" && data.role !== "super_admin")) {
+      throw err("ERR_INTROUVABLE");
+    }
+    return this.construireDossierEmploye(data as Record<string, unknown>);
+  }
+
   async listerDossier(compteId: string): Promise<DossierCompte> {
     await this.acteurPlateforme();
     const client = this.client();
@@ -5165,7 +5316,7 @@ export class RealProvider implements DataProvider {
     const { data, error } = await client
       .from("profils")
       .select(
-        "id, email, nom, role, suspendu, acces_admin_actif, created_at"
+        "id, email, nom, role, suspendu, acces_admin_actif, created_at, telephone, photo_profil_path, adresse, adresse_ville, adresse_pays"
       )
       .in("role", ["admin", "super_admin"])
       .order("created_at", { ascending: true });
@@ -5178,7 +5329,29 @@ export class RealProvider implements DataProvider {
       suspendu: boolean;
       acces_admin_actif: boolean | null;
       created_at: string;
+      telephone: string | null;
+      photo_profil_path: string | null;
+      adresse: string | null;
+      adresse_ville: string | null;
+      adresse_pays: string | null;
     }[] | null) ?? [];
+    // Dossier employé (2026-11-08) : présence d'une pièce d'identité
+    // par membre (un seul balayage des documents « compte »).
+    const avecPiece = new Set<string>();
+    if (membres.length > 0) {
+      const { data: pieces } = await client
+        .from("documents")
+        .select("entite_id")
+        .eq("entite_type", "compte")
+        .eq("type", "piece_identite")
+        .in(
+          "entite_id",
+          membres.map((m) => m.id)
+        );
+      for (const p of (pieces as { entite_id: string }[] | null) ?? []) {
+        avecPiece.add(p.entite_id);
+      }
+    }
     // Charge : RPC lister_charge_admins ; repli = comptage local des
     // dossiers assignés si la RPC échoue (module SQL non encore appliqué).
     const chargeParId = new Map<string, number>();
@@ -5225,17 +5398,30 @@ export class RealProvider implements DataProvider {
         derniereParActeur.set(e.acteur_id, e.created_at);
       }
     }
-    return membres.map((m) => ({
-      id: m.id,
-      email: m.email,
-      nom: m.nom,
-      role: m.role,
-      statut: m.suspendu ? ("suspendu" as const) : ("actif" as const),
-      acces_admin_actif: m.acces_admin_actif ?? true,
-      dossiers_assignes: chargeParId.get(m.id) ?? 0,
-      derniere_activite: derniereParActeur.get(m.id) ?? null,
-      created_at: m.created_at,
-    }));
+    return membres.map((m) => {
+      // Dossier employé : complétude CALCULÉE (lib/dossier-employe.ts).
+      const evaluation = evaluerDossierEmploye({
+        photoPresente: !!m.photo_profil_path,
+        piecePresente: avecPiece.has(m.id),
+        telephone: m.telephone ?? null,
+        adresse: m.adresse ?? null,
+        adresseVille: m.adresse_ville ?? null,
+        adressePays: m.adresse_pays ?? null,
+      });
+      return {
+        id: m.id,
+        email: m.email,
+        nom: m.nom,
+        role: m.role,
+        statut: m.suspendu ? ("suspendu" as const) : ("actif" as const),
+        acces_admin_actif: m.acces_admin_actif ?? true,
+        dossiers_assignes: chargeParId.get(m.id) ?? 0,
+        derniere_activite: derniereParActeur.get(m.id) ?? null,
+        created_at: m.created_at,
+        dossier_employe_complet: evaluation.complet,
+        dossier_employe_manquants: evaluation.manquants,
+      };
+    });
   }
 
   async basculerAccesAdmin(adminId: string, actif: boolean): Promise<void> {
