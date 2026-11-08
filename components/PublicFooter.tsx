@@ -11,6 +11,10 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  * « CizaImmo, division de Ciza Group », e-mail de contact,
  * bascule de langue visible en permanence, copyright.
  * Sur mobile, une seule colonne ordonnée, sans débordement à 390 px.
+ * Copyright : ligne ENTIÈRE sur une seule ligne centrée en mobile
+ * (whitespace-nowrap, text-[10px] ; correctif 2026-11-08 — avant,
+ * « réservés. » tombait sur une 2e ligne) ; taille d'origine
+ * (text-xs) restaurée dès md, bureau inchangé.
  *
  * Clés i18n nouvelles (namespace "footer", à ajouter dans
  * messages/fr.json et messages/en.json) : product, company, legal,
@@ -129,7 +133,9 @@ export default function PublicFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-4 border-t border-slate-700 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-500">{tc("rights")}</p>
+          <p className="whitespace-nowrap text-center text-[10px] text-slate-500 sm:text-left md:text-xs">
+            {tc("rights")}
+          </p>
           <p className="flex items-center gap-3 text-xs text-slate-400">
             <span>{tf("languageLabel")}</span>
             <LanguageSwitcher className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />

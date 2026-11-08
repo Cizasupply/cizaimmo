@@ -1,6 +1,6 @@
 # Correctif — captures annotées du fondateur : en-tête public, boutons CTA, ligne entreprise (2026-11-08)
 
-Trois micro-défauts relevés au doigt par le fondateur sur son téléphone, page À propos mobile (captures annotées en rouge). Design uniquement : aucun texte, aucune route, aucune logique modifiés.
+Micro-défauts relevés au doigt par le fondateur sur son téléphone, pages publiques mobiles (captures annotées en rouge) — trois premiers sur la page À propos, le 4e ajouté par une capture suivante (pied public). Design uniquement : aucun texte, aucune route, aucune logique modifiés.
 
 ## Défaut 1 — En-tête public mobile : « Contact » tombait sous les autres liens
 
@@ -34,17 +34,26 @@ Trois micro-défauts relevés au doigt par le fondateur sur son téléphone, pag
 
 **Correction** (`app/[locale]/a-propos/page.tsx`) : la ligne est découpée sur le séparateur « · » **existant dans le texte validé** et chaque segment de contact (l'e-mail d'un bloc, « WhatsApp +1 514 502 9503 » d'un bloc) est rendu dans un `<span className="whitespace-nowrap">`. Les retours à la ligne ne se font plus qu'**entre** segments. Le premier segment (raison sociale + ville) reste fluide. Le texte affiché est **strictement identique**, caractère pour caractère — la chaîne i18n n'est pas touchée (égalité exacte verrouillée par test, FR et EN).
 
+## Défaut 4 — Pied public : la ligne de copyright cassait sur mobile
+
+**Capture** (ajout du fondateur) : « © 2026 CizaImmo, division de Ciza Group. Tous droits réservés. » — « réservés. » tombait sur une 2e ligne.
+
+**Cause** : la ligne (`common.rights`, 62 caractères en FR, 63 en EN) était rendue en `text-xs` (12 px) libre : ~375 px estimés pour 328 px utiles à 360 px (pied en `px-4`).
+
+**Correction** (`components/PublicFooter.tsx`, partagé par toutes les pages publiques) : la ligne passe en `whitespace-nowrap text-center text-[10px]` sur mobile (≈ 315 px estimés au pire cas EN — tient entière, centrée) ; alignement gauche restauré dès `sm` (`sm:text-left`, la rangée du bas redevient horizontale) et **taille d'origine restaurée dès `md`** (`md:text-xs`) — bureau strictement inchangé. Texte inchangé, caractère pour caractère (égalité exacte verrouillée FR + EN).
+
 ## Fichiers touchés
 
 - `components/PublicHeader.tsx` — navigation une ligne (commentaire de mise en page mis à jour).
 - `app/[locale]/page.tsx` — boutons du héros au patron une-ligne.
 - `app/[locale]/a-propos/page.tsx` — boutons du CTA final + ligne entreprise par segments.
-- `scripts/test-correctif-apropos-header.cjs` — **nouveau bloc, 29 contrôles** (patrons statiques + budgets de largeur FR/EN à 360 px + égalité exacte de la ligne entreprise), enregistré dans `scripts/run-tests.sh`.
+- `components/PublicFooter.tsx` — **défaut 4** : copyright sur une ligne en mobile (une seule ligne de classes + commentaire).
+- `scripts/test-correctif-apropos-header.cjs` — **nouveau bloc, 36 contrôles** (29 initiaux + 7 pour le copyright : patrons statiques + budgets de largeur FR/EN à 360 px + égalités exactes de la ligne entreprise et du copyright), enregistré dans `scripts/run-tests.sh`.
 - `scripts/test-design-accueil.cjs`, `scripts/test-page-a-propos.cjs` — **adaptations documentées** : les assertions qui nommaient les anciennes classes du bouton or (`px-8`, sans `whitespace-nowrap`) visent le nouveau patron ; l'intention (CTA unique, primaire or, bon libellé, bonne destination) est inchangée, aucune assertion fonctionnelle affaiblie.
 
 ## Vérifications
 
-- Nouveau bloc : **29 OK / 0 KO**.
+- Nouveau bloc : **36 OK / 0 KO** (29 pour les défauts 1-3, + 7 pour le copyright).
 - **Suite complète VERTE** (`bash scripts/run-tests.sh`, exit 0 — « Tous les tests demandés sont passés »), i18n : parité et clés utilisées OK (aucune clé ajoutée ni modifiée).
 - **Build OK** (`npm run build`, exit 0).
 

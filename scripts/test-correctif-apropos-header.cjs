@@ -23,6 +23,11 @@
 //      whitespace-nowrap : les retours à la ligne ne se font
 //      qu'ENTRE segments, jamais dans l'e-mail ni dans le numéro
 //      (avant, le numéro cassait : « +1 514 / 502 9503 »).
+//   4. Pied public partagé : la ligne de copyright (common.rights)
+//      ENTIÈRE sur une seule ligne centrée en mobile
+//      (whitespace-nowrap, text-[10px]) — avant, « réservés. »
+//      tombait sur une 2e ligne à text-xs ; texte inchangé,
+//      taille/alignement d'origine restaurés dès sm/md.
 // Test STATIQUE (fichiers sources + JSON de messages) + budgets
 // de largeur estimés (largeur moyenne d'un glyphe SemiBold
 // ≈ 0,56 × taille de police — marge incluse).
@@ -109,6 +114,34 @@ check("boutons : budget largeur EN à 360 px — « Start the free 30-day trial 
 check("boutons : les libellés eux-mêmes sont inchangés (FR validé + EN)",
   fr.landing.ctaTrial === "Commencer l'essai gratuit de 30 jours" &&
   fr.contact.demoTitle === "Demander une démonstration" && en.contact.demoTitle === "Request a demo");
+
+// ---------- 4. Pied public : copyright sur UNE ligne (mobile) ----------
+// Capture suivante du fondateur : « © 2026 CizaImmo, division de
+// Ciza Group. Tous droits réservés. » cassait (« réservés. » sur
+// une 2e ligne) à text-xs (12 px). Correctif : whitespace-nowrap +
+// text-[10px] centré sur mobile, alignement et taille d'origine
+// restaurés ensuite (sm:text-left, md:text-xs) — bureau inchangé,
+// texte inchangé caractère pour caractère. Pied partagé : toutes
+// les pages publiques en bénéficient.
+const footer = lire("components/PublicFooter.tsx");
+check("pied : la ligne de copyright (common.rights) est toujours rendue",
+  footer.includes('{tc("rights")}'));
+check("pied : copyright en whitespace-nowrap centré, taille réduite mobile (text-[10px])",
+  footer.includes("whitespace-nowrap text-center text-[10px] text-slate-500"));
+check("pied : bureau inchangé — alignement gauche dès sm, taille d'origine dès md (md:text-xs)",
+  footer.includes("sm:text-left") && footer.includes("md:text-xs"));
+check("pied : texte FR du copyright inchangé, caractère pour caractère (égalité exacte)",
+  fr.common.rights === "© 2026 CizaImmo, division de Ciza Group. Tous droits réservés.");
+check("pied : texte EN du copyright inchangé, caractère pour caractère (égalité exacte)",
+  en.common.rights === "© 2026 CizaImmo, a division of Ciza Group. All rights reserved.");
+// Budget largeur 360 px : pied en px-4 -> 328 px utiles. À 10 px en
+// graisse normale (~0,50 x taille = 5,0 px/car.) : EN (le plus long,
+// 63 car.) ≈ 315 px <= 328 px ; FR (62 car.) ≈ 310 px.
+check("pied : budget largeur EN à 360 px — le copyright tient sur une ligne",
+  en.common.rights.length * 5.0 <= 328,
+  `estimé=${Math.round(en.common.rights.length * 5.0)} px pour 328 px dispo`);
+check("pied : budget largeur FR à 360 px — le copyright tient sur une ligne",
+  fr.common.rights.length * 5.0 <= 328);
 
 // ---------- 3. Ligne entreprise À propos : segments insécables ----------
 check("ligne entreprise : rendue par segments (split sur « · »)",
