@@ -126,7 +126,7 @@ import {
 } from "../module4";
 import { sommeParts, validerParts } from "../indivision";
 import { FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
-import { getSupabaseBrowserClient } from "../supabase";
+import { DEMO_SESSION_COOKIE, getSupabaseBrowserClient } from "../supabase";
 import {
   envoyerEmailViaApi,
   statutEmailDepuisResultat,
@@ -340,6 +340,16 @@ export class RealProvider implements DataProvider {
 
   async signOut(): Promise<void> {
     await this.client().auth.signOut();
+    // Correctif 2026-11-07 (zone connectée figée) : effacer aussi un
+    // éventuel cookie de session DÉMO résiduel (posé pendant la
+    // période démo du 2026-11-06, valable 30 jours). Sans cela, le
+    // middleware pouvait le prendre pour une session active et
+    // renvoyer l'utilisateur déconnecté vers le tableau de bord —
+    // déconnexion impossible. (Le middleware ne l'honore de toute
+    // façon plus qu'en mode démo ; ceci nettoie le navigateur.)
+    if (typeof document !== "undefined") {
+      document.cookie = `${DEMO_SESSION_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+    }
   }
 
   async resetPassword(email: string): Promise<void> {

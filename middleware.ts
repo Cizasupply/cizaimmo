@@ -58,10 +58,20 @@ export default async function middleware(req: NextRequest) {
   if (!isProtected && !isAuthPage) return intlResponse;
 
   // Session démo : cookie posé par DemoProvider.signIn / signUp.
-  const hasDemoSession = req.cookies.get(DEMO_SESSION_COOKIE)?.value === "1";
+  // Correctif 2026-11-07 (zone connectée figée) : ce cookie ne vaut
+  // QUE si le site tourne réellement en mode démo. En mode réel
+  // (Supabase configuré), un cookie démo résiduel — posé pendant la
+  // période démo du 2026-11-06, valable 30 jours — ne doit jamais
+  // authentifier : sinon, après une déconnexion réelle, le
+  // middleware renvoie l'utilisateur vers le tableau de bord alors
+  // qu'il n'a plus aucune session (déconnexion impossible, pages
+  // protégées rebondies, espace connecté figé sur un parc vide).
+  const modeDemo = isDemoMode();
+  const hasDemoSession =
+    modeDemo && req.cookies.get(DEMO_SESSION_COOKIE)?.value === "1";
 
   let authenticated = hasDemoSession;
-  if (!authenticated && !isDemoMode()) {
+  if (!authenticated && !modeDemo) {
     // Mode réel : vérification de la session Supabase (RLS reste le
     // vrai garde-fou côté base ; le middleware ne fait que rediriger).
     const supabase = createSupabaseMiddlewareClient(req, intlResponse);

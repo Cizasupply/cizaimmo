@@ -223,6 +223,23 @@ else
   ECHEC=1
 fi
 
+# Correctif « zone connectée figée » (2026-11-07, soir) : le
+# cookie de session DÉMO (posé pendant la période démo du
+# 2026-11-06, 30 jours) authentifiait dans le middleware même en
+# mode réel, et RealProvider.signOut ne l'effaçait pas — après une
+# déconnexion réelle, retour forcé au tableau de bord sans session :
+# espace connecté figé, déconnexion/connexion impossibles.
+# Correctif : cookie démo honoré seulement en mode démo (middleware)
+# + effacement du cookie dans RealProvider.signOut.
+echo ""
+echo "===== Correctif cookie démo (zone connectée figée) ====="
+if node "scripts/test-correctif-cookie-demo.cjs"; then
+  echo "Correctif cookie démo : OK"
+else
+  echo "Correctif cookie démo : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."
