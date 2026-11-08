@@ -4524,7 +4524,8 @@ export class RealProvider implements DataProvider {
   private async enrichirConversations(
     lignes: LigneConversation[],
     acteurId: string,
-    acteurEstPlateforme: boolean
+    acteurEstPlateforme: boolean,
+    nonLusDepuisClient = false
   ): Promise<Conversation[]> {
     if (lignes.length === 0) return [];
     const idsProfils: string[] = [];
@@ -4554,6 +4555,13 @@ export class RealProvider implements DataProvider {
       let nonLus = 0;
       if (l.type === "rattachement" && acteurEstPlateforme) {
         nonLus = 0;
+      } else if (nonLusDepuisClient) {
+        // Boîte de réception plateforme : seuls les messages DU
+        // CLIENT comptent (expéditeur = proprietaire_id du fil) —
+        // jamais ceux d'un autre membre de l'équipe plateforme.
+        nonLus = liste.filter(
+          (m) => m.expediteur_id === l.proprietaire_id && !m.lu_par_plateforme
+        ).length;
       } else if (
         acteurId === l.proprietaire_id ||
         acteurId === l.gestionnaire_id
@@ -4881,6 +4889,46 @@ export class RealProvider implements DataProvider {
       acteur.id,
       true
     );
+  }
+
+  /**
+   * Boîte de réception plateforme (2026-11-07, demande du fondateur
+   * après un message cliente passé inaperçu) : TOUS les fils
+   * « plateforme » — assignés ou NON. L'assignation est une
+   * responsabilité, pas une restriction d'accès : la politique
+   * conversations_select autorise déjà est_admin_plateforme() sur
+   * tous les fils. Tri : dernier message décroissant (repli : date
+   * de création du fil).
+   */
+  async listerConversationsPlateforme(): Promise<Conversation[]> {
+    const acteur = await this.acteurPlateforme();
+    const { data, error } = await this.client()
+      .from("conversations")
+      .select("*")
+      .eq("type", "plateforme")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const enrichies = await this.enrichirConversations(
+      (data as LigneConversation[] | null) ?? [],
+      acteur.id,
+      true,
+      true
+    );
+    return enrichies.sort((a, b) =>
+      (b.dernier_message_le ?? b.created_at).localeCompare(
+        a.dernier_message_le ?? a.created_at
+      )
+    );
+  }
+
+  /**
+   * Badge console : total des messages clients non lus par la
+   * plateforme. Dérivé de la boîte de réception — le badge égale
+   * donc toujours la somme des pastilles de la page Messages.
+   */
+  async compterMessagesPlateformeNonLus(): Promise<number> {
+    const conversations = await this.listerConversationsPlateforme();
+    return conversations.reduce((somme, c) => somme + (c.non_lus ?? 0), 0);
   }
 
   async journaliserConsultationMessages(conversationId: string): Promise<void> {

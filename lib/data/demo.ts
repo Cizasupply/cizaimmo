@@ -5934,6 +5934,69 @@ export class DemoProvider implements DataProvider {
       );
   }
 
+  /**
+   * Conversation « plateforme » enrichie pour la BOÎTE DE RÉCEPTION :
+   * non-lus = messages DU CLIENT (expéditeur = proprietaire_id du
+   * fil) non lus par la plateforme — jamais les messages d'un autre
+   * membre de l'équipe. Miroir du compteur réel.
+   */
+  private enrichirConversationPlateforme(
+    db: DemoDb,
+    conv: Conversation
+  ): Conversation {
+    const msgs = db.messages
+      .filter((m) => m.conversation_id === conv.id)
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const dernier = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const prop = this.resoudrePersonne(db, conv.proprietaire_id);
+    const gest = conv.gestionnaire_id
+      ? this.resoudrePersonne(db, conv.gestionnaire_id)
+      : null;
+    const adminResp = conv.admin_responsable_id
+      ? this.resoudrePersonne(db, conv.admin_responsable_id)
+      : null;
+    const nonLus = msgs.filter(
+      (m) => m.expediteur_id === conv.proprietaire_id && !m.lu_par_plateforme
+    ).length;
+    return {
+      ...conv,
+      proprietaire_nom: prop?.nom ?? conv.proprietaire_nom,
+      proprietaire_email: prop?.email ?? conv.proprietaire_email,
+      proprietaire_display_id: prop?.display_id ?? conv.proprietaire_display_id ?? null,
+      gestionnaire_nom: gest?.nom ?? conv.gestionnaire_nom ?? null,
+      gestionnaire_display_id: gest?.display_id ?? conv.gestionnaire_display_id ?? null,
+      admin_responsable_nom: adminResp?.nom ?? conv.admin_responsable_nom ?? null,
+      dernier_message: dernier?.corps ?? null,
+      dernier_message_le: dernier?.created_at ?? null,
+      non_lus: nonLus,
+    };
+  }
+
+  /**
+   * Boîte de réception plateforme (miroir démo) : TOUS les fils
+   * « plateforme », assignés ou NON — un dossier non assigné
+   * (admin_responsable_id NULL) compte et apparaît, comme en réel.
+   */
+  async listerConversationsPlateforme(): Promise<Conversation[]> {
+    const db = loadDb();
+    this.acteurPlateforme(db);
+    return db.conversations
+      .filter((c) => c.type === "plateforme")
+      .map((c) => this.enrichirConversationPlateforme(db, c))
+      .sort((a, b) =>
+        (b.dernier_message_le ?? b.created_at).localeCompare(
+          a.dernier_message_le ?? a.created_at
+        )
+      );
+  }
+
+  /** Badge console (miroir démo) : somme des non-lus de la boîte. */
+  async compterMessagesPlateformeNonLus(): Promise<number> {
+    const conversations = await this.listerConversationsPlateforme();
+    return conversations.reduce((somme, c) => somme + (c.non_lus ?? 0), 0);
+  }
+
   async journaliserConsultationMessages(conversationId: string): Promise<void> {
     const db = loadDb();
     const acteur = this.acteurPlateforme(db);

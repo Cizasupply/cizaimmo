@@ -769,6 +769,21 @@ export interface DataProvider {
   /** Supervision : tous les fils « rattachement » (plateforme, lecture seule). */
   listerConversationsSupervisees(): Promise<Conversation[]>;
   /**
+   * Boîte de réception plateforme (2026-11-07) : TOUS les fils
+   * « plateforme », assignés ou NON — l'assignation est une
+   * responsabilité, pas une restriction d'accès. Tri : dernier
+   * message décroissant. non_lus = messages DU CLIENT non lus par la
+   * plateforme. Réservé plateforme (Admin / Super Admin).
+   */
+  listerConversationsPlateforme(): Promise<Conversation[]>;
+  /**
+   * Badge console : total des messages clients non lus par la
+   * plateforme, tous fils « plateforme » confondus — égal à la somme
+   * des non_lus de listerConversationsPlateforme(). Réservé
+   * plateforme.
+   */
+  compterMessagesPlateformeNonLus(): Promise<number>;
+  /**
    * Journalise (journal_audit, action « consultation_messages »)
    * l'ouverture d'un fil supervisé par la plateforme.
    */

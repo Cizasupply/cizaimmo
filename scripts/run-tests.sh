@@ -274,6 +274,24 @@ else
   ECHEC=1
 fi
 
+# Évolution « boîte de réception console + badge » (2026-11-07,
+# soir, demande du fondateur après un test réel) : un message
+# cliente (« Bonjour test ») était arrivé dans le fil plateforme
+# d'un dossier NON assigné sans qu'aucun signal ne le montre dans
+# la console. Ajouts : compteur plateforme (messages du client non
+# lus, assignés ou non), entrée « Messages » + pastille dans
+# ConsoleShell, page boîte de réception (tri par dernier message,
+# clic -> Dossier #messages), bloc notification Vue d'ensemble.
+# Aucun SQL : les colonnes lu_par_plateforme existent (v1.5).
+echo ""
+echo "===== Boîte de réception console + badge messages ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-console-messages-badge.cjs"; then
+  echo "Boîte de réception + badge : OK"
+else
+  echo "Boîte de réception + badge : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

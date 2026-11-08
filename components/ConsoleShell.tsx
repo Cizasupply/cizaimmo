@@ -24,6 +24,7 @@ const LIENS = [
   { key: "accounts", href: "/console/comptes" },
   { key: "managers", href: "/console/gestionnaires" },
   { key: "myFiles", href: "/console/mes-dossiers", adminSeul: true },
+  { key: "messages", href: "/console/messages" },
   { key: "supervisedMessages", href: "/console/messages-supervises" },
   { key: "vitrine", href: "/console/vitrine" },
   { key: "journal", href: "/console/journal" },
@@ -41,6 +42,9 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   const [profil, setProfil] = useState<Profil | null>(null);
   const [refuse, setRefuse] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  // Badge « Messages » (2026-11-07) : messages clients non lus par
+  // la plateforme, TOUS fils plateforme confondus (assignés ou non).
+  const [nonLusMessages, setNonLusMessages] = useState(0);
 
   useEffect(() => {
     let actif = true;
@@ -63,6 +67,22 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     };
   }, [locale, router]);
 
+  // Le compteur se recalcule à chaque navigation : après la lecture
+  // d'un fil dans un Dossier, la pastille retombe dès le retour.
+  useEffect(() => {
+    if (!profil) return;
+    let actif = true;
+    getDataProvider()
+      .compterMessagesPlateformeNonLus()
+      .then((n) => {
+        if (actif) setNonLusMessages(n);
+      })
+      .catch(() => undefined);
+    return () => {
+      actif = false;
+    };
+  }, [profil, pathname]);
+
   async function handleLogout() {
     await getDataProvider().signOut();
     router.push(`/${locale}/connexion`);
@@ -83,18 +103,29 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         {liensVisibles.map((l) => {
           const href = `/${locale}${l.href}`;
           const actif = pathname === href;
+          const pastille =
+            l.key === "messages" && nonLusMessages > 0 ? nonLusMessages : null;
           return (
             <Link
               key={l.key}
               href={href}
               onClick={onNavigate}
-              className={`block rounded-lg px-3 py-2 text-sm ${
+              className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${
                 actif
                   ? "bg-gold font-bold text-navy-dark"
                   : "hover:bg-navy-light hover:text-gold"
               }`}
             >
-              {t(l.key)}
+              <span>{t(l.key)}</span>
+              {pastille !== null ? (
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                    actif ? "bg-navy-dark text-gold" : "bg-gold text-navy-dark"
+                  }`}
+                >
+                  {pastille}
+                </span>
+              ) : null}
             </Link>
           );
         })}

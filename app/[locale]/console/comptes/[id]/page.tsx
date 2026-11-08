@@ -723,8 +723,10 @@ export default function ConsoleDossierPage({
       </div>
 
       {/* v1.5 : fil plateforme du client — la plateforme peut répondre
-          (fil « plateforme » ; marquerLu à l'ouverture via FilMessages). */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          (fil « plateforme » ; marquerLu à l'ouverture via FilMessages).
+          Ancre #messages : cible des liens de la boîte de réception
+          console et de la Vue d'ensemble (2026-11-07). */}
+      <section id="messages" className="mt-6 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-bold text-navy">{t15("messagesTitle")}</h2>
         <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
         <div className="mt-4">

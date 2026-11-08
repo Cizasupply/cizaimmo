@@ -13,16 +13,19 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { AnnonceAValider, ComptePlateforme, DemandeRattachement, EntreeAudit } from "@/lib/data";
+import type { Conversation } from "@/lib/data/types";
 import { construirePrixPlans } from "@/lib/tarifs";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 
 export default function ConsoleAccueilPage() {
   const t = useTranslations("console");
+  const t15 = useTranslations("v15");
   const locale = useLocale();
   const [comptes, setComptes] = useState<ComptePlateforme[]>([]);
   const [journal, setJournal] = useState<EntreeAudit[]>([]);
   const [demandes, setDemandes] = useState<DemandeRattachement[]>([]);
   const [vitrineAValider, setVitrineAValider] = useState<AnnonceAValider[]>([]);
+  const [filsPlateforme, setFilsPlateforme] = useState<Conversation[]>([]);
   const [mrr, setMrr] = useState(0);
   const [charge, setCharge] = useState(false);
 
@@ -31,18 +34,20 @@ export default function ConsoleAccueilPage() {
     (async () => {
       try {
         const provider = getDataProvider();
-        const [liste, tarifs, audit, demandesListe, vitrineListe] = await Promise.all([
+        const [liste, tarifs, audit, demandesListe, vitrineListe, filsListe] = await Promise.all([
           provider.listerComptesPlateforme(),
           provider.getTarifsPlateforme(),
           provider.listerJournalAudit(),
           provider.listerDemandesRattachement(),
           provider.listerVitrineAValider().catch(() => [] as AnnonceAValider[]),
+          provider.listerConversationsPlateforme().catch(() => [] as Conversation[]),
         ]);
         if (!actif) return;
         const prix = construirePrixPlans(tarifs);
         setComptes(liste);
         setDemandes(demandesListe);
         setVitrineAValider(vitrineListe);
+        setFilsPlateforme(filsListe);
         setJournal(audit.slice(0, 5));
         setMrr(
           liste
@@ -76,6 +81,18 @@ export default function ConsoleAccueilPage() {
   const contratsEnAttente = comptes.filter((c) => c.statut_contrat === "signe_recu");
   const demandesEnAttenteAdmin = demandes.filter((d) => d.statut === "en_attente_admin");
 
+  // Notification messages (2026-11-07) : total des messages clients
+  // non lus par la plateforme + les 3 fils non lus les plus récents
+  // (la boîte de réception arrive déjà triée par dernier message
+  // décroissant ; dossiers assignés ou NON inclus).
+  const totalMessagesNonLus = filsPlateforme.reduce(
+    (somme, c) => somme + (c.non_lus ?? 0),
+    0
+  );
+  const filsNonLusRecents = filsPlateforme
+    .filter((c) => (c.non_lus ?? 0) > 0)
+    .slice(0, 3);
+
   const cartes = [
     { label: t("statAccounts"), valeur: comptes.length, couleur: "text-navy" },
     { label: t("statPending"), valeur: enAttente.length, couleur: "text-amber-600" },
@@ -107,6 +124,70 @@ export default function ConsoleAccueilPage() {
           </div>
         ))}
       </div>
+
+      {/* Notification : messages clients non lus (mise en évidence
+          ambre dès qu'il y en a ; carte calme à zéro). */}
+      <section
+        className={`mt-8 rounded-2xl border p-5 ${
+          totalMessagesNonLus > 0
+            ? "border-amber-300 bg-amber-50"
+            : "border-slate-200 bg-white"
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2
+            className={`font-bold ${
+              totalMessagesNonLus > 0 ? "text-amber-800" : "text-navy"
+            }`}
+          >
+            {t("unreadMessagesTitle")}
+          </h2>
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-bold ${
+              totalMessagesNonLus > 0
+                ? "bg-gold text-navy-dark"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {totalMessagesNonLus}
+          </span>
+        </div>
+        {totalMessagesNonLus === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">{t("unreadMessagesNone")}</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {filsNonLusRecents.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/${locale}/console/comptes/${c.proprietaire_id}#messages`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 hover:bg-amber-100/60"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-navy">
+                      {c.proprietaire_nom ?? c.proprietaire_email ?? "—"}
+                    </span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {c.dernier_message ?? ""}
+                      {c.dernier_message_le
+                        ? ` · ${formatDateTime(c.dernier_message_le, locale)}`
+                        : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-gold px-2.5 py-1 text-xs font-bold text-navy-dark">
+                    {t15("unread", { count: String(c.non_lus ?? 0) })}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link
+          href={`/${locale}/console/messages`}
+          className="mt-4 inline-block rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-light"
+        >
+          {t("viewInbox")}
+        </Link>
+      </section>
 
       {enAttente.length > 0 ? (
         <section className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5">
