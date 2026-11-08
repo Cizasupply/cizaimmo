@@ -408,6 +408,20 @@ else
   ECHEC=1
 fi
 
+# Micro-correctifs des captures annotées du fondateur (2026-11-08) :
+# navigation de l'en-tête public sur UNE ligne en mobile (les 4
+# liens au même niveau), libellés des boutons CTA publics centrés
+# sur UNE ligne, ligne entreprise de la page À propos rendue par
+# segments insécables (e-mail et numéro WhatsApp jamais cassés).
+echo ""
+echo "===== Correctif À propos / en-tête (captures fondateur) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-correctif-apropos-header.cjs"; then
+  echo "Correctif À propos / en-tête : OK"
+else
+  echo "Correctif À propos / en-tête : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

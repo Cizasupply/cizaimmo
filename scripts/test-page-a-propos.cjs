@@ -102,7 +102,10 @@ check("bloc engagement : texte riche avec le gras <gras> (n'encaisse jamais vos 
 // ---------- 4. CTA final unique + ligne entreprise ----------
 check("cta : UN SEUL primaire or (libellé existant landing.ctaTrial -> /inscription)",
   occurrences(page, 'tl("ctaTrial")') === 1 && page.includes('href="/inscription"') &&
-  page.includes("rounded-full bg-gold px-8 py-3 font-semibold text-navy hover:bg-gold-light"));
+  // ADAPTATION 2026-11-08 (correctif boutons une ligne) : libellé
+  // désormais en whitespace-nowrap centré, taille réduite sur
+  // mobile (text-[13px], px-4) — voir test-correctif-apropos-header.cjs.
+  page.includes("rounded-full bg-gold px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-navy hover:bg-gold-light"));
 check("cta : secondaire = Demander une démonstration (libellé existant) -> /contact, contour marine",
   page.includes('tc("demoTitle")') && page.includes('href="/contact"') &&
   page.includes("border border-navy"));

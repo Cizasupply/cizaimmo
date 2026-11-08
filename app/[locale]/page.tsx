@@ -53,13 +53,13 @@ export default async function LandingPage({
               <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
                 <Link
                   href="/inscription"
-                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 font-semibold text-navy hover:bg-gold-light"
+                  className="inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full bg-gold px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-navy hover:bg-gold-light sm:px-8 sm:text-base sm:tracking-normal"
                 >
                   {t("ctaTrial")}
                 </Link>
                 <Link
                   href="/contact"
-                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/70 px-8 py-3 font-semibold text-white hover:bg-white hover:text-navy"
+                  className="inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full border border-white/70 px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-white hover:bg-white hover:text-navy sm:px-8 sm:text-base sm:tracking-normal"
                 >
                   {tc("demoTitle")}
                 </Link>

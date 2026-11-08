@@ -59,7 +59,11 @@ check("héros : pleine largeur marine en dégradé sobre (from-navy to-navy-dark
 check("héros : titre + slogan + sous-titre existants",
   accueil.includes('t("headline")') && accueil.includes('tb("slogan")') && accueil.includes('t("subheadline")'));
 check("héros : CTA essai UNIQUE en primaire or (libellé long, le plus clair)",
-  accueil.includes("inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 font-semibold text-navy hover:bg-gold-light") &&
+  // ADAPTATION 2026-11-08 (correctif boutons une ligne) : le bouton
+  // garde min-h-12 et le primaire or, mais le libellé est désormais
+  // en whitespace-nowrap centré, taille réduite sur mobile
+  // (text-[13px], px-4) — voir test-correctif-apropos-header.cjs.
+  accueil.includes("inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full bg-gold px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-navy hover:bg-gold-light sm:px-8 sm:text-base sm:tracking-normal") &&
   accueil.includes('t("ctaTrial")') && occurrences(accueil, 't("ctaTrial")') === 1);
 check("héros : secondaire = Demander une démonstration (libellé existant) -> /contact, contour clair",
   accueil.includes('tc("demoTitle")') && accueil.includes('href="/contact"') &&

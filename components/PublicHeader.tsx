@@ -12,7 +12,10 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  * pages publiques (accueil, tarifs, a-louer, a-propos, contact, légales).
  *
  * Mise en page — mobile et tablette (< xl) : trois lignes ordonnées,
- * sans flex-wrap désordonné : (1) logo + langue, (2) navigation,
+ * sans flex-wrap désordonné : (1) logo + langue, (2) navigation —
+ * les QUATRE liens sur UNE SEULE ligne, au même niveau (flex-nowrap,
+ * taille et espacements réduits sur mobile ; correctif 2026-11-08 :
+ * « Contact » tombait sur une deuxième ligne),
  * (3) Connexion + Essai gratuit côte à côte. Ordinateur large (xl+) :
  * une seule ligne logo | nav | Connexion | Essai | langue.
  * Le bouton « Connexion » est un bouton encadré doré, distinct du
@@ -49,17 +52,17 @@ export default function PublicHeader({
           />
         </Link>
         <LanguageSwitcher className="order-2 ml-auto border-gold text-gold hover:bg-gold hover:text-navy-dark xl:order-5 xl:ml-0" />
-        <nav className="order-3 flex w-full flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold xl:order-2 xl:w-auto xl:flex-nowrap">
-          <Link href="/tarifs" className="rounded px-1 py-2 hover:text-gold">
+        <nav className="order-3 flex w-full flex-nowrap items-center gap-x-2 text-xs font-semibold sm:gap-x-4 sm:text-sm xl:order-2 xl:w-auto xl:gap-x-5">
+          <Link href="/tarifs" className="whitespace-nowrap rounded px-0.5 py-2 hover:text-gold sm:px-1">
             {tn("pricing")}
           </Link>
-          <Link href="/a-louer" className="rounded px-1 py-2 hover:text-gold">
+          <Link href="/a-louer" className="whitespace-nowrap rounded px-0.5 py-2 hover:text-gold sm:px-1">
             {t("navRent")}
           </Link>
-          <Link href="/a-propos" className="rounded px-1 py-2 hover:text-gold">
+          <Link href="/a-propos" className="whitespace-nowrap rounded px-0.5 py-2 hover:text-gold sm:px-1">
             {tn("about")}
           </Link>
-          <Link href="/contact" className="rounded px-1 py-2 hover:text-gold">
+          <Link href="/contact" className="whitespace-nowrap rounded px-0.5 py-2 hover:text-gold sm:px-1">
             {tn("contact")}
           </Link>
         </nav>

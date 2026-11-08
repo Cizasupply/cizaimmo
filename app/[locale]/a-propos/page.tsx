@@ -147,18 +147,29 @@ export default async function AProposPage({
               </p>
             </div>
             <p className="mt-10 text-center font-semibold text-navy">
-              {t("companyLine")}
+              {t("companyLine")
+                .split(" · ")
+                .map((segment, i) => (
+                  <span key={i}>
+                    {i > 0 ? " · " : null}
+                    {i === 0 ? (
+                      segment
+                    ) : (
+                      <span className="whitespace-nowrap">{segment}</span>
+                    )}
+                  </span>
+                ))}
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <Link
                 href="/inscription"
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 font-semibold text-navy hover:bg-gold-light"
+                className="inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full bg-gold px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-navy hover:bg-gold-light sm:px-8 sm:text-base sm:tracking-normal"
               >
                 {tl("ctaTrial")}
               </Link>
               <Link
                 href="/contact"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-navy px-8 py-3 font-semibold text-navy hover:bg-navy hover:text-white"
+                className="inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full border border-navy px-4 py-3 text-center text-[13px] font-semibold tracking-tight text-navy hover:bg-navy hover:text-white sm:px-8 sm:text-base sm:tracking-normal"
               >
                 {tc("demoTitle")}
               </Link>
