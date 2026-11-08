@@ -356,7 +356,9 @@ export default function FinancesPlateformePage() {
                     </>
                   ) : (
                     <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                      {tf("statusBlocked")}
+                      {ligne.blocages.length > 0
+                        ? tf("statusBlocked")
+                        : tf("statusToIssue")}
                     </span>
                   )}
                 </div>

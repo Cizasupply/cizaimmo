@@ -143,6 +143,14 @@ const PARAMS_CONTRAT = {
     pageFin.includes("saisirDepensePlateforme") &&
     pageFin.includes("validerDepensePlateforme") &&
     pageFin.includes("refuserDepensePlateforme"));
+  check("page Finances : pastille d'état selon les blocages (corrigé 2026-11-08)",
+    // Sans paie : « Émission impossible » SEULEMENT si blocages non vide,
+    // sinon « À émettre » (statusToIssue) — jamais « impossible » à tort.
+    pageFin.includes('ligne.blocages.length > 0') &&
+    pageFin.includes('tf("statusBlocked")') &&
+    pageFin.includes('tf("statusToIssue")') &&
+    lire("messages/fr.json").includes('"statusToIssue": "À émettre"') &&
+    lire("messages/en.json").includes('"statusToIssue": "To issue"'));
   check("Mon dossier : section « Ma paie » (listerMesPaies)",
     lire("app/[locale]/console/mon-dossier/page.tsx").includes("listerMesPaies"));
   check("parcours client INCHANGÉ : rien des finances plateforme côté client",

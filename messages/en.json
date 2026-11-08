@@ -1210,6 +1210,7 @@
     "payStubDownload": "Pay stub (PDF)",
     "statusIssued": "Pay issued",
     "statusBlocked": "Cannot issue",
+    "statusToIssue": "To issue",
     "missingLabel": "Incomplete file — missing:",
     "blockDossier": "Incomplete file",
     "blockContrat": "Contract not prepared",

@@ -1210,6 +1210,7 @@
     "payStubDownload": "Talon de paie (PDF)",
     "statusIssued": "Paie émise",
     "statusBlocked": "Émission impossible",
+    "statusToIssue": "À émettre",
     "missingLabel": "Dossier incomplet — manquants :",
     "blockDossier": "Dossier incomplet",
     "blockContrat": "Contrat non préparé",
