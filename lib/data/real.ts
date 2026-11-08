@@ -102,6 +102,7 @@ import {
   genererContratGestionnairePdf,
   genererContratProprietairePdf,
 } from "../contrat";
+import { piecesJointesAvecGuide } from "../guide";
 import { limiteBlocs, LIMITE_BLOCS } from "./types";
 import {
   ajouterJours,
@@ -3125,12 +3126,20 @@ export class RealProvider implements DataProvider {
         date: maintenant.toISOString().slice(0, 10),
       });
       const decision = rendreDecisionGestionnaire(profil.nom, profil.display_id, langue);
+      // Guide d'utilisation : joint en plus du contrat, dans la
+      // langue du compte (repli non bloquant intégré au helper —
+      // si le guide est illisible, la décision part avec le
+      // contrat seul).
+      const piecesDecision = await piecesJointesAvecGuide(
+        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }],
+        langue
+      );
       emailStatut = await this.envoyerEmailPlateforme(
         profil.email,
         decision.sujet,
         decision.corps,
         langue,
-        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
+        piecesDecision
       );
       contratJoint = true;
     } else if (profil.display_id) {
@@ -3156,6 +3165,9 @@ export class RealProvider implements DataProvider {
       } catch {
         piecesJointes = undefined;
       }
+      // Guide d'utilisation : joint en plus du contrat, dans la
+      // langue du compte (repli non bloquant intégré au helper).
+      piecesJointes = await piecesJointesAvecGuide(piecesJointes, langue);
       const bienvenue = rendreBienvenueProprietaire(profil.nom, profil.display_id, langue);
       emailStatut = await this.envoyerEmailPlateforme(
         profil.email,

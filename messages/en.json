@@ -1198,6 +1198,7 @@
     },
     "contractTitle": "My property manager agreement",
     "downloadContract": "Download the agreement (PDF)",
+    "guideDownload": "User guide (PDF)",
     "errorDuplicate": "A document with the same name is already in your file.",
     "errorFormat": "Unsupported format: PDF, JPG or PNG only.",
     "errorGeneric": "The upload failed — please try again.",

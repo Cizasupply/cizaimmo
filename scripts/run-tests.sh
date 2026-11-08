@@ -22,7 +22,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   --esModuleInterop --skipLibCheck --moduleResolution node --rootDir lib \
   lib/loyers.ts lib/module4.ts lib/exports.ts lib/email.ts lib/format.ts \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
-  lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts \
+  lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts lib/guide.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -436,6 +436,23 @@ if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" &
   echo "Correctif À propos / en-tête : OK"
 else
   echo "Correctif À propos / en-tête : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Guide d'utilisation joint à la bienvenue (2026-11-08, idée +
+# validation du fondateur) : le guide PDF v3 (FR validée mot pour
+# mot + traduction EN fidèle, fichiers statiques public/guides/)
+# est joint EN PLUS du contrat, dans la langue du compte, aux deux
+# flux d'approbation (bienvenue propriétaire option C + décision
+# gestionnaire v1.3) — repli non bloquant si le guide est
+# illisible. Lien de téléchargement sur la page « Mon contrat »
+# (propriétaires ET gestionnaires, langue de l'interface).
+echo ""
+echo "===== Guide d'utilisation (bienvenue + Mon contrat) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-guide-bienvenue.cjs"; then
+  echo "Guide d'utilisation : OK"
+else
+  echo "Guide d'utilisation : ÉCHEC" >&2
   ECHEC=1
 fi
 

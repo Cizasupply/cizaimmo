@@ -1198,6 +1198,7 @@
     },
     "contractTitle": "Mon contrat de gestionnaire",
     "downloadContract": "Télécharger le contrat (PDF)",
+    "guideDownload": "Guide d'utilisation (PDF)",
     "errorDuplicate": "Un document du même nom existe déjà dans votre dossier.",
     "errorFormat": "Format non accepté : PDF, JPG ou PNG uniquement.",
     "errorGeneric": "L'envoi a échoué — réessayez.",

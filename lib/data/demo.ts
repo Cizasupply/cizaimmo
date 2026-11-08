@@ -137,6 +137,7 @@ import {
   genererContratGestionnairePdf,
   genererContratProprietairePdf,
 } from "../contrat";
+import { piecesJointesAvecGuide } from "../guide";
 import {
   construirePrixPlans,
   estEnRetardPaiement,
@@ -3893,12 +3894,20 @@ export class DemoProvider implements DataProvider {
         date: maintenant.slice(0, 10),
       });
       const decision = rendreDecisionGestionnaire(nomCible, displayIdCible, langueCible);
+      // Guide d'utilisation : joint en plus du contrat, dans la
+      // langue du compte (repli non bloquant intégré au helper —
+      // si le guide est illisible, la décision part avec le
+      // contrat seul).
+      const piecesDecision = await piecesJointesAvecGuide(
+        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }],
+        langueCible
+      );
       emailStatut = await this.envoyerEmailPlateforme(
         emailCible,
         decision.sujet,
         decision.corps,
         langueCible,
-        [{ nom: contrat.nomFichier, contenuBase64: contrat.contenuBase64 }]
+        piecesDecision
       );
       contratJoint = true;
     } else if (displayIdCible) {
@@ -3923,6 +3932,9 @@ export class DemoProvider implements DataProvider {
       } catch {
         piecesJointes = undefined;
       }
+      // Guide d'utilisation : joint en plus du contrat, dans la
+      // langue du compte (repli non bloquant intégré au helper).
+      piecesJointes = await piecesJointesAvecGuide(piecesJointes, langueCible);
       const bienvenue = rendreBienvenueProprietaire(nomCible, displayIdCible, langueCible);
       emailStatut = await this.envoyerEmailPlateforme(
         emailCible,

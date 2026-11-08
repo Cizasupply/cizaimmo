@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import AppShell from "@/components/AppShell";
 import DiscussionRattachement from "@/components/DiscussionRattachement";
 import SectionContratProprietaire from "@/components/SectionContratProprietaire";
+import LienGuideUtilisation from "@/components/LienGuideUtilisation";
 import DocumentUpload from "@/components/DocumentUpload";
 import { getDataProvider } from "@/lib/data";
 import type { DemandeRattachement, Profil, StatutContrat } from "@/lib/data";
@@ -150,6 +151,7 @@ export default function ContratPage() {
     return (
       <AppShell title={t("contractTitle")}>
         <SectionContratProprietaire />
+        <LienGuideUtilisation />
       </AppShell>
     );
   }
@@ -218,6 +220,8 @@ export default function ContratPage() {
           </div>
         ) : null}
       </section>
+
+      <LienGuideUtilisation />
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-navy">{t("requestsTitle")}</h2>
