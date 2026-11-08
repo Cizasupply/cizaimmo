@@ -118,6 +118,10 @@ import {
   type DonneesContratEmploye,
 } from "../contrat-employe";
 import {
+  assemblerDonneesTalonPaie,
+  genererTalonPaiePdf,
+} from "../talon-paie";
+import {
   blocagesCarteEmploye,
   carteEmployeEmise,
   progressionPackEmploye,
@@ -130,6 +134,9 @@ import { evaluerDossierEmploye } from "../dossier-employe";
 import {
   blocagesPaie,
   categorieDepenseValide,
+  coordonneesPaiementDepuis,
+  instantaneDestinationPaiement,
+  moyenPaiementEmployeValide,
   moisValide,
   totauxParDevise,
 } from "../finances-plateforme";
@@ -1985,6 +1992,34 @@ export class RealProvider implements DataProvider {
             : undefined,
         adresse_pays:
           patch.adresse_pays !== undefined ? patch.adresse_pays : undefined,
+        // Coordonnées de paiement de l'employé (2026-11-08,
+        // module-coordonnees-paiement.sql — undefined = intact).
+        paiement_moyen:
+          patch.paiement_moyen !== undefined ? patch.paiement_moyen : undefined,
+        paiement_titulaire:
+          patch.paiement_titulaire !== undefined
+            ? patch.paiement_titulaire
+            : undefined,
+        paiement_banque:
+          patch.paiement_banque !== undefined ? patch.paiement_banque : undefined,
+        paiement_agence:
+          patch.paiement_agence !== undefined ? patch.paiement_agence : undefined,
+        paiement_numero_compte:
+          patch.paiement_numero_compte !== undefined
+            ? patch.paiement_numero_compte
+            : undefined,
+        paiement_iban:
+          patch.paiement_iban !== undefined ? patch.paiement_iban : undefined,
+        paiement_swift:
+          patch.paiement_swift !== undefined ? patch.paiement_swift : undefined,
+        paiement_operateur:
+          patch.paiement_operateur !== undefined
+            ? patch.paiement_operateur
+            : undefined,
+        paiement_numero_mobile:
+          patch.paiement_numero_mobile !== undefined
+            ? patch.paiement_numero_mobile
+            : undefined,
       })
       .eq("id", session.id)
       .select()
@@ -4004,6 +4039,21 @@ export class RealProvider implements DataProvider {
       adresseVille,
       adressePays,
     });
+    // Coordonnées de paiement (2026-11-08) : complétude CALCULÉE à
+    // part — elles ne touchent ni « complet » ni « manquants » du
+    // dossier ; elles ne conditionnent que l'émission de la paie.
+    const paiementBrut = {
+      moyen: texte("paiement_moyen"),
+      titulaire: texte("paiement_titulaire"),
+      banque: texte("paiement_banque"),
+      agence: texte("paiement_agence"),
+      numero_compte: texte("paiement_numero_compte"),
+      iban: texte("paiement_iban"),
+      swift: texte("paiement_swift"),
+      operateur: texte("paiement_operateur"),
+      numero_mobile: texte("paiement_numero_mobile"),
+    };
+    const coordonnees = coordonneesPaiementDepuis(paiementBrut);
     return {
       compte_id: id,
       email: typeof ligne.email === "string" ? (ligne.email as string) : "",
@@ -4017,6 +4067,16 @@ export class RealProvider implements DataProvider {
       adresse_ville: adresseVille,
       adresse_code_postal: texte("adresse_code_postal"),
       adresse_pays: adressePays,
+      paiement_moyen: coordonnees?.moyen ?? (moyenPaiementEmployeValide(paiementBrut.moyen) ? paiementBrut.moyen : null),
+      paiement_titulaire: paiementBrut.titulaire,
+      paiement_banque: paiementBrut.banque,
+      paiement_agence: paiementBrut.agence,
+      paiement_numero_compte: paiementBrut.numero_compte,
+      paiement_iban: paiementBrut.iban,
+      paiement_swift: paiementBrut.swift,
+      paiement_operateur: paiementBrut.operateur,
+      paiement_numero_mobile: paiementBrut.numero_mobile,
+      coordonnees_paiement: coordonnees,
       complet: evaluation.complet,
       manquants: evaluation.manquants,
     };
@@ -4027,7 +4087,7 @@ export class RealProvider implements DataProvider {
     const { data, error } = await this.client()
       .from("profils")
       .select(
-        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays"
+        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays,paiement_moyen,paiement_titulaire,paiement_banque,paiement_agence,paiement_numero_compte,paiement_iban,paiement_swift,paiement_operateur,paiement_numero_mobile"
       )
       .eq("id", acteur.id)
       .maybeSingle();
@@ -4043,12 +4103,31 @@ export class RealProvider implements DataProvider {
     if (!profil || (profil.role !== "admin" && profil.role !== "super_admin")) {
       throw err("ERR_ACCES_PLATEFORME");
     }
+    // Coordonnées de paiement (2026-11-08) : le moyen, quand il est
+    // fourni et non nul, doit appartenir à la liste fermée (le CHECK
+    // SQL le double en base).
+    if (
+      patch.paiement_moyen !== undefined &&
+      patch.paiement_moyen !== null &&
+      !moyenPaiementEmployeValide(patch.paiement_moyen)
+    ) {
+      throw err("ERR_COORDONNEES_PAIEMENT_INVALIDES");
+    }
     await this.modifierProfil({
       telephone: patch.telephone,
       adresse: patch.adresse,
       adresse_ville: patch.adresse_ville,
       adresse_code_postal: patch.adresse_code_postal,
       adresse_pays: patch.adresse_pays,
+      paiement_moyen: patch.paiement_moyen,
+      paiement_titulaire: patch.paiement_titulaire,
+      paiement_banque: patch.paiement_banque,
+      paiement_agence: patch.paiement_agence,
+      paiement_numero_compte: patch.paiement_numero_compte,
+      paiement_iban: patch.paiement_iban,
+      paiement_swift: patch.paiement_swift,
+      paiement_operateur: patch.paiement_operateur,
+      paiement_numero_mobile: patch.paiement_numero_mobile,
     });
     return this.getMonDossierEmploye();
   }
@@ -4080,7 +4159,7 @@ export class RealProvider implements DataProvider {
     const { data, error } = await this.client()
       .from("profils")
       .select(
-        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays"
+        "id,email,nom,role,telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays,paiement_moyen,paiement_titulaire,paiement_banque,paiement_agence,paiement_numero_compte,paiement_iban,paiement_swift,paiement_operateur,paiement_numero_mobile"
       )
       .eq("id", adminId)
       .maybeSingle();
@@ -4104,6 +4183,7 @@ export class RealProvider implements DataProvider {
   private readonly colonnesPack =
     "id,email,nom,role,langue,display_id,suspendu,acces_admin_actif," +
     "telephone,photo_profil_path,adresse,adresse_ville,adresse_code_postal,adresse_pays," +
+    "paiement_moyen,paiement_titulaire,paiement_banque,paiement_agence,paiement_numero_compte,paiement_iban,paiement_swift,paiement_operateur,paiement_numero_mobile," +
     "statut_contrat_employe,motif_contrat_employe,contrat_employe_voie," +
     "contrat_employe_type,contrat_employe_duree,contrat_employe_montant," +
     "contrat_employe_devise,contrat_employe_modalites,contrat_employe_lieu," +
@@ -4377,6 +4457,55 @@ export class RealProvider implements DataProvider {
     return genererContratEmployePdf(donnees);
   }
 
+  /**
+   * TALON DE PAIE (2026-11-08) : régénéré à la demande depuis la
+   * paie émise (instantanés figés en base). Super Admin : toutes les
+   * paies ; employé : SES paies seulement — la paie d'un autre (ou
+   * inexistante) répond ERR_TALON_INTROUVABLE, sans fuite
+   * d'existence. Langue : celle du compte de l'employé.
+   */
+  async genererTalonPaie(
+    paieId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const acteur = await this.acteurPlateforme();
+    const client = this.client();
+    const { data: paieBrute, error } = await client
+      .from("paies_employes")
+      .select("*")
+      .eq("id", paieId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!paieBrute) throw err("ERR_TALON_INTROUVABLE");
+    const lignePaie = paieBrute as Record<string, unknown>;
+    if (
+      acteur.role !== "super_admin" &&
+      String(lignePaie.profil_id) !== acteur.id
+    ) {
+      throw err("ERR_TALON_INTROUVABLE");
+    }
+    const { data: employe, error: errEmploye } = await client
+      .from("profils")
+      .select("nom, display_id, role, langue")
+      .eq("id", String(lignePaie.profil_id))
+      .maybeSingle();
+    if (errEmploye) throw new Error(errEmploye.message);
+    if (!employe) throw err("ERR_TALON_INTROUVABLE");
+    const noms = await this.nomsProfils([String(lignePaie.emis_par)]);
+    const paie = this.paieAvecNom(lignePaie, noms);
+    const donnees = assemblerDonneesTalonPaie(
+      paie,
+      {
+        nom: typeof employe.nom === "string" ? employe.nom : "",
+        display_id:
+          typeof employe.display_id === "string" ? employe.display_id : null,
+        role: employe.role === "super_admin" ? "super_admin" : "admin",
+        langue: typeof employe.langue === "string" ? employe.langue : null,
+      },
+      noms.get(String(lignePaie.emis_par))?.nom ?? null
+    );
+    return genererTalonPaiePdf(donnees);
+  }
+
   async televerserContratEmployeSigne(
     input: DocumentInput
   ): Promise<Document> {
@@ -4594,6 +4723,10 @@ export class RealProvider implements DataProvider {
     return {
       ...depense,
       montant: Number(depense.montant),
+      // La base nomme le timestamp de saisie « cree_le » ; le type
+      // d'affichage l'expose en « created_at » (même correctif).
+      created_at:
+        typeof ligne.cree_le === "string" ? ligne.cree_le : depense.created_at,
       saisi_par_nom: noms.get(depense.saisi_par)?.nom,
       justificatif_url: justificatifUrl,
     };
@@ -4643,7 +4776,14 @@ export class RealProvider implements DataProvider {
       .gte("date", debut)
       .lt("date", fin)
       .order("date", { ascending: false })
-      .order("created_at", { ascending: false });
+      // CORRECTIF BUG PRODUCTION (2026-11-08) : la colonne de
+      // création de depenses_plateforme s'appelle « cree_le »
+      // (module-finances-plateforme.sql) — trier par « created_at »
+      // faisait répondre PostgREST 42703 et la page Finances
+      // entière tombait en erreur. Non-régression :
+      // scripts/test-finances-reel.cjs (faux client contraint au
+      // schéma live).
+      .order("cree_le", { ascending: false });
     if (!estSuper) requeteDepenses = requeteDepenses.eq("saisi_par", acteur.id);
     const { data: lignesDepenses, error: errDepenses } = await requeteDepenses;
     if (errDepenses) throw new Error(errDepenses.message);
@@ -4686,11 +4826,13 @@ export class RealProvider implements DataProvider {
         contrat_montant: params?.montant ?? null,
         contrat_devise: params?.devise ?? null,
         contrat_modalites: params?.modalites_paiement ?? null,
+        coordonnees_paiement: dossier.coordonnees_paiement,
         paie,
         blocages: blocagesPaie({
           dossierComplet: dossier.complet,
           contratPrepare: !!params,
           montant: params?.montant ?? null,
+          coordonneesPresentes: !!dossier.coordonnees_paiement,
           dejaEmise: !!paie,
         }),
       });
@@ -4723,6 +4865,10 @@ export class RealProvider implements DataProvider {
     if (!params || params.montant === null || !(params.montant > 0)) {
       throw err("ERR_PAIE_SANS_CONTRAT");
     }
+    // Porte coordonnées (2026-11-08) : APRÈS dossier et contrat —
+    // l'administration doit savoir OÙ payer l'employé.
+    const coordonnees = dossier.coordonnees_paiement;
+    if (!coordonnees) throw err("ERR_COORDONNEES_PAIEMENT_MANQUANTES");
     const client = this.client();
     const { data: existante } = await client
       .from("paies_employes")
@@ -4732,6 +4878,9 @@ export class RealProvider implements DataProvider {
       .eq("statut", "emise")
       .limit(1);
     if (existante && existante.length > 0) throw err("ERR_PAIE_DEJA_EMISE");
+    // La destination est FIGÉE sur la paie (instantané) : un
+    // changement ultérieur des coordonnées du profil ne la réécrit pas.
+    const destination = instantaneDestinationPaiement(coordonnees);
     const { data, error } = await client
       .from("paies_employes")
       .insert({
@@ -4740,6 +4889,8 @@ export class RealProvider implements DataProvider {
         montant: params.montant,
         devise: params.devise,
         modalites: params.modalites_paiement || null,
+        paiement_moyen: coordonnees.moyen,
+        paiement_destination: destination,
         reference: (reference ?? "").trim() || null,
         statut: "emise",
         emis_par: acteur.id,
@@ -4765,6 +4916,8 @@ export class RealProvider implements DataProvider {
         mois,
         montant: params.montant,
         devise: params.devise,
+        paiement_moyen: coordonnees.moyen,
+        paiement_destination: destination,
       }
     );
     const noms = await this.nomsProfils([profilId]);
@@ -6211,7 +6364,7 @@ export class RealProvider implements DataProvider {
     const { data, error } = await client
       .from("profils")
       .select(
-        "id, email, nom, role, suspendu, acces_admin_actif, created_at, telephone, photo_profil_path, adresse, adresse_ville, adresse_pays, statut_contrat_employe, charte_acceptee_le"
+        "id, email, nom, role, display_id, suspendu, acces_admin_actif, created_at, telephone, photo_profil_path, adresse, adresse_ville, adresse_pays, statut_contrat_employe, charte_acceptee_le"
       )
       .in("role", ["admin", "super_admin"])
       .order("created_at", { ascending: true });
@@ -6221,6 +6374,7 @@ export class RealProvider implements DataProvider {
       email: string;
       nom: string;
       role: "admin" | "super_admin";
+      display_id: string | null;
       suspendu: boolean;
       acces_admin_actif: boolean | null;
       created_at: string;
@@ -6295,6 +6449,19 @@ export class RealProvider implements DataProvider {
         derniereParActeur.set(e.acteur_id, e.created_at);
       }
     }
+    // Photos des membres (liens signés 1 h) — pour la liste
+    // sélectionnable de la page « Vérifier un employé » (2026-11-08).
+    const photoParId = new Map<string, string | null>();
+    await Promise.all(
+      membres
+        .filter((m) => !!m.photo_profil_path)
+        .map(async (m) => {
+          const signe = await client.storage
+            .from("documents-prives")
+            .createSignedUrl(m.photo_profil_path as string, 3600);
+          photoParId.set(m.id, signe.data?.signedUrl ?? null);
+        })
+    );
     return membres.map((m) => {
       // Dossier employé : complétude CALCULÉE (lib/dossier-employe.ts).
       const evaluation = evaluerDossierEmploye({
@@ -6310,6 +6477,9 @@ export class RealProvider implements DataProvider {
         email: m.email,
         nom: m.nom,
         role: m.role,
+        // Liste « Vérifier un employé » (2026-11-08).
+        display_id: m.display_id ?? null,
+        photo_profil_url: photoParId.get(m.id) ?? null,
         statut: m.suspendu ? ("suspendu" as const) : ("actif" as const),
         acces_admin_actif: m.acces_admin_actif ?? true,
         dossiers_assignes: chargeParId.get(m.id) ?? 0,

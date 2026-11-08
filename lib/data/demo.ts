@@ -154,6 +154,10 @@ import {
   type DonneesContratEmploye,
 } from "../contrat-employe";
 import {
+  assemblerDonneesTalonPaie,
+  genererTalonPaiePdf,
+} from "../talon-paie";
+import {
   blocagesCarteEmploye,
   carteEmployeEmise,
   progressionPackEmploye,
@@ -166,8 +170,12 @@ import { evaluerDossierEmploye } from "../dossier-employe";
 import {
   blocagesPaie,
   categorieDepenseValide,
+  coordonneesPaiementDepuis,
+  instantaneDestinationPaiement,
+  moyenPaiementEmployeValide,
   moisValide,
   totauxParDevise,
+  type CoordonneesPaiement,
 } from "../finances-plateforme";
 import {
   construirePrixPlans,
@@ -2641,6 +2649,33 @@ export class DemoProvider implements DataProvider {
           : db.profil.adresse_code_postal ?? null,
       adresse_pays:
         patch.adresse_pays !== undefined ? patch.adresse_pays : db.profil.adresse_pays ?? null,
+      // Coordonnées de paiement de l'employé (2026-11-08).
+      paiement_moyen:
+        patch.paiement_moyen !== undefined ? patch.paiement_moyen : db.profil.paiement_moyen ?? null,
+      paiement_titulaire:
+        patch.paiement_titulaire !== undefined
+          ? patch.paiement_titulaire
+          : db.profil.paiement_titulaire ?? null,
+      paiement_banque:
+        patch.paiement_banque !== undefined ? patch.paiement_banque : db.profil.paiement_banque ?? null,
+      paiement_agence:
+        patch.paiement_agence !== undefined ? patch.paiement_agence : db.profil.paiement_agence ?? null,
+      paiement_numero_compte:
+        patch.paiement_numero_compte !== undefined
+          ? patch.paiement_numero_compte
+          : db.profil.paiement_numero_compte ?? null,
+      paiement_iban:
+        patch.paiement_iban !== undefined ? patch.paiement_iban : db.profil.paiement_iban ?? null,
+      paiement_swift:
+        patch.paiement_swift !== undefined ? patch.paiement_swift : db.profil.paiement_swift ?? null,
+      paiement_operateur:
+        patch.paiement_operateur !== undefined
+          ? patch.paiement_operateur
+          : db.profil.paiement_operateur ?? null,
+      paiement_numero_mobile:
+        patch.paiement_numero_mobile !== undefined
+          ? patch.paiement_numero_mobile
+          : db.profil.paiement_numero_mobile ?? null,
     };
     saveDb(db);
     return db.profil;
@@ -4762,6 +4797,17 @@ export class DemoProvider implements DataProvider {
     adresse_ville: string | null;
     adresse_code_postal: string | null;
     adresse_pays: string | null;
+    // Coordonnées de paiement brutes (2026-11-08) — optionnelles,
+    // absentes = non renseignées (synthèses démo incluses).
+    paiement_moyen?: CoordonneesPaiement["moyen"] | null;
+    paiement_titulaire?: string | null;
+    paiement_banque?: string | null;
+    paiement_agence?: string | null;
+    paiement_numero_compte?: string | null;
+    paiement_iban?: string | null;
+    paiement_swift?: string | null;
+    paiement_operateur?: string | null;
+    paiement_numero_mobile?: string | null;
   }): DossierEmploye {
     const evaluation = evaluerDossierEmploye({
       photoPresente: !!champs.photo_profil_path,
@@ -4771,8 +4817,37 @@ export class DemoProvider implements DataProvider {
       adresseVille: champs.adresse_ville,
       adressePays: champs.adresse_pays,
     });
+    // Coordonnées de paiement : complétude CALCULÉE à part — elle ne
+    // touche ni « complet » ni « manquants » du dossier (décision du
+    // fondateur : elles ne bloquent que l'émission de la paie).
+    const coordonnees = coordonneesPaiementDepuis({
+      moyen: champs.paiement_moyen ?? null,
+      titulaire: champs.paiement_titulaire ?? null,
+      banque: champs.paiement_banque ?? null,
+      agence: champs.paiement_agence ?? null,
+      numero_compte: champs.paiement_numero_compte ?? null,
+      iban: champs.paiement_iban ?? null,
+      swift: champs.paiement_swift ?? null,
+      operateur: champs.paiement_operateur ?? null,
+      numero_mobile: champs.paiement_numero_mobile ?? null,
+    });
+    const {
+      paiement_moyen, paiement_titulaire, paiement_banque, paiement_agence,
+      paiement_numero_compte, paiement_iban, paiement_swift,
+      paiement_operateur, paiement_numero_mobile, ...reste
+    } = champs;
     return {
-      ...champs,
+      ...reste,
+      paiement_moyen: coordonnees?.moyen ?? (paiement_moyen ?? null),
+      paiement_titulaire: paiement_titulaire ?? null,
+      paiement_banque: paiement_banque ?? null,
+      paiement_agence: paiement_agence ?? null,
+      paiement_numero_compte: paiement_numero_compte ?? null,
+      paiement_iban: paiement_iban ?? null,
+      paiement_swift: paiement_swift ?? null,
+      paiement_operateur: paiement_operateur ?? null,
+      paiement_numero_mobile: paiement_numero_mobile ?? null,
+      coordonnees_paiement: coordonnees,
       photo_profil_url: null,
       complet: evaluation.complet,
       manquants: evaluation.manquants,
@@ -4799,6 +4874,15 @@ export class DemoProvider implements DataProvider {
       adresse_ville: entree.adresse_ville ?? null,
       adresse_code_postal: entree.adresse_code_postal ?? null,
       adresse_pays: entree.adresse_pays ?? null,
+      paiement_moyen: entree.paiement_moyen ?? null,
+      paiement_titulaire: entree.paiement_titulaire ?? null,
+      paiement_banque: entree.paiement_banque ?? null,
+      paiement_agence: entree.paiement_agence ?? null,
+      paiement_numero_compte: entree.paiement_numero_compte ?? null,
+      paiement_iban: entree.paiement_iban ?? null,
+      paiement_swift: entree.paiement_swift ?? null,
+      paiement_operateur: entree.paiement_operateur ?? null,
+      paiement_numero_mobile: entree.paiement_numero_mobile ?? null,
     });
   }
 
@@ -4816,6 +4900,15 @@ export class DemoProvider implements DataProvider {
       adresse_ville: db.profil.adresse_ville ?? null,
       adresse_code_postal: db.profil.adresse_code_postal ?? null,
       adresse_pays: db.profil.adresse_pays ?? null,
+      paiement_moyen: db.profil.paiement_moyen ?? null,
+      paiement_titulaire: db.profil.paiement_titulaire ?? null,
+      paiement_banque: db.profil.paiement_banque ?? null,
+      paiement_agence: db.profil.paiement_agence ?? null,
+      paiement_numero_compte: db.profil.paiement_numero_compte ?? null,
+      paiement_iban: db.profil.paiement_iban ?? null,
+      paiement_swift: db.profil.paiement_swift ?? null,
+      paiement_operateur: db.profil.paiement_operateur ?? null,
+      paiement_numero_mobile: db.profil.paiement_numero_mobile ?? null,
     });
   }
 
@@ -4885,6 +4978,15 @@ export class DemoProvider implements DataProvider {
     const db = loadDb();
     const moi = this.moiEmploye(db);
     if (!moi) throw err("ERR_ACCES_PLATEFORME");
+    // Coordonnées de paiement (2026-11-08) : le moyen, quand il est
+    // fourni et non nul, doit appartenir à la liste fermée.
+    if (
+      patch.paiement_moyen !== undefined &&
+      patch.paiement_moyen !== null &&
+      !moyenPaiementEmployeValide(patch.paiement_moyen)
+    ) {
+      throw err("ERR_COORDONNEES_PAIEMENT_INVALIDES");
+    }
     if (moi.kind === "entree") {
       const entree = moi.entree;
       if (patch.telephone !== undefined) entree.telephone = patch.telephone;
@@ -4893,6 +4995,19 @@ export class DemoProvider implements DataProvider {
       if (patch.adresse_code_postal !== undefined)
         entree.adresse_code_postal = patch.adresse_code_postal;
       if (patch.adresse_pays !== undefined) entree.adresse_pays = patch.adresse_pays;
+      if (patch.paiement_moyen !== undefined) entree.paiement_moyen = patch.paiement_moyen;
+      if (patch.paiement_titulaire !== undefined)
+        entree.paiement_titulaire = patch.paiement_titulaire;
+      if (patch.paiement_banque !== undefined) entree.paiement_banque = patch.paiement_banque;
+      if (patch.paiement_agence !== undefined) entree.paiement_agence = patch.paiement_agence;
+      if (patch.paiement_numero_compte !== undefined)
+        entree.paiement_numero_compte = patch.paiement_numero_compte;
+      if (patch.paiement_iban !== undefined) entree.paiement_iban = patch.paiement_iban;
+      if (patch.paiement_swift !== undefined) entree.paiement_swift = patch.paiement_swift;
+      if (patch.paiement_operateur !== undefined)
+        entree.paiement_operateur = patch.paiement_operateur;
+      if (patch.paiement_numero_mobile !== undefined)
+        entree.paiement_numero_mobile = patch.paiement_numero_mobile;
       saveDb(db);
       return this.dossierDepuisEntreeAdmin(db, entree);
     }
@@ -4902,6 +5017,15 @@ export class DemoProvider implements DataProvider {
       adresse_ville: patch.adresse_ville,
       adresse_code_postal: patch.adresse_code_postal,
       adresse_pays: patch.adresse_pays,
+      paiement_moyen: patch.paiement_moyen,
+      paiement_titulaire: patch.paiement_titulaire,
+      paiement_banque: patch.paiement_banque,
+      paiement_agence: patch.paiement_agence,
+      paiement_numero_compte: patch.paiement_numero_compte,
+      paiement_iban: patch.paiement_iban,
+      paiement_swift: patch.paiement_swift,
+      paiement_operateur: patch.paiement_operateur,
+      paiement_numero_mobile: patch.paiement_numero_mobile,
     });
     return this.dossierDepuisProfilPrincipal(loadDb());
   }
@@ -5376,6 +5500,37 @@ export class DemoProvider implements DataProvider {
     return genererContratEmployePdf(donnees);
   }
 
+  /**
+   * TALON DE PAIE (2026-11-08) : régénéré à la demande depuis la
+   * paie émise (instantanés). Super Admin : toutes les paies ;
+   * employé : SES paies seulement — sinon ERR_TALON_INTROUVABLE.
+   */
+  async genererTalonPaie(
+    paieId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }> {
+    const db = loadDb();
+    const acteur = this.acteurPlateforme(db);
+    const paie = this.paiesDe(db).find((p) => p.id === paieId);
+    if (!paie) throw err("ERR_TALON_INTROUVABLE");
+    if (acteur.role !== "super_admin" && paie.profil_id !== acteur.id) {
+      throw err("ERR_TALON_INTROUVABLE");
+    }
+    const membre = this.resoudreMembre(db, paie.profil_id);
+    if (!membre) throw err("ERR_TALON_INTROUVABLE");
+    const emetteur = this.resoudreMembre(db, paie.emis_par);
+    const donnees = assemblerDonneesTalonPaie(
+      paie,
+      {
+        nom: membre.nom,
+        display_id: membre.display_id,
+        role: membre.role,
+        langue: membre.langue,
+      },
+      emetteur?.nom ?? null
+    );
+    return genererTalonPaiePdf(donnees);
+  }
+
   async televerserContratEmployeSigne(
     input: DocumentInput
   ): Promise<Document> {
@@ -5620,6 +5775,8 @@ export class DemoProvider implements DataProvider {
             (p) => p.profil_id === m.id && p.mois === mois && p.statut === "emise"
           ) ?? null;
         const resolu = this.resoudreMembre(db, m.id);
+        const dossierMembre = this.dossierPourMembre(db, m.id);
+        const coordonnees = dossierMembre?.coordonnees_paiement ?? null;
         return {
           compte_id: m.id,
           email: m.email,
@@ -5632,6 +5789,7 @@ export class DemoProvider implements DataProvider {
           contrat_montant: params?.montant ?? null,
           contrat_devise: params?.devise ?? null,
           contrat_modalites: params?.modalites_paiement ?? null,
+          coordonnees_paiement: coordonnees,
           paie: paie
             ? { ...paie, employe_nom: m.nom, employe_email: m.email }
             : null,
@@ -5639,6 +5797,7 @@ export class DemoProvider implements DataProvider {
             dossierComplet: m.dossier_employe_complet,
             contratPrepare: !!params,
             montant: params?.montant ?? null,
+            coordonneesPresentes: !!coordonnees,
             dejaEmise: !!paie,
           }),
         };
@@ -5685,6 +5844,10 @@ export class DemoProvider implements DataProvider {
     if (!params || params.montant === null || !(params.montant > 0)) {
       throw err("ERR_PAIE_SANS_CONTRAT");
     }
+    // Porte coordonnées (2026-11-08) : APRÈS dossier et contrat —
+    // l'administration doit savoir OÙ payer l'employé.
+    const coordonnees = pack.dossier.coordonnees_paiement;
+    if (!coordonnees) throw err("ERR_COORDONNEES_PAIEMENT_MANQUANTES");
     if (
       this.paiesDe(db).some(
         (p) => p.profil_id === profilId && p.mois === mois && p.statut === "emise"
@@ -5695,6 +5858,9 @@ export class DemoProvider implements DataProvider {
     const membre = this.resoudreMembre(db, profilId);
     if (!membre) throw err("ERR_INTROUVABLE");
     const maintenant = new Date().toISOString();
+    // La destination est FIGÉE sur la paie (instantané) : un
+    // changement ultérieur des coordonnées du profil ne la réécrit pas.
+    const destination = instantaneDestinationPaiement(coordonnees);
     const paie: PaieEmploye = {
       id: uid(),
       profil_id: profilId,
@@ -5702,6 +5868,8 @@ export class DemoProvider implements DataProvider {
       montant: params.montant,
       devise: params.devise,
       modalites: params.modalites_paiement || null,
+      paiement_moyen: coordonnees.moyen,
+      paiement_destination: destination,
       reference: (reference ?? "").trim() || null,
       statut: "emise",
       emis_par: acteur.id,
@@ -5716,6 +5884,8 @@ export class DemoProvider implements DataProvider {
       mois,
       montant: params.montant,
       devise: params.devise,
+      paiement_moyen: coordonnees.moyen,
+      paiement_destination: destination,
     });
     saveDb(db);
     return paie;
@@ -7482,6 +7652,10 @@ export class DemoProvider implements DataProvider {
         email,
         nom,
         role,
+        // Liste « Vérifier un employé » (2026-11-08) : Display ID +
+        // photo pour la sélection dans la liste des employés.
+        display_id: this.resoudreMembre(db, id)?.display_id ?? null,
+        photo_profil_url: this.dossierPourMembre(db, id)?.photo_profil_url ?? null,
         statut,
         acces_admin_actif: acces,
         dossiers_assignes: this.compterDossiersAssignes(db, alias),

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
-import type { VerificationEmploye } from "@/lib/data";
+import type { MembreEquipe, VerificationEmploye } from "@/lib/data";
+import { filtrerMembresEmployes } from "@/lib/pack-employe";
 import { formatDate } from "@/lib/format";
 
 /**
@@ -16,6 +17,13 @@ import { formatDate } from "@/lib/format";
  * états (2026-11-08) : vert seulement si la carte est ÉMISE ; ambre
  * « CARTE NON ÉMISE » si le compte est en règle sans carte émise.
  * Console plateforme (Admin et Super Admin).
+ *
+ * LISTE + RECHERCHE (2026-11-08, demande du fondateur : « on
+ * sélectionne celui que admin veut voir ») : sous la saisie directe,
+ * la liste de TOUS les membres plateforme (fournisseur Équipe,
+ * aucun client) avec recherche par nom ou Display ID ; un clic
+ * charge la fiche de vérification du membre — même fonction, même
+ * verdict, aucun appel divergent.
  */
 export default function PageVerifierEmploye() {
   const t = useTranslations("packEmploye");
@@ -26,11 +34,25 @@ export default function PageVerifierEmploye() {
   const [cherche, setCherche] = useState(false);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState(false);
+  const [membres, setMembres] = useState<MembreEquipe[]>([]);
+  const [recherche, setRecherche] = useState("");
 
-  async function verifier(e: React.FormEvent) {
-    e.preventDefault();
-    const id = saisie.trim();
-    if (!id) return;
+  useEffect(() => {
+    let actif = true;
+    getDataProvider()
+      .listerEquipeAdmins()
+      .then((liste) => {
+        if (actif) setMembres(liste);
+      })
+      .catch(() => {
+        if (actif) setMembres([]);
+      });
+    return () => {
+      actif = false;
+    };
+  }, []);
+
+  async function lancerVerification(id: string) {
     setCherche(true);
     setIntrouvable(false);
     setErreur(false);
@@ -45,6 +67,21 @@ export default function PageVerifierEmploye() {
       setCherche(false);
     }
   }
+
+  async function verifier(e: React.FormEvent) {
+    e.preventDefault();
+    const id = saisie.trim();
+    if (!id) return;
+    await lancerVerification(id);
+  }
+
+  function selectionner(membre: MembreEquipe) {
+    if (!membre.display_id || cherche) return;
+    setSaisie(membre.display_id);
+    void lancerVerification(membre.display_id);
+  }
+
+  const membresAffiches = filtrerMembresEmployes(membres, recherche);
 
   const ligne = (libelle: string, valeur: React.ReactNode) => (
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 text-sm last:border-0">
@@ -77,6 +114,79 @@ export default function PageVerifierEmploye() {
           {t("verifyButton")}
         </button>
       </form>
+
+      {/* Liste sélectionnable des employés (2026-11-08) : tous les
+          membres plateforme, recherche par nom ou Display ID ; un
+          clic charge la fiche de vérification du membre. */}
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+          {t("verifyListTitle")}
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">{t("verifyListHint")}</p>
+        <input
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder={t("verifySearchPlaceholder")}
+          className="mt-3 w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-navy outline-none focus:border-gold focus:ring-2 focus:ring-gold/30"
+          autoComplete="off"
+        />
+        {membresAffiches.length > 0 ? (
+          <ul className="mt-3 divide-y divide-slate-100">
+            {membresAffiches.map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  disabled={!m.display_id || cherche}
+                  onClick={() => selectionner(m)}
+                  className="flex w-full items-center gap-3 py-2.5 text-left disabled:opacity-60"
+                >
+                  {m.photo_profil_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.photo_profil_url}
+                      alt={m.nom}
+                      className="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy text-base font-bold text-gold">
+                      {(m.nom || "?").trim().charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-navy">
+                      {m.nom}
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      {m.role === "super_admin" ? "Super Admin" : "Admin"}
+                      {m.display_id ? (
+                        <>
+                          {" · "}
+                          <span className="whitespace-nowrap font-bold text-gold-dark">
+                            {m.display_id}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                      m.carte_employe_emise
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {m.carte_employe_emise
+                      ? t("teamCardIssued")
+                      : t("teamCardNotIssued")}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-slate-600">{t("verifyListEmpty")}</p>
+        )}
+      </section>
 
       {introuvable ? (
         <p className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-800">

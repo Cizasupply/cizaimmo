@@ -28,6 +28,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   lib/pack-employe.ts \
   lib/contrat-employe.ts \
   lib/finances-plateforme.ts \
+  lib/talon-paie.ts \
   lib/data/demo.ts lib/data/demo-seed.ts lib/data/types.ts \
   lib/data/helpers.ts lib/data/provider.ts || {
   echo "ÉCHEC de la compilation du harnais." >&2
@@ -526,6 +527,46 @@ if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" &
   echo "Finances plateforme : OK"
 else
   echo "Finances plateforme : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Coordonnées de paiement de l'employé + liste « Vérifier un
+# employé » + TALON DE PAIE (2026-11-08, ajouts VALIDÉS par le
+# fondateur, coordonnées précisées : bancaires complètes structurées
+# selon le moyen) : complétude calculée PAR MOYEN (virement : banque
+# + n° de compte, IBAN/SWIFT/agence optionnels ; mobile : opérateur
+# + numéro ; espèces : titulaire seul) ; porte d'émission APRÈS
+# dossier et contrat (ERR_COORDONNEES_PAIEMENT_MANQUANTES) ;
+# instantané de destination FIGÉ sur la paie émise ; coordonnées
+# SANS effet sur la complétude du dossier ni sur la carte ; talon
+# PDF régénéré à la demande (accès : Super Admin ou l'employé pour
+# SES paies — ERR_TALON_INTROUVABLE sinon) ; recherche d'employés
+# par nom / Display ID, liste limitée aux comptes plateforme.
+# Module SQL : supabase/module-coordonnees-paiement.sql (à appliquer
+# au live par le parent après le push).
+echo ""
+echo "===== Coordonnées de paiement + liste employés + talon de paie ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-coordonnees-paiement.cjs"; then
+  echo "Coordonnées de paiement : OK"
+else
+  echo "Coordonnées de paiement : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Fournisseur RÉEL des finances contre un faux client PostgREST
+# contraint au schéma LIVE (colonnes reconstruites depuis les
+# modules SQL du dépôt) — non-régression du BUG PRODUCTION du
+# 2026-11-08 : la vue Finances ordonnait les dépenses par
+# « created_at », colonne inexistante sur depenses_plateforme
+# (« cree_le ») -> PostgREST 42703 -> page en erreur en production.
+# Couvre aussi l'émission réelle (instantané) et le talon (données
+# d'entrée de la génération capturées, accès employé limité).
+echo ""
+echo "===== Finances — fournisseur réel contraint au schéma live ====="
+if node "scripts/test-finances-reel.cjs"; then
+  echo "Finances (fournisseur réel) : OK"
+else
+  echo "Finances (fournisseur réel) : ÉCHEC" >&2
   ECHEC=1
 fi
 

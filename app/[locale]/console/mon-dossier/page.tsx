@@ -20,6 +20,11 @@ import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
 import { formatDate, formatMoney } from "@/lib/format";
+import {
+  MOYENS_PAIEMENT_EMPLOYE,
+  instantaneDestinationPaiement,
+  type MoyenPaiementEmploye,
+} from "@/lib/finances-plateforme";
 
 function fichierVersDataUrl(fichier: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -49,7 +54,8 @@ export default function MonDossierEmployePage() {
   const [chargement, setChargement] = useState(true);
   const [fichierPhoto, setFichierPhoto] = useState<File | null>(null);
   const [fichierPiece, setFichierPiece] = useState<File | null>(null);
-  const [occupe, setOccupe] = useState<"photo" | "piece" | "form" | null>(null);
+  const [occupe, setOccupe] = useState<"photo" | "piece" | "form" | "paiement" | null>(null);
+  const [talonEnCours, setTalonEnCours] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -58,6 +64,19 @@ export default function MonDossierEmployePage() {
     adresse_ville: "",
     adresse_code_postal: "",
     adresse_pays: "",
+  });
+  // Coordonnées de paiement (2026-11-08) : formulaire séparé — les
+  // champs affichés dépendent du moyen choisi (virement / mobile).
+  const [formPaiement, setFormPaiement] = useState({
+    moyen: "" as "" | MoyenPaiementEmploye,
+    titulaire: "",
+    banque: "",
+    agence: "",
+    numero_compte: "",
+    iban: "",
+    swift: "",
+    operateur: "",
+    numero_mobile: "",
   });
 
   const charger = useCallback(async () => {
@@ -82,6 +101,19 @@ export default function MonDossierEmployePage() {
         adresse_code_postal: d.adresse_code_postal ?? "",
         adresse_pays: d.adresse_pays ?? "",
       });
+      setFormPaiement({
+        moyen: d.paiement_moyen ?? "",
+        // Titulaire prérempli avec le nom de l'employé tant qu'aucun
+        // titulaire n'a été enregistré.
+        titulaire: d.paiement_titulaire ?? d.nom,
+        banque: d.paiement_banque ?? "",
+        agence: d.paiement_agence ?? "",
+        numero_compte: d.paiement_numero_compte ?? "",
+        iban: d.paiement_iban ?? "",
+        swift: d.paiement_swift ?? "",
+        operateur: d.paiement_operateur ?? "",
+        numero_mobile: d.paiement_numero_mobile ?? "",
+      });
     } catch {
       setErreur(t("errorGeneric"));
     } finally {
@@ -101,7 +133,9 @@ export default function MonDossierEmployePage() {
         ? t("errorFormat")
         : code === "ERR_DOCUMENT_TROP_GROS"
           ? t("errorTooBig")
-          : t("errorGeneric");
+          : code === "ERR_COORDONNEES_PAIEMENT_INVALIDES"
+            ? t("errorInvalidPayment")
+            : t("errorGeneric");
   }
 
   async function envoyer(kind: "photo" | "piece") {
@@ -164,6 +198,66 @@ export default function MonDossierEmployePage() {
       setErreur(messageErreur(e));
     } finally {
       setOccupe(null);
+    }
+  }
+
+  // Coordonnées de paiement : enregistrement SÉPARÉ du reste du
+  // dossier (elles ne touchent ni sa complétude ni la carte — elles
+  // ne conditionnent que l'émission de la paie).
+  async function enregistrerPaiement() {
+    setOccupe("paiement");
+    setMessage(null);
+    setErreur(null);
+    try {
+      const vide = (v: string) => {
+        const nettoye = v.trim();
+        return nettoye === "" ? null : nettoye;
+      };
+      const maj = await getDataProvider().mettreAJourDossierEmploye({
+        paiement_moyen: formPaiement.moyen === "" ? null : formPaiement.moyen,
+        paiement_titulaire: vide(formPaiement.titulaire),
+        paiement_banque: vide(formPaiement.banque),
+        paiement_agence: vide(formPaiement.agence),
+        paiement_numero_compte: vide(formPaiement.numero_compte),
+        paiement_iban: vide(formPaiement.iban),
+        paiement_swift: vide(formPaiement.swift),
+        paiement_operateur: vide(formPaiement.operateur),
+        paiement_numero_mobile: vide(formPaiement.numero_mobile),
+      });
+      setDossier(maj);
+      setFormPaiement({
+        moyen: maj.paiement_moyen ?? "",
+        titulaire: maj.paiement_titulaire ?? maj.nom,
+        banque: maj.paiement_banque ?? "",
+        agence: maj.paiement_agence ?? "",
+        numero_compte: maj.paiement_numero_compte ?? "",
+        iban: maj.paiement_iban ?? "",
+        swift: maj.paiement_swift ?? "",
+        operateur: maj.paiement_operateur ?? "",
+        numero_mobile: maj.paiement_numero_mobile ?? "",
+      });
+      setMessage(t("savedMsg"));
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  // Talon de paie (2026-11-08) : PDF régénéré à la demande depuis la
+  // paie émise (le fournisseur refuse toute paie qui n'est pas la
+  // mienne — ERR_TALON_INTROUVABLE).
+  async function telechargerTalon(paieId: string) {
+    setTalonEnCours(paieId);
+    setMessage(null);
+    setErreur(null);
+    try {
+      const res = await getDataProvider().genererTalonPaie(paieId);
+      telechargerBase64Pdf(res.contenuBase64, res.nomFichier);
+    } catch {
+      setErreur(tf("errorGeneric"));
+    } finally {
+      setTalonEnCours(null);
     }
   }
 
@@ -465,6 +559,125 @@ export default function MonDossierEmployePage() {
             </button>
           </section>
 
+          {/* Coordonnées de paiement (2026-11-08) : où l'employé
+              reçoit son salaire — coordonnées bancaires complètes
+              structurées selon le moyen. Elles ne conditionnent QUE
+              l'émission de la paie (ni le dossier, ni la carte). */}
+          <section className={CARTE}>
+            <h2 className="text-base font-bold text-navy">{t("paymentSection")}</h2>
+            <p className="mt-1 text-sm text-slate-600">{t("paymentIntro")}</p>
+            {dossier.coordonnees_paiement ? (
+              <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+                ✓ {t("paymentPresent")} :{" "}
+                {instantaneDestinationPaiement(dossier.coordonnees_paiement)}
+              </p>
+            ) : (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                {t("paymentMissing")}
+              </p>
+            )}
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="min-w-0">
+                <label
+                  htmlFor="employe-paiement-moyen"
+                  className="block text-sm font-semibold text-slate-900"
+                >
+                  {t("paymentMethod")}
+                </label>
+                <select
+                  id="employe-paiement-moyen"
+                  value={formPaiement.moyen}
+                  onChange={(e) =>
+                    setFormPaiement({
+                      ...formPaiement,
+                      moyen: e.target.value as "" | MoyenPaiementEmploye,
+                    })
+                  }
+                  className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 outline-none focus:border-gold focus:ring-2 focus:ring-gold/40"
+                >
+                  <option value="">{t("paymentMethodNone")}</option>
+                  {MOYENS_PAIEMENT_EMPLOYE.map((m) => (
+                    <option key={m} value={m}>
+                      {t(`paymentMethods.${m}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field
+                id="employe-paiement-titulaire"
+                label={t("paymentHolder")}
+                value={formPaiement.titulaire}
+                onChange={(v) => setFormPaiement({ ...formPaiement, titulaire: v })}
+                autoComplete="name"
+              />
+              {formPaiement.moyen === "virement" ? (
+                <>
+                  <Field
+                    id="employe-paiement-banque"
+                    label={t("paymentBank")}
+                    value={formPaiement.banque}
+                    onChange={(v) => setFormPaiement({ ...formPaiement, banque: v })}
+                  />
+                  <Field
+                    id="employe-paiement-agence"
+                    label={t("paymentAgency")}
+                    value={formPaiement.agence}
+                    onChange={(v) => setFormPaiement({ ...formPaiement, agence: v })}
+                  />
+                  <Field
+                    id="employe-paiement-compte"
+                    label={t("paymentAccountNumber")}
+                    value={formPaiement.numero_compte}
+                    onChange={(v) =>
+                      setFormPaiement({ ...formPaiement, numero_compte: v })
+                    }
+                  />
+                  <Field
+                    id="employe-paiement-iban"
+                    label={t("paymentIban")}
+                    value={formPaiement.iban}
+                    onChange={(v) => setFormPaiement({ ...formPaiement, iban: v })}
+                  />
+                  <Field
+                    id="employe-paiement-swift"
+                    label={t("paymentSwift")}
+                    value={formPaiement.swift}
+                    onChange={(v) => setFormPaiement({ ...formPaiement, swift: v })}
+                  />
+                </>
+              ) : null}
+              {formPaiement.moyen === "mobile_money" ? (
+                <>
+                  <Field
+                    id="employe-paiement-operateur"
+                    label={t("paymentOperator")}
+                    value={formPaiement.operateur}
+                    onChange={(v) =>
+                      setFormPaiement({ ...formPaiement, operateur: v })
+                    }
+                  />
+                  <Field
+                    id="employe-paiement-mobile"
+                    label={t("paymentMobileNumber")}
+                    value={formPaiement.numero_mobile}
+                    onChange={(v) =>
+                      setFormPaiement({ ...formPaiement, numero_mobile: v })
+                    }
+                    autoComplete="tel"
+                  />
+                </>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              disabled={occupe !== null}
+              onClick={enregistrerPaiement}
+              className={`mt-4 ${BOUTON_OR}`}
+            >
+              {occupe === "paiement" ? "…" : t("save")}
+            </button>
+          </section>
+
           {pack ? (
             <>
               {/* Charte de confidentialité : statut de l'acceptation datée. */}
@@ -597,21 +810,33 @@ export default function MonDossierEmployePage() {
             {paies.length > 0 ? (
               <ul className="mt-3 divide-y divide-slate-100">
                 {paies.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-                  >
-                    <span>
-                      <span className="font-semibold text-navy">{p.mois}</span>{" "}
-                      <span className="text-slate-500">
-                        · {tf("colIssuedOn")} {formatDate(p.emis_le, locale)}
-                        {p.reference ? ` · ${p.reference}` : ""}
-                        {p.modalites ? ` · ${p.modalites}` : ""}
+                  <li key={p.id} className="py-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span>
+                        <span className="font-semibold text-navy">{p.mois}</span>{" "}
+                        <span className="text-slate-500">
+                          · {tf("colIssuedOn")} {formatDate(p.emis_le, locale)}
+                          {p.reference ? ` · ${p.reference}` : ""}
+                          {p.modalites ? ` · ${p.modalites}` : ""}
+                        </span>
                       </span>
-                    </span>
-                    <span className="font-bold text-navy">
-                      {formatMoney(p.montant, p.devise, locale)}
-                    </span>
+                      <span className="font-bold text-navy">
+                        {formatMoney(p.montant, p.devise, locale)}
+                      </span>
+                    </div>
+                    {p.paiement_destination ? (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {tf("payDestinationLabel")} : {p.paiement_destination}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={talonEnCours !== null}
+                      onClick={() => telechargerTalon(p.id)}
+                      className="mt-1 font-semibold text-navy underline decoration-gold decoration-2 underline-offset-2 disabled:opacity-50"
+                    >
+                      {talonEnCours === p.id ? "…" : tf("payStubDownload")}
+                    </button>
                   </li>
                 ))}
               </ul>

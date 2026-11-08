@@ -80,23 +80,28 @@ const PARAMS_CONTRAT = {
   check("blocages : dossier incomplet -> « dossier » d'abord (cumulé)",
     JSON.stringify(FIN.blocagesPaie({
       dossierComplet: false, contratPrepare: false,
-      montant: null, dejaEmise: false,
+      montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["dossier", "contrat"]));
   check("blocages : dossier complet sans contrat -> « contrat »",
     JSON.stringify(FIN.blocagesPaie({
       dossierComplet: true, contratPrepare: false,
-      montant: null, dejaEmise: false,
+      montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["contrat"]));
   check("blocages : contrat sans montant -> « montant »",
     JSON.stringify(FIN.blocagesPaie({
       dossierComplet: true, contratPrepare: true,
-      montant: null, dejaEmise: false,
+      montant: null, dejaEmise: false, coordonneesPresentes: true,
     })) === JSON.stringify(["montant"]));
   check("blocages : tout en ordre + paie existante -> « deja_emise »",
     JSON.stringify(FIN.blocagesPaie({
       dossierComplet: true, contratPrepare: true,
-      montant: 100, dejaEmise: true,
+      montant: 100, dejaEmise: true, coordonneesPresentes: true,
     })) === JSON.stringify(["deja_emise"]));
+  check("blocages : tout en ordre SANS coordonnées -> « coordonnees » (2026-11-08)",
+    JSON.stringify(FIN.blocagesPaie({
+      dossierComplet: true, contratPrepare: true,
+      montant: 100, dejaEmise: false, coordonneesPresentes: false,
+    })) === JSON.stringify(["coordonnees"]));
   const totauxTest = FIN.totauxParDevise({
     paies: [{ montant: 500000, devise: "BIF" }, { montant: 100, devise: "USD" }],
     depenses: [
@@ -193,6 +198,17 @@ const PARAMS_CONTRAT = {
     mime_type: "application/pdf", contenu: PETIT_PDF,
   });
   check("dossier de l'Admin complété", dossierComplet.complet === true);
+  // Coordonnées de paiement (2026-11-08) : requises pour l'émission.
+  const dossierAvecCoord = await p.mettreAJourDossierEmploye({
+    paiement_moyen: "mobile_money",
+    paiement_titulaire: "Aline Uwase",
+    paiement_operateur: "EcoCash",
+    paiement_numero_mobile: "+257 79 11 22 33",
+  });
+  check("coordonnées de l'Admin enregistrées (mobile money)",
+    dossierAvecCoord.coordonnees_paiement?.operateur === "EcoCash" &&
+    dossierAvecCoord.coordonnees_paiement?.numero_mobile === "+257 79 11 22 33",
+    JSON.stringify(dossierAvecCoord.coordonnees_paiement));
 
   console.log("== Paie : sans contrat, puis émission depuis le contrat ==");
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
@@ -205,6 +221,11 @@ const PARAMS_CONTRAT = {
     paie.montant === 500000 && paie.devise === "BIF" &&
     paie.modalites === PARAMS_CONTRAT.modalites_paiement &&
     paie.reference === "VIR-2026-11-001" && paie.mois === MOIS,
+    JSON.stringify(paie));
+  check("émission : moyen + destination instantanés figés sur la paie",
+    paie.paiement_moyen === "mobile_money" &&
+    paie.paiement_destination ===
+      "Mobile money — EcoCash +257 79 11 22 33 — Aline Uwase",
     JSON.stringify(paie));
   const errDoublon = await attendErreur(p.emettrePaieEmploye(admin.id, MOIS));
   check("doublon même mois -> ERR_PAIE_DEJA_EMISE",

@@ -160,3 +160,40 @@ export function verdictVerificationEmploye(entrees: {
   if (!verificationEmployeValide(entrees)) return "non_valide";
   return entrees.carteEmise ? "valide" : "carte_non_emise";
 }
+
+/**
+ * Recherche dans la LISTE des membres plateforme (page « Vérifier un
+ * employé », ajout 2026-11-08 validé par le fondateur : en plus de la
+ * saisie directe du Display ID de la carte présentée, l'Admin voit
+ * TOUS les employés et sélectionne celui qu'il veut vérifier).
+ * Fonction PURE partagée par l'affichage et les tests : correspondance
+ * sur le NOM ou le DISPLAY ID, insensible à la casse ET aux accents ;
+ * une recherche vide retourne la liste entière. L'appelant ne passe
+ * QUE des comptes plateforme (la liste vient de listerEquipeAdmins —
+ * aucun client n'y figure jamais).
+ */
+export interface MembreRecherchable {
+  nom: string;
+  display_id?: string | null;
+}
+
+function normaliserRecherche(valeur: string): string {
+  return valeur
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export function filtrerMembresEmployes<T extends MembreRecherchable>(
+  membres: T[],
+  recherche: string
+): T[] {
+  const q = normaliserRecherche(recherche ?? "");
+  if (!q) return [...membres];
+  return membres.filter(
+    (m) =>
+      normaliserRecherche(m.nom).includes(q) ||
+      normaliserRecherche(m.display_id ?? "").includes(q)
+  );
+}

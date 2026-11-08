@@ -76,6 +76,20 @@ export interface Profil {
   adresse_ville?: string | null;
   adresse_code_postal?: string | null;
   adresse_pays?: string | null;
+  // --- Coordonnées de PAIEMENT de l'employé (2026-11-08, module-
+  // coordonnees-paiement.sql) : où l'Admin / Super Admin reçoit son
+  // salaire. Réservées aux rôles plateforme — jamais demandées aux
+  // clients. Complétude CALCULÉE (lib/finances-plateforme.ts) ; ne
+  // conditionnent QUE l'émission de la paie.
+  paiement_moyen?: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  paiement_titulaire?: string | null;
+  paiement_banque?: string | null;
+  paiement_agence?: string | null;
+  paiement_numero_compte?: string | null;
+  paiement_iban?: string | null;
+  paiement_swift?: string | null;
+  paiement_operateur?: string | null;
+  paiement_numero_mobile?: string | null;
   /**
    * État du contrat de collaboration — comptes à intention
    * « gestionnaire » uniquement : sans_objet (propriétaires et
@@ -897,6 +911,16 @@ export interface ProfilPatch {
   adresse_ville?: string | null;
   adresse_code_postal?: string | null;
   adresse_pays?: string | null;
+  // Coordonnées de paiement de l'employé (2026-11-08).
+  paiement_moyen?: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  paiement_titulaire?: string | null;
+  paiement_banque?: string | null;
+  paiement_agence?: string | null;
+  paiement_numero_compte?: string | null;
+  paiement_iban?: string | null;
+  paiement_swift?: string | null;
+  paiement_operateur?: string | null;
+  paiement_numero_mobile?: string | null;
 }
 
 // --- MODULE 6 : indivision familiale (spec §6 suite, §2, §13) --------------
@@ -1323,6 +1347,30 @@ export interface DossierEmploye {
   adresse_ville: string | null;
   adresse_code_postal: string | null;
   adresse_pays: string | null;
+  /**
+   * Coordonnées de PAIEMENT brutes (2026-11-08) : où l'employé reçoit
+   * son salaire, telles que stockées sur le profil (chacune nullable,
+   * saisies partielles possibles). Voir coordonnees_paiement pour la
+   * forme normalisée.
+   */
+  paiement_moyen: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  paiement_titulaire: string | null;
+  paiement_banque: string | null;
+  paiement_agence: string | null;
+  paiement_numero_compte: string | null;
+  paiement_iban: string | null;
+  paiement_swift: string | null;
+  paiement_operateur: string | null;
+  paiement_numero_mobile: string | null;
+  /**
+   * Coordonnées de paiement NORMALISÉES (calculées, jamais
+   * stockées) : non null seulement si les champs REQUIS du moyen
+   * sont présents (titulaire toujours ; virement : banque + n° de
+   * compte ; mobile money : opérateur + n° mobile). Ne
+   * conditionnent QUE l'émission de la paie — la complétude du
+   * dossier (complet / manquants) n'en dépend PAS.
+   */
+  coordonnees_paiement: import("../finances-plateforme").CoordonneesPaiement | null;
   /** Calculé : les 4 éléments sont présents. */
   complet: boolean;
   /** Éléments manquants (vide si complet). */
@@ -1418,6 +1466,18 @@ export interface PaieEmploye {
   devise: string;
   /** Modalités copiées du contrat (virement, mobile money…). */
   modalites: string | null;
+  /**
+   * Moyen de paiement COPIÉ des coordonnées de l'employé à
+   * l'émission (2026-11-08) — null pour les paies antérieures à
+   * l'ajout des coordonnées (rien n'est inventé a posteriori).
+   */
+  paiement_moyen: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  /**
+   * Instantané TEXTE de la destination utilisée à l'émission (figé :
+   * un changement ultérieur des coordonnées du profil ne le réécrit
+   * jamais) — null pour les paies antérieures à l'ajout.
+   */
+  paiement_destination: string | null;
   /** Référence libre de l'émission (optionnelle). */
   reference: string | null;
   statut: "emise";
@@ -1487,6 +1547,12 @@ export interface LignePaieEmploye {
   contrat_montant: number | null;
   contrat_devise: string | null;
   contrat_modalites: string | null;
+  /**
+   * Coordonnées de paiement de l'employé (2026-11-08) : où il reçoit
+   * son salaire — null tant qu'elles ne sont pas renseignées
+   * (l'émission est alors refusée, blocage « coordonnees »).
+   */
+  coordonnees_paiement: import("../finances-plateforme").CoordonneesPaiement | null;
   /** Paie déjà émise pour le mois demandé (null = pas encore). */
   paie: PaieEmploye | null;
   /** Blocages d'émission calculés (vide = émission possible). */
@@ -1519,6 +1585,20 @@ export interface DossierEmployePatch {
   adresse_ville?: string | null;
   adresse_code_postal?: string | null;
   adresse_pays?: string | null;
+  // Coordonnées de paiement de l'employé (2026-11-08) : coordonnées
+  // bancaires complètes structurées selon le moyen (virement :
+  // banque, agence, n° de compte, IBAN, SWIFT ; mobile money :
+  // opérateur, n° mobile ; espèces : titulaire seul). Un moyen hors
+  // liste est refusé (ERR_COORDONNEES_PAIEMENT_INVALIDES).
+  paiement_moyen?: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  paiement_titulaire?: string | null;
+  paiement_banque?: string | null;
+  paiement_agence?: string | null;
+  paiement_numero_compte?: string | null;
+  paiement_iban?: string | null;
+  paiement_swift?: string | null;
+  paiement_operateur?: string | null;
+  paiement_numero_mobile?: string | null;
 }
 
 /** Vue console d'un compte Admin / Super Admin. */
@@ -1542,6 +1622,17 @@ export interface CompteAdmin {
   adresse_code_postal?: string | null;
   adresse_pays?: string | null;
   photo_profil_path?: string | null;
+  // Coordonnées de paiement de l'employé (2026-11-08) : stockage
+  // DÉMO, miroir des colonnes profils du réel.
+  paiement_moyen?: import("../finances-plateforme").MoyenPaiementEmploye | null;
+  paiement_titulaire?: string | null;
+  paiement_banque?: string | null;
+  paiement_agence?: string | null;
+  paiement_numero_compte?: string | null;
+  paiement_iban?: string | null;
+  paiement_swift?: string | null;
+  paiement_operateur?: string | null;
+  paiement_numero_mobile?: string | null;
 }
 
 // ============================================================================
@@ -1621,6 +1712,15 @@ export interface MembreEquipe {
   email: string;
   nom: string;
   role: "admin" | "super_admin";
+  /**
+   * Display ID public du membre (optionnel — absent des vues qui ne
+   * le chargent pas). Chargé par listerEquipeAdmins : la page
+   * « Vérifier un employé » s'en sert pour la liste sélectionnable
+   * (ajout 2026-11-08) — le clic appelle verifierEmploye(display_id).
+   */
+  display_id?: string | null;
+  /** Lien signé temporaire vers la photo du dossier (réel ; null en démo). */
+  photo_profil_url?: string | null;
   /** Suspension de compte plateforme (profils.suspendu). */
   statut: "actif" | "suspendu";
   /** Accès console employé (profils.acces_admin_actif). */

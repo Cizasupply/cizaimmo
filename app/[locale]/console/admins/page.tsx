@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import PackEmployeAdmin from "@/components/PackEmployeAdmin";
 import { getDataProvider } from "@/lib/data";
 import type { CompteAdmin, DossierEmploye } from "@/lib/data";
@@ -279,6 +280,20 @@ export default function ConsoleAdminsPage() {
                         </p>
                       ) : (
                         <p>{td("missing")}</p>
+                      )}
+                    </div>
+                    {/* Coordonnées de paiement de l'employé (2026-11-08) :
+                        bloc structuré selon le moyen — visibles par le
+                        Super Admin, elles conditionnent l'émission de
+                        la paie. */}
+                    <div className="md:col-span-2">
+                      <p className="font-semibold text-navy">{td("paymentSection")}</p>
+                      {dossierDetail.coordonnees_paiement ? (
+                        <CoordonneesPaiementVue
+                          coordonnees={dossierDetail.coordonnees_paiement}
+                        />
+                      ) : (
+                        <p>{td("paymentMissing")}</p>
                       )}
                     </div>
                   </div>

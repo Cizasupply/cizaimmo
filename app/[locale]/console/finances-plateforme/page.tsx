@@ -28,8 +28,10 @@ import type {
 } from "@/lib/data";
 import { DEVISES } from "@/lib/data";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
+import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
 import { formatDate, formatMoney } from "@/lib/format";
 import { moisCourant } from "@/lib/finances-plateforme";
 import {
@@ -67,6 +69,7 @@ export default function FinancesPlateformePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
+  const [talonEnCours, setTalonEnCours] = useState<string | null>(null);
   // Émission de paie : référence par employé + confirmation.
   const [references, setReferences] = useState<Record<string, string>>({});
   const [aEmettre, setAEmettre] = useState<LignePaieEmploye | null>(null);
@@ -124,6 +127,22 @@ export default function FinancesPlateformePage() {
       setErreur(messageErreur(e));
     } finally {
       setOccupe(false);
+    }
+  }
+
+  // Talon de paie (2026-11-08) : le Super Admin télécharge le talon
+  // de chaque paie depuis l'historique — PDF régénéré à la demande
+  // depuis les instantanés de la paie.
+  async function telechargerTalon(paieId: string) {
+    setTalonEnCours(paieId);
+    setErreur(null);
+    try {
+      const res = await getDataProvider().genererTalonPaie(paieId);
+      telechargerBase64Pdf(res.contenuBase64, res.nomFichier);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setTalonEnCours(null);
     }
   }
 
@@ -295,6 +314,19 @@ export default function FinancesPlateformePage() {
                       tf("contractNone")
                     )}
                   </p>
+                  {/* Coordonnées de paiement du membre (2026-11-08) :
+                      bloc structuré selon le moyen ; absentes = la
+                      paie ne peut pas partir (blocage « coordonnees »). */}
+                  {ligne.coordonnees_paiement ? (
+                    <div className="mt-1">
+                      <span className="text-sm font-semibold text-slate-700">
+                        {tf("payCoordinatesLabel")} :{" "}
+                      </span>
+                      <CoordonneesPaiementVue
+                        coordonnees={ligne.coordonnees_paiement}
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="shrink-0 text-right">
                   {ligne.paie ? (
@@ -315,6 +347,12 @@ export default function FinancesPlateformePage() {
                           ? ` · ${ligne.paie.reference}`
                           : ""}
                       </p>
+                      {ligne.paie.paiement_destination ? (
+                        <p className="text-xs text-slate-500">
+                          {tf("payDestinationLabel")} :{" "}
+                          {ligne.paie.paiement_destination}
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
@@ -336,7 +374,9 @@ export default function FinancesPlateformePage() {
                           ? tf("blockContrat")
                           : b === "montant"
                             ? tf("blockMontant")
-                            : tf("blockDejaEmise")}
+                            : b === "coordonnees"
+                              ? tf("blockCoordonnees")
+                              : tf("blockDejaEmise")}
                     </span>
                   ))}
                   {!ligne.dossier_complet ? (
@@ -383,22 +423,36 @@ export default function FinancesPlateformePage() {
         {vue && vue.historique_paies.length > 0 ? (
           <ul className="mt-2 divide-y divide-slate-100">
             {vue.historique_paies.map((p) => (
-              <li
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-              >
-                <span className="min-w-0">
-                  <span className="font-semibold text-navy">
-                    {p.employe_nom ?? p.profil_id}
-                  </span>{" "}
-                  <span className="text-slate-500">
-                    · {p.mois} · {formatDate(p.emis_le, locale)}
-                    {p.reference ? ` · ${p.reference}` : ""}
+              <li key={p.id} className="py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="font-semibold text-navy">
+                      {p.employe_nom ?? p.profil_id}
+                    </span>{" "}
+                    <span className="text-slate-500">
+                      · {p.mois} · {formatDate(p.emis_le, locale)}
+                      {p.reference ? ` · ${p.reference}` : ""}
+                    </span>
                   </span>
-                </span>
-                <span className="font-bold text-navy">
-                  {formatMoney(p.montant, p.devise, locale)}
-                </span>
+                  <span className="font-bold text-navy">
+                    {formatMoney(p.montant, p.devise, locale)}
+                  </span>
+                </div>
+                {p.paiement_destination ? (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {tf("payDestinationLabel")} : {p.paiement_destination}
+                  </p>
+                ) : null}
+                {estSuper ? (
+                  <button
+                    type="button"
+                    disabled={talonEnCours !== null}
+                    onClick={() => telechargerTalon(p.id)}
+                    className="mt-0.5 font-semibold text-navy underline decoration-gold decoration-2 underline-offset-2 disabled:opacity-50"
+                  >
+                    {talonEnCours === p.id ? "…" : tf("payStubDownload")}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

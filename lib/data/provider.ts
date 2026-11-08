@@ -723,6 +723,18 @@ export interface DataProvider {
     adminId: string
   ): Promise<{ nomFichier: string; contenuBase64: string }>;
   /**
+   * TALON DE PAIE (2026-11-08) : génère le PDF du talon d'une paie
+   * émise, à la demande, depuis les instantanés de la paie (montant,
+   * destination…) — rien n'est stocké. Accès : le Super Admin
+   * (toutes les paies) ou l'employé pour SES PROPRES paies ; la paie
+   * d'un autre employé (ou une paie inexistante) répond
+   * ERR_TALON_INTROUVABLE, sans fuite d'existence. Langue : celle du
+   * compte de l'EMPLOYÉ (patron du contrat employé).
+   */
+  genererTalonPaie(
+    paieId: string
+  ): Promise<{ nomFichier: string; contenuBase64: string }>;
+  /**
    * L'employé téléverse son contrat d'engagement SIGNÉ (PDF ou
    * photo) → statut « signe_depose », en attente de revue Super
    * Admin. Redépôt possible après un refus (le motif est effacé).
@@ -755,6 +767,9 @@ export interface DataProvider {
   // lib/finances-plateforme.ts. Nouveaux codes d'erreur :
   //  ERR_DOSSIER_INCOMPLET — paie refusée, dossier employé incomplet.
   //  ERR_PAIE_SANS_CONTRAT — aucun contrat préparé / sans montant.
+  //  ERR_COORDONNEES_PAIEMENT_MANQUANTES — paie refusée, l'employé
+  //    n'a pas renseigné ses coordonnées de paiement (ajout 2026-11-08,
+  //    supabase/module-coordonnees-paiement.sql).
   //  ERR_PAIE_DEJA_EMISE — une paie existe déjà pour ce mois.
   //  ERR_DEPENSE_INVALIDE — saisie de dépense incomplète/invalide.
   // ==========================================================================
@@ -769,10 +784,13 @@ export interface DataProvider {
   /**
    * SUPER ADMIN : émet la paie d'un employé pour un mois — montant,
    * devise et modalités COPIÉS de son contrat d'engagement en base.
-   * Refusée si le dossier employé est incomplet
-   * (ERR_DOSSIER_INCOMPLET), si aucun contrat avec montant n'est
-   * préparé (ERR_PAIE_SANS_CONTRAT) ou si une paie existe déjà pour
-   * ce mois (ERR_PAIE_DEJA_EMISE, doublé par la contrainte base).
+   * Gardes, DANS CET ORDRE : dossier employé incomplet
+   * (ERR_DOSSIER_INCOMPLET), aucun contrat avec montant préparé
+   * (ERR_PAIE_SANS_CONTRAT), coordonnées de paiement de l'employé
+   * absentes (ERR_COORDONNEES_PAIEMENT_MANQUANTES, ajout 2026-11-08),
+   * paie déjà émise ce mois (ERR_PAIE_DEJA_EMISE, doublé par la
+   * contrainte base). À l'émission, la paie FIGE le moyen + la
+   * destination des coordonnées de l'employé (instantané).
    * Journalisé.
    */
   emettrePaieEmploye(
