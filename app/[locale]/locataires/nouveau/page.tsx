@@ -35,11 +35,11 @@ export default function NouveauLocatairePage() {
         ← {t("tenants.backToList")}
       </Link>
       {pret ? (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <LocataireForm onSubmit={handleSubmit} submitLabel={t("common.create")} />
         </div>
       ) : (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       )}
     </AppShell>
   );

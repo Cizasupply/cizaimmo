@@ -247,7 +247,7 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500">{tc("loading")}</p>
         </div>
       ) : immeubles.filter((i) => i.statut === "actif").length === 0 ? (
-        <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-lg font-bold text-navy">{td("starterTitle")}</h2>
           <p className="mt-2 text-slate-600">{td("starterText")}</p>
           <ol className="mt-4 space-y-3">
@@ -271,7 +271,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* Convertisseur intégré */}
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               {td("displayCurrency")}
               <select
@@ -290,14 +290,14 @@ export default function DashboardPage() {
           {/* 4 chiffres clés — code couleur : vert = ok / collecté, rouge = en retard,
               marine = attendu (à venir), ambre = vacant / attention. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className={`min-w-0 rounded-2xl p-4 shadow-sm ${indicateurs.occupation === null ? "bg-white" : indicateurs.occupation >= 0.8 ? "bg-green-50" : "bg-amber-50"}`}>
+            <div className={`min-w-0 rounded-2xl border border-slate-200 p-4 shadow-sm ${indicateurs.occupation === null ? "bg-white" : indicateurs.occupation >= 0.8 ? "bg-green-50" : "bg-amber-50"}`}>
               <p className="text-sm font-semibold text-slate-600">{td("occupancy")}</p>
               <p className={`mt-1 text-2xl font-bold ${indicateurs.occupation === null ? "text-navy" : indicateurs.occupation >= 0.8 ? "text-green-700" : "text-amber-700"}`}>
                 {indicateurs.occupation === null ? "—" : formatPct(indicateurs.occupation, locale)}
               </p>
               <p className="break-words text-sm text-slate-600">{td("occupiedCount", { occupied: indicateurs.nbOccupes, total: indicateurs.nbLouables })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-green-50 p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-green-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("collectedMonth")}</p>
               {collectesConv.lignes.map((l) => (
                 <p key={l.devise} className="mt-1 break-all text-lg font-bold text-green-700">
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                 {td("expectedMonth")}: {attendusConv.lignes.map((l) => formatMoney(l.total, l.devise, locale)).join(" + ") || "—"}
               </p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-red-50 p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-red-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("lateAmount")}</p>
               {retardsConv.lignes.length === 0 ? (
                 <p className="mt-1 text-2xl font-bold text-green-700">0</p>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
               )}
               <p className="break-words text-sm text-slate-600">{td("lateCount", { count: indicateurs.retards.length })}</p>
             </div>
-            <div className="min-w-0 rounded-2xl bg-amber-50 p-4 shadow-sm">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-600">{td("vacant")}</p>
               <p className="mt-1 text-2xl font-bold text-amber-700">{indicateurs.nbVacants}</p>
               <p className="text-sm text-slate-600">{td("vacantHint")}</p>
@@ -355,7 +355,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Retards */}
-          <section className="mt-6 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{td("lateList")}</h2>
             {indicateurs.retards.length === 0 ? (
               <p className="mt-2 text-slate-600">{td("noLate")}</p>
@@ -383,7 +383,7 @@ export default function DashboardPage() {
 
           {/* Fins de bail + dépenses du mois */}
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <h2 className="text-lg font-bold text-navy">{td("leasesEnding")}</h2>
               {indicateurs.finsDeBail60j.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noLeaseEnding")}</p>
@@ -402,7 +402,7 @@ export default function DashboardPage() {
                 </ul>
               )}
             </section>
-            <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <h2 className="text-lg font-bold text-navy">{td("expensesMonth")}</h2>
               {indicateurs.depensesMois.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noExpenseMonth")}</p>
@@ -421,23 +421,23 @@ export default function DashboardPage() {
           </div>
 
           {/* Graphique collecte 6 mois */}
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{td("collectionChart")}</h2>
             <p className="text-sm text-slate-600">{td("chartInCurrency", { currency: deviseAffichage })}</p>
-            <div className="mt-4 overflow-x-auto">
-              <svg viewBox="0 0 360 170" className="w-full min-w-[320px]" role="img" aria-label={td("collectionChart")}>
+            <div className="mx-auto mt-4 max-w-[560px] overflow-x-auto">
+              <svg viewBox="0 0 360 100" className="w-full min-w-[320px]" role="img" aria-label={td("collectionChart")}>
                 {[0, 1, 2, 3].map((i) => (
-                  <line key={i} x1="0" x2="360" y1={30 + i * 30} y2={30 + i * 30} stroke="#e2e8f0" strokeWidth="1" />
+                  <line key={i} x1="0" x2="360" y1={10 + i * 18} y2={10 + i * 18} stroke="#e2e8f0" strokeWidth="1" />
                 ))}
                 {serieGraphique.map((s, i) => {
                   const x = 20 + i * 56;
-                  const hAttendu = Math.round((s.attendu / maxGraphique) * 110);
-                  const hCollecte = Math.round((s.collecte / maxGraphique) * 110);
+                  const hAttendu = Math.round((s.attendu / maxGraphique) * 58);
+                  const hCollecte = Math.round((s.collecte / maxGraphique) * 58);
                   return (
                     <g key={s.mois}>
-                      <rect x={x} y={140 - hAttendu} width="20" height={hAttendu} fill="#D4AF37" rx="2" />
-                      <rect x={x + 22} y={140 - hCollecte} width="20" height={hCollecte} fill="#1B2A4A" rx="2" />
-                      <text x={x + 21} y="158" textAnchor="middle" fontSize="10" fill="#475569">{moisAffiche(s.mois, locale)}</text>
+                      <rect x={x} y={72 - hAttendu} width="20" height={hAttendu} fill="#D4AF37" rx="2" />
+                      <rect x={x + 22} y={72 - hCollecte} width="20" height={hCollecte} fill="#1B2A4A" rx="2" />
+                      <text x={x + 21} y="86" textAnchor="middle" fontSize="10" fill="#475569">{moisAffiche(s.mois, locale)}</text>
                     </g>
                   );
                 })}
@@ -450,7 +450,7 @@ export default function DashboardPage() {
           </section>
 
           {/* Fil d'actualité */}
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-navy">{td("feedTitle")}</h2>
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">

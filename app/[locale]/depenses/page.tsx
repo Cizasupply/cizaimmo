@@ -293,7 +293,7 @@ export default function DepensesPage() {
             </button>
           </div>
 
-          <div className="mb-4 grid gap-3 rounded-2xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
             <label className="block text-sm font-semibold text-slate-900">
               {tc("search")}
               <input
@@ -363,7 +363,7 @@ export default function DepensesPage() {
 
           {totauxParCategorie.length > 0 ? (
             <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h2 className="text-sm font-bold text-navy">{te("totalsByCategory")}</h2>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParCategorie.map((x) => (
@@ -374,7 +374,7 @@ export default function DepensesPage() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h2 className="text-sm font-bold text-navy">{te("totalsByBuilding")}</h2>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParImmeuble.map((x) => (
@@ -389,10 +389,10 @@ export default function DepensesPage() {
           ) : null}
 
           {filtrees.length === 0 ? (
-            <p className="rounded-2xl bg-white p-6 text-center text-slate-600 shadow-sm">{tc("noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">{tc("noResults")}</p>
           ) : (
             <>
-              <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-600">
@@ -433,7 +433,7 @@ export default function DepensesPage() {
 
               <div className="space-y-3 md:hidden">
                 {pageDepenses.map((d) => (
-                  <article key={d.id} className="rounded-2xl bg-white p-4 shadow-sm">
+                  <article key={d.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="break-words font-bold text-navy">{d.libelle}</p>

@@ -214,7 +214,7 @@ export default function DocumentsPage() {
           </div>
 
           {aAjouter ? (
-            <form onSubmit={handleTeleverser} noValidate className="mb-4 space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+            <form onSubmit={handleTeleverser} noValidate className="mb-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <DocumentUpload fichier={fichier} onFichierChange={setFichier} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="doc-type" label={td("type")} value={typeDoc} onChange={(v) => setTypeDoc(v as TypeDocument)}>
@@ -247,7 +247,7 @@ export default function DocumentsPage() {
             </form>
           ) : null}
 
-          <div className="mb-4 grid gap-3 rounded-2xl bg-white p-4 shadow-sm sm:grid-cols-3">
+          <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3">
             <label className="block text-sm font-semibold text-slate-900">
               {tc("search")}
               <input
@@ -288,9 +288,9 @@ export default function DocumentsPage() {
           </div>
 
           {filtres.length === 0 ? (
-            <p className="rounded-2xl bg-white p-6 text-center text-slate-600 shadow-sm">{tc("noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">{tc("noResults")}</p>
           ) : (
-            <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <DocumentList documents={pageDocs} onChange={charger} showEntity nomEntite={nomEntite} />
               <Pagination
                 page={page}

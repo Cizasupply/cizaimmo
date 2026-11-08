@@ -130,13 +130,13 @@ export default function ModifierImmeublePage({ params }: { params: { id: string 
         ← {t("common.back")}
       </Link>
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : introuvable || !immeuble ? (
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{t("errors.ERR_NOT_FOUND")}</p>
         </div>
       ) : (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <ImmeubleForm
             initial={immeuble}
             onSubmit={handleSubmit}

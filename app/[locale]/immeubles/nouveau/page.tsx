@@ -116,9 +116,9 @@ export default function NouvelImmeublePage() {
         ← {t("buildings.backToList")}
       </Link>
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : limiteAtteinte && abonnement ? (
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <h2 className="text-lg font-bold text-navy">{t("buildings.limitReached")}</h2>
           <p className="mt-2 text-base text-slate-700">
             {t("buildings.limitText", {
@@ -132,7 +132,7 @@ export default function NouvelImmeublePage() {
           </Link>
         </div>
       ) : (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <ImmeubleForm
             onSubmit={handleSubmit}
             submitLabel={t("common.create")}

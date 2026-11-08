@@ -181,7 +181,7 @@ export default function RecusPage() {
       ) : null}
 
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : recus.length === 0 ? (
         <EmptyState
           title={t("receipts.emptyTitle")}
@@ -191,7 +191,7 @@ export default function RecusPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
             <input
               type="search"
               value={recherche}
@@ -213,14 +213,14 @@ export default function RecusPage() {
           </div>
 
           {visibles.length === 0 ? (
-            <p className="rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
           ) : (
             <>
               <div className="space-y-3 md:hidden">
                 {visibles.map((r) => {
                   const liens = liensRenvoi(r);
                   return (
-                    <article key={r.numero} className="rounded-2xl bg-white p-4 shadow-sm">
+                    <article key={r.numero} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 break-words text-lg font-bold text-navy">{r.numero}</p>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${r.statut === "valide" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
@@ -262,7 +262,7 @@ export default function RecusPage() {
                 })}
               </div>
 
-              <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">

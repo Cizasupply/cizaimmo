@@ -215,7 +215,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
   if (chargement) {
     return (
       <AppShell title={t("apartments.title")}>
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       </AppShell>
     );
   }
@@ -223,7 +223,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
   if (!appartement) {
     return (
       <AppShell title={t("apartments.title")}>
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur ?? t("errors.ERR_NOT_FOUND")}</p>
           <Link href={`/${locale}/appartements`} className="mt-4 inline-block font-semibold text-navy underline">
             {t("common.back")}
@@ -245,7 +245,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
         <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{erreur}</p>
       ) : null}
 
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-base text-slate-600">
@@ -324,7 +324,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Bail en cours */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("apartments.detailCurrentLease")}</h2>
         {bailEnCours && locataireEnCours ? (
           <div className="mt-3">
@@ -357,7 +357,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       {/* Passeport du bien (spec §6 suite) — construit au module 6 : la fiche
           appartement n'en avait pas. Identité, acquisition (héritée de
           l'immeuble), valeur + ROI, travaux, historique complet, documents. */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("passport.title")}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div>
@@ -483,7 +483,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       </section>
 
       {/* Historique des baux */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("apartments.detailLeaseHistory")}</h2>
         {baux.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("leases.noHistory")}</p>
@@ -507,7 +507,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       </section>
 
       {/* Loyers (module 3 : lecture des échéances déjà présentes) */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("apartments.detailRents")}</h2>
         {echeances.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("rents.empty")}</p>
@@ -532,7 +532,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       </section>
 
       {/* Dépenses liées */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("apartments.detailExpenses")}</h2>
         {depenses.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("expenses.empty")}</p>
@@ -549,7 +549,7 @@ export default function AppartementDetailPage({ params }: { params: { id: string
       </section>
 
       {/* Photos */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("apartments.detailPhotos")}</h2>
         {appartement.photos.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("apartments.noPhotos")}</p>

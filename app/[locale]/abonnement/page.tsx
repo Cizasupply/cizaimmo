@@ -318,13 +318,13 @@ export default function AbonnementPage() {
   return (
     <AppShell title={tp("subscription.title")}>
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
       ) : profil && profil.role !== "proprietaire" ? (
-        <p role="alert" className="rounded-2xl bg-white p-8 text-red-700 shadow-sm">
+        <p role="alert" className="rounded-2xl border border-slate-200 bg-white p-8 text-red-700 shadow-sm">
           {ts("accessDenied")}
         </p>
       ) : erreur ? (
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur}</p>
           <button type="button" onClick={charger} className="mt-4 rounded-full bg-navy px-5 py-2 text-sm font-bold text-white">
             {t("common.retry")}
@@ -368,7 +368,7 @@ export default function AbonnementPage() {
           ) : null}
 
           {/* Plan actuel */}
-          <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-navy">{ts("currentPlan")}</h2>
             <dl className="mt-3 space-y-2 text-base text-slate-700">
               <div className="flex justify-between gap-4">
@@ -427,7 +427,7 @@ export default function AbonnementPage() {
               L'essai court sur Starter ; ce choix ne déclenche aucun
               paiement, il est seulement enregistré (plan_apres_essai). */}
           {abonnement.statut === "essai" ? (
-            <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+            <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-navy">{ts("trialPackTitle")}</h2>
               <p className="mt-1 text-sm text-slate-600">{ts("trialPackText")}</p>
               <div className="mt-4 space-y-2">
@@ -475,7 +475,7 @@ export default function AbonnementPage() {
                 const estActuel = plan === abonnement.plan && !abonnement.plan_en_attente;
                 const estDescente = RANG_PLAN[plan] < RANG_PLAN[abonnement.plan];
                 return (
-                  <article key={plan} className="rounded-2xl bg-white p-5 shadow-sm">
+                  <article key={plan} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="text-lg font-bold text-navy">{ts(`plans.${plan}`)}</h3>
                     <p className="mt-2 text-2xl font-bold text-navy">
                       {formatMoney(prixPlans[plan][abonnement.grille], "USD", locale)}
@@ -526,7 +526,7 @@ export default function AbonnementPage() {
 
           {/* Paiement du plan choisi */}
           {planChoisi ? (
-            <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+            <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-navy">
                 {ts("payTitle", { plan: ts(`plans.${planChoisi}`) })}
               </h2>
@@ -591,7 +591,7 @@ export default function AbonnementPage() {
 
           {/* Paiements mobile money */}
           {paiementsMm.length > 0 ? (
-            <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+            <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-navy">{ts("mmTitle")}</h2>
               <ul className="mt-3 space-y-3">
                 {paiementsMm.map((p) => (
@@ -633,7 +633,7 @@ export default function AbonnementPage() {
           ) : null}
 
           {/* Factures */}
-          <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-navy">{ts("invoicesTitle")}</h2>
             {factures.length === 0 ? (
               <p className="mt-3 text-base text-slate-500">{ts("invoicesEmpty")}</p>
@@ -669,7 +669,7 @@ export default function AbonnementPage() {
           </section>
 
           {/* Annulation */}
-          <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-navy">{ts("cancelTitle")}</h2>
             {abonnement.resiliation_programmee ? (
               <p className="mt-2 text-base text-slate-700">
@@ -730,7 +730,7 @@ export default function AbonnementPage() {
           </section>
         </>
       ) : (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
       )}
 
       {aConfirmerDescente ? (

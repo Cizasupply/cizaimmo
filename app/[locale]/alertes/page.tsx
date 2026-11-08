@@ -131,7 +131,7 @@ export default function AlertesPage() {
   function carte(alerte: Alerte) {
     const url = urlAlerte(alerte);
     return (
-      <article key={alerte.id} className={`rounded-2xl bg-white p-4 shadow-sm ${bordureUrgence(alerte.urgence)}`}>
+      <article key={alerte.id} className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${bordureUrgence(alerte.urgence)}`}>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${couleurUrgence(alerte.urgence)}`}>
             {ta(`urgency.${alerte.urgence}`)}
@@ -232,7 +232,7 @@ export default function AlertesPage() {
               {ta("activeTitle", { count: actives.length })}
             </h2>
             {actives.length === 0 ? (
-              <p className="mt-2 rounded-2xl bg-white p-4 text-slate-600 shadow-sm">{ta("noActive")}</p>
+              <p className="mt-2 rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm">{ta("noActive")}</p>
             ) : (
               <div className="mt-3 space-y-3">{actives.map(carte)}</div>
             )}
@@ -242,7 +242,7 @@ export default function AlertesPage() {
               {ta("treatedTitle", { count: traitees.length })}
             </h2>
             {traitees.length === 0 ? (
-              <p className="mt-2 rounded-2xl bg-white p-4 text-slate-600 shadow-sm">{ta("noTreated")}</p>
+              <p className="mt-2 rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm">{ta("noTreated")}</p>
             ) : (
               <div className="mt-3 space-y-3">{traitees.map(carte)}</div>
             )}

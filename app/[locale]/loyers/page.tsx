@@ -569,7 +569,7 @@ export default function LoyersPage() {
       ) : null}
 
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : nbBauxActifsMois === 0 ? (
         <EmptyState
           title={t("rents.emptyTitle")}
@@ -579,7 +579,7 @@ export default function LoyersPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:flex-wrap">
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:flex-wrap">
             <div role="group" aria-label={t("rents.monthLabel")} className="flex min-w-0 flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-slate-700">{t("rents.monthLabel")}</span>
               <select
@@ -654,7 +654,7 @@ export default function LoyersPage() {
             </button>
           </div>
 
-          <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-bold text-navy">{t("rents.totalsTitle")} — {moisAffiche(moisIso, locale)}</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {totaux.map(([deviseTot, tot]) => (
@@ -672,7 +672,7 @@ export default function LoyersPage() {
           </div>
 
           {visibles.length === 0 ? (
-            <p className="rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
           ) : (
             <>
               <div className="space-y-3 md:hidden">
@@ -680,7 +680,7 @@ export default function LoyersPage() {
                   const liens = liensRelance(x);
                   const prorata = prorataTexte(x);
                   return (
-                    <article key={x.echeance.id} className="rounded-2xl bg-white p-4 shadow-sm">
+                    <article key={x.echeance.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-lg font-bold text-navy break-words">{x.locataire?.nom ?? "—"}</p>
@@ -735,7 +735,7 @@ export default function LoyersPage() {
                 })}
               </div>
 
-              <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">

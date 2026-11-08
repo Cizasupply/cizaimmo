@@ -169,7 +169,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
   if (chargement) {
     return (
       <AppShell title={t("buildings.title")}>
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       </AppShell>
     );
   }
@@ -177,7 +177,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
   if (!immeuble) {
     return (
       <AppShell title={t("buildings.title")}>
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur ?? t("errors.ERR_NOT_FOUND")}</p>
           <Link href={`/${locale}/immeubles`} className="mt-4 inline-block font-semibold text-navy underline">
             {t("common.back")}
@@ -199,7 +199,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
         <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{erreur}</p>
       ) : null}
 
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {/* v1.7 : la photo principale du bien ouvre sa fiche — c'est la
             photo du passeport : tout le monde voit de quelle maison on parle. */}
         {(immeuble.photos_urls[0] || immeuble.photo_url) ? (
@@ -300,7 +300,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       </div>
 
       {/* Appartements */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-navy">{t("buildings.detailApartments")}</h2>
           {!estCoproprietaire ? (
@@ -342,7 +342,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       </section>
 
       {/* Dépenses */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("buildings.detailExpenses")}</h2>
         {depenses.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("expenses.empty")}</p>
@@ -359,7 +359,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       </section>
 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("buildings.detailDocuments")}</h2>
         <DocumentList documents={documents} onChange={charger} />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">
@@ -370,7 +370,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       {/* Passeport du bien (spec §6 suite) — complet : identité, acquisition,
           valeur (+ date d'estimation, ROI), travaux (avec justificatifs),
           historique complet (baux, paiements, alertes, fil), documents. */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("passport.title")}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div>

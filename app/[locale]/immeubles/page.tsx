@@ -210,9 +210,9 @@ export default function ImmeublesPage() {
       ) : null}
 
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : erreur ? (
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur}</p>
           <button type="button" onClick={charger} className="mt-4 rounded-full bg-navy px-5 py-2 text-sm font-bold text-white">
             {t("common.retry")}
@@ -227,7 +227,7 @@ export default function ImmeublesPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
             <input
               type="search"
               value={recherche}
@@ -269,7 +269,7 @@ export default function ImmeublesPage() {
           </div>
 
           {visibles.length === 0 ? (
-            <p className="rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
           ) : (
             <>
               {/* Cartes — téléphone */}
@@ -277,7 +277,7 @@ export default function ImmeublesPage() {
                 {visibles.map((im) => {
                   const s = statsParImmeuble.get(im.id);
                   return (
-                    <article key={im.id} className="rounded-2xl bg-white p-4 shadow-sm">
+                    <article key={im.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         {/* v1.7 : vignette — la photo du passeport du bien. */}
                         {(im.photos_urls[0] || im.photo_url) ? (
@@ -322,7 +322,7 @@ export default function ImmeublesPage() {
               </div>
 
               {/* Tableau — ordinateur */}
-              <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">

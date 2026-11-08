@@ -285,7 +285,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
 
   if (chargement) {
     return (
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("title")}</h2>
         <p className="mt-2 text-slate-500">{tc("loading")}</p>
       </section>
@@ -293,7 +293,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
   }
 
   return (
-    <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-bold text-navy">{t("title")}</h2>
       <p className="mt-2 text-sm text-slate-600">{t("subtitle")}</p>
       <p role="note" className="mt-3 rounded-xl border border-gold/50 bg-amber-50 px-4 py-3 text-sm font-semibold text-navy">

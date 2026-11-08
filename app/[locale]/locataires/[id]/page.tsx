@@ -146,7 +146,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
   if (chargement) {
     return (
       <AppShell title={t("tenants.title")}>
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       </AppShell>
     );
   }
@@ -154,7 +154,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
   if (!locataire) {
     return (
       <AppShell title={t("tenants.title")}>
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur ?? t("errors.ERR_NOT_FOUND")}</p>
           <Link href={`/${locale}/locataires`} className="mt-4 inline-block font-semibold text-navy underline">
             {t("common.back")}
@@ -177,7 +177,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       ) : null}
 
       {/* Coordonnées */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-navy">{t("tenants.detailContact")}</h2>
@@ -215,7 +215,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       </section>
 
       {/* Lien lecture seule */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("tenants.tenantLink")}</h2>
         <p className="mt-2 text-sm text-slate-600">{t("tenants.tenantLinkHint")}</p>
         {locataire.lien_token ? (
@@ -251,7 +251,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       </section>
 
       {/* Baux */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("tenants.detailLeases")}</h2>
         {baux.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("leases.noHistory")}</p>
@@ -287,7 +287,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       </section>
 
       {/* Historique loyers / reçus (module 3 : lecture des échéances déjà présentes) */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("tenants.detailRentHistory")}</h2>
         {echeances.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("tenants.detailRentHistoryEmpty")}</p>
@@ -312,7 +312,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       </section>
 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("tenants.detailDocuments")}</h2>
         <DocumentList documents={documents} onChange={charger} />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">

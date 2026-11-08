@@ -203,7 +203,7 @@ export default function RapportsPage() {
         </div>
       ) : null}
 
-      <div className="mb-4 grid gap-3 rounded-2xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-sm font-semibold text-slate-900">
           {tr("periodFrom")}
           <input type="date" value={periodeDebut} onChange={(e) => setPeriodeDebut(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-normal outline-none focus:border-gold" />
@@ -246,7 +246,7 @@ export default function RapportsPage() {
               const roi = rapport.roiParc.find((x) => x.devise === r.devise);
               const marge = rapport.margeParc.find((x) => x.devise === r.devise)?.marge ?? null;
               return (
-                <div key={r.devise} className="min-w-0 break-words rounded-2xl bg-white p-4 shadow-sm">
+                <div key={r.devise} className="min-w-0 break-words rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-sm font-bold text-navy">{r.devise}</p>
                   <p className="mt-2 text-sm text-slate-600">{tr("income")}: <span className="break-all font-semibold text-green-700">{formatMoney(r.total, r.devise, locale)}</span></p>
                   <p className="text-sm text-slate-600">{tr("expenses")}: <span className="break-all font-semibold text-navy">{formatMoney(dep, r.devise, locale)}</span></p>
@@ -261,11 +261,11 @@ export default function RapportsPage() {
               );
             })}
             {rapport.revenusParDevise.length === 0 ? (
-              <p className="rounded-2xl bg-white p-4 text-slate-600 shadow-sm sm:col-span-2">{tr("noData")}</p>
+              <p className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm sm:col-span-2">{tr("noData")}</p>
             ) : null}
           </div>
 
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{tr("byBuilding")}</h2>
             {/* Cartes — téléphone : le tableau 7 colonnes ne tient pas à 390 px. */}
             <div className="mt-3 space-y-3 md:hidden">
@@ -316,7 +316,7 @@ export default function RapportsPage() {
           </section>
 
           {immeubleId && aptsRoi.length > 0 ? (
-            <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+            <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <h2 className="text-lg font-bold text-navy">{tr("byApartment")}</h2>
               <ul className="mt-3 divide-y divide-slate-100">
                 {aptsRoi.map(({ appartement, roi }) => (
@@ -329,7 +329,7 @@ export default function RapportsPage() {
             </section>
           ) : null}
 
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{tr("evolution")}</h2>
             <p className="text-sm text-slate-600">{tr("evolutionInCurrency", { currency: deviseAffichage })}</p>
             <div className="mt-4 overflow-x-auto">
@@ -357,7 +357,7 @@ export default function RapportsPage() {
             </p>
           </section>
 
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-navy">{tr("ratesUsed")}</h2>
             {tauxUtilises.length === 0 ? (
               <p className="mt-2 text-sm text-slate-600">{tr("noConversion")}</p>

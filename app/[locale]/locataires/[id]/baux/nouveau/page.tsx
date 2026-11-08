@@ -76,9 +76,9 @@ export default function NouveauBailLocatairePage({ params }: { params: { id: str
         ← {t("common.back")}
       </Link>
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <BailForm
             appartements={appartements}
             immeubles={immeubles}

@@ -155,7 +155,7 @@ export default function ContratPage() {
         </p>
       ) : null}
 
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-navy">{t("contractTitle")}</h2>
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${COULEUR_CONTRAT[statut]}`}>
@@ -207,7 +207,7 @@ export default function ContratPage() {
         ) : null}
       </section>
 
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-navy">{t("requestsTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("requestsText")}</p>
         {demandes.length === 0 ? (

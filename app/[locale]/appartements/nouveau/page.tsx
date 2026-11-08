@@ -84,7 +84,7 @@ function NouvelAppartementContenu() {
         </button>
       </div>
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : immeubles.length === 0 ? (
         <EmptyState
           title={t("buildings.emptyTitle")}
@@ -93,7 +93,7 @@ function NouvelAppartementContenu() {
           actionHref={`/${locale}/immeubles/nouveau`}
         />
       ) : (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <AppartementForm
             immeubles={immeubles}
             preselectedImmeubleId={preselectedImmeubleId}

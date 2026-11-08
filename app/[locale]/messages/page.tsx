@@ -64,7 +64,7 @@ export default function MessagesPage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         {/* Liste des fils */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="px-2 text-sm font-bold uppercase tracking-wide text-slate-500">
             {t("messagesTitle")}
           </h2>
@@ -118,7 +118,7 @@ export default function MessagesPage() {
         </section>
 
         {/* Fil sélectionné */}
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {selection ? (
             <>
               <h2 className="text-lg font-bold text-navy">{libelleFil(selection)}</h2>

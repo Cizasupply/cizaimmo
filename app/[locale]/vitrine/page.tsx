@@ -153,9 +153,9 @@ export default function VitrinePage() {
       ) : null}
 
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
       ) : !planAutorise ? (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="font-bold text-navy">{t("planRequired")}</p>
           <p className="mt-2 text-slate-600">{t("planRequiredText")}</p>
           <Link href={`/${locale}/abonnement`} className="mt-4 inline-block rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white">
@@ -171,14 +171,14 @@ export default function VitrinePage() {
           </div>
           <p className="mb-4 text-sm text-slate-600">{t("manageHint")}</p>
           {eligibles.length === 0 ? (
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
               <p className="font-bold text-navy">{t("empty")}</p>
               <p className="mt-2 text-slate-600">{t("emptyText")}</p>
             </div>
           ) : (
             <ul className="space-y-4">
               {eligibles.map((a) => (
-                <li key={a.id} className="rounded-2xl bg-white p-6 shadow-sm">
+                <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="break-words text-lg font-bold text-navy">

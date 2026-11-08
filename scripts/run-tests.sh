@@ -258,6 +258,22 @@ else
   ECHEC=1
 fi
 
+# Correctif visuel « cartes + graphique » (2026-11-07, soir,
+# demandes du fondateur) : (1) bordure slate-200 sur TOUTES les
+# cartes blanches/teintées de l'espace connecté (patron partagé,
+# 132 chaînes uniformisées — les contours étaient invisibles sur
+# fond blanc) ; (2) graphique « Collecte des 6 derniers mois »
+# réduit (viewBox 360×170 → 360×100, conteneur plafonné à 560 px)
+# pour que les mois redeviennent lisibles. Aucune donnée touchée.
+echo ""
+echo "===== Correctif cartes + graphique ====="
+if node "scripts/test-correctif-cartes-graphique.cjs"; then
+  echo "Correctif cartes + graphique : OK"
+else
+  echo "Correctif cartes + graphique : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

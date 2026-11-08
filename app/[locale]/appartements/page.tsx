@@ -168,7 +168,7 @@ export default function AppartementsPage() {
       ) : null}
 
       {chargement ? (
-        <p className="rounded-2xl bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : appartements.length === 0 ? (
         <EmptyState
           title={t("apartments.emptyTitle")}
@@ -178,7 +178,7 @@ export default function AppartementsPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:flex-wrap">
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:flex-wrap">
             <input
               type="search"
               value={recherche}
@@ -224,12 +224,12 @@ export default function AppartementsPage() {
           </div>
 
           {visibles.length === 0 ? (
-            <p className="rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
           ) : (
             <>
               <div className="space-y-3 md:hidden">
                 {visibles.map((a) => (
-                  <article key={a.id} className="rounded-2xl bg-white p-4 shadow-sm">
+                  <article key={a.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <Link href={`/${locale}/appartements/${a.id}`} className="break-words text-lg font-bold text-navy underline">
                       {a.numero} · {a.type}
                     </Link>
@@ -267,7 +267,7 @@ export default function AppartementsPage() {
                 ))}
               </div>
 
-              <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">

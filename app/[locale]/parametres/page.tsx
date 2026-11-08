@@ -385,7 +385,7 @@ export default function ParametresPage() {
       ) : (
         <>
           {/* Profil */}
-          <section aria-labelledby="profil-titre" className="rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="profil-titre" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="profil-titre" className="text-lg font-bold text-navy">{ts("profileTitle")}</h2>
             <form onSubmit={sauverProfil} noValidate className="mt-4 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -428,7 +428,7 @@ export default function ParametresPage() {
           ) : null}
 
           {/* Taux de change manuels + automatiques (module 6, spec §9) */}
-          <section aria-labelledby="taux-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="taux-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="taux-titre" className="text-lg font-bold text-navy">{ts("ratesTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("ratesText")}</p>
             {taux.length > 0 ? (
@@ -499,7 +499,7 @@ export default function ParametresPage() {
           </section>
 
           {/* Gestionnaires */}
-          <section aria-labelledby="gest-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="gest-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="gest-titre" className="text-lg font-bold text-navy">{ts("managersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("managersText")}</p>
             {gestionnaires.length === 0 ? (
@@ -551,7 +551,7 @@ export default function ParametresPage() {
           </section>
 
           {/* Rattachement par Display ID (v1.3) : triple validation. */}
-          <section aria-labelledby="rattach-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="rattach-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="rattach-titre" className="text-lg font-bold text-navy">{td("linkTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{td("linkText")}</p>
             <div className="mt-4">
@@ -560,7 +560,7 @@ export default function ParametresPage() {
           </section>
 
           {/* Co-propriétaires d'indivision (module 6, spec §6 suite) */}
-          <section aria-labelledby="coprop-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="coprop-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="coprop-titre" className="text-lg font-bold text-navy">{ts("coOwnersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("coOwnersText")}</p>
             {coproprietaires.length === 0 ? (
@@ -583,7 +583,7 @@ export default function ParametresPage() {
           </section>
 
           {/* Préférences de notifications */}
-          <section aria-labelledby="notif-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section aria-labelledby="notif-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="notif-titre" className="text-lg font-bold text-navy">{ts("notificationsTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("notificationsText")}</p>
             {prefs ? (
@@ -631,7 +631,7 @@ export default function ParametresPage() {
           </section>
 
           {/* Sécurité */}
-          <section id="securite" aria-labelledby="securite-titre" className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <section id="securite" aria-labelledby="securite-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 id="securite-titre" className="text-lg font-bold text-navy">{ts("securityTitle")}</h2>
             <p className="mt-2 text-base text-slate-600">{ts("securityText")}</p>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
