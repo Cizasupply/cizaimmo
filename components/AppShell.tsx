@@ -577,10 +577,15 @@ export default function AppShell({
       {/* Barre de navigation inférieure mobile — style application :
           4 destinations fréquentes + « Plus » (menu complet plein
           écran). Zones tactiles ≥ 44 px, safe-area iPhone respectée,
-          état actif en or avec indicateur. */}
+          état actif en or avec indicateur.
+          Correctif 2026-11-08 (vidéo du fondateur) : classe
+          barre-fixe-ios (globals.css) — couche de composition propre
+          pour que WebKit ne repeigne plus la barre au milieu de
+          l'écran pendant le défilement iOS. Fond marine plein,
+          hauteur et safe-area inchangés. */}
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+        className="barre-fixe-ios fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
       >
         <div className="grid grid-cols-5">
           {barreMobile.map((l) => {

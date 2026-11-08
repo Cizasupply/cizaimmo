@@ -369,7 +369,7 @@ export default function DepensesPage() {
                   {totauxParCategorie.map((x) => (
                     <li key={`${x.categorie}-${x.devise}`} className="flex items-center justify-between gap-2">
                       <span className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${COULEURS_CATEGORIES[x.categorie]}`}>{te(`categories.${x.categorie}`)}</span>
-                      <span className="shrink-0 break-all font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
+                      <span className="shrink-0 whitespace-nowrap font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -380,7 +380,7 @@ export default function DepensesPage() {
                   {totauxParImmeuble.map((x) => (
                     <li key={`${x.immeubleId}-${x.devise}`} className="flex justify-between gap-2">
                       <span className="min-w-0 break-words">{nomImmeuble(x.immeubleId)}</span>
-                      <span className="shrink-0 break-all font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
+                      <span className="shrink-0 whitespace-nowrap font-semibold text-red-700">{formatMoney(x.total, x.devise, locale)}</span>
                     </li>
                   ))}
                 </ul>
@@ -443,7 +443,7 @@ export default function DepensesPage() {
                         </p>
                         <p className="break-words text-sm text-slate-600"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${COULEURS_CATEGORIES[d.categorie]}`}>{te(`categories.${d.categorie}`)}</span></p>
                       </div>
-                      <p className="shrink-0 break-all text-right font-bold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="shrink-0 whitespace-nowrap text-right font-bold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
                     </div>
                     <div className="mt-3 flex gap-4">
                       <button type="button" onClick={() => setAModifier(d)} className="text-sm font-semibold text-navy underline">{tc("edit")}</button>

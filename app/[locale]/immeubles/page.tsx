@@ -299,7 +299,7 @@ export default function ImmeublesPage() {
                       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                         <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsApartments")}</dt><dd className="font-bold text-navy">{s?.nbAppartements ?? 0} (<span className="font-bold text-green-700">{s?.nbOccupes ?? 0}</span> {t("buildings.statsOccupied").toLowerCase()})</dd></div>
                         <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsOccupancy")}</dt><dd className={`font-bold ${couleurOccupation(s?.occupation)}`}>{s?.occupation !== null && s?.occupation !== undefined ? formatPct(s.occupation, locale) : "—"}</dd></div>
-                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsMonthlyRent")}</dt><dd className="break-all font-bold text-navy">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</dd></div>
+                        <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsMonthlyRent")}</dt><dd className="whitespace-nowrap font-bold text-navy">{formatMoney(s?.loyersMois ?? 0, im.devise, locale)}</dd></div>
                         <div className="min-w-0"><dt className="text-slate-500">{t("buildings.statsRoi")}</dt><dd className={`font-bold ${couleurRoi(s?.roi)}`}>{s?.roi !== null && s?.roi !== undefined ? formatPct(s.roi, locale) : t("buildings.roiMissing")}</dd></div>
                       </dl>
                       <div className="mt-3 flex gap-2">

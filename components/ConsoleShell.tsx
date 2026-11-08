@@ -393,10 +393,13 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
           Vue d'ensemble, Comptes, Messages (pastille or des non-lus
           plateforme, même compteur que la barre latérale), Journal,
           « Plus » (menu complet plein écran). Zones tactiles ≥ 44 px,
-          safe-area iPhone respectée, état actif en or. */}
+          safe-area iPhone respectée, état actif en or.
+          Correctif 2026-11-08 : classe barre-fixe-ios (globals.css),
+          même patron que l'AppShell — couche de composition propre
+          contre le fantôme de barre au défilement iOS. */}
       <nav
         aria-label="Navigation console"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
+        className="barre-fixe-ios fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] text-white md:hidden"
       >
         <div className="grid grid-cols-5">
           {barreMobile.map((l) => {

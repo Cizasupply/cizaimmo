@@ -248,9 +248,9 @@ export default function RapportsPage() {
               return (
                 <div key={r.devise} className="min-w-0 break-words rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-sm font-bold text-navy">{r.devise}</p>
-                  <p className="mt-2 text-sm text-slate-600">{tr("income")}: <span className="break-all font-semibold text-green-700">{formatMoney(r.total, r.devise, locale)}</span></p>
-                  <p className="text-sm text-slate-600">{tr("expenses")}: <span className="break-all font-semibold text-navy">{formatMoney(dep, r.devise, locale)}</span></p>
-                  <p className="text-sm text-slate-600">{tr("netResult")}: <span className={`break-all font-semibold ${couleurSigne(r.total - dep)}`}>{formatMoney(r.total - dep, r.devise, locale)}</span></p>
+                  <p className="mt-2 text-sm text-slate-600">{tr("income")}: <span className="whitespace-nowrap font-semibold text-green-700">{formatMoney(r.total, r.devise, locale)}</span></p>
+                  <p className="text-sm text-slate-600">{tr("expenses")}: <span className="whitespace-nowrap font-semibold text-navy">{formatMoney(dep, r.devise, locale)}</span></p>
+                  <p className="text-sm text-slate-600">{tr("netResult")}: <span className={`whitespace-nowrap font-semibold ${couleurSigne(r.total - dep)}`}>{formatMoney(r.total - dep, r.devise, locale)}</span></p>
                   <p className="mt-2 text-sm text-slate-600">
                     ROI: <span className={`font-bold ${roi?.roi === null || roi?.roi === undefined ? "text-navy" : couleurSigne(roi.roi)}`}>{roi?.roi === null || roi?.roi === undefined ? tr("valueToEnter") : formatPct(roi.roi, locale)}</span>
                   </p>
@@ -273,9 +273,9 @@ export default function RapportsPage() {
                 <article key={l.immeuble_id} className="rounded-xl border border-slate-200 p-3">
                   <p className="break-words font-bold text-navy">{l.immeuble_nom}</p>
                   <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                    <div className="min-w-0"><dt className="text-slate-500">{tr("income")}</dt><dd className="break-all font-semibold text-green-700">{formatMoney(l.revenus, l.devise, locale)}</dd></div>
-                    <div className="min-w-0"><dt className="text-slate-500">{tr("expenses")}</dt><dd className="break-all font-semibold text-navy">{formatMoney(l.depenses, l.devise, locale)}</dd></div>
-                    <div className="min-w-0"><dt className="text-slate-500">{tr("netResult")}</dt><dd className={`break-all font-semibold ${couleurSigne(l.resultatNet)}`}>{formatMoney(l.resultatNet, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("income")}</dt><dd className="whitespace-nowrap font-semibold text-green-700">{formatMoney(l.revenus, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("expenses")}</dt><dd className="whitespace-nowrap font-semibold text-navy">{formatMoney(l.depenses, l.devise, locale)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">{tr("netResult")}</dt><dd className={`whitespace-nowrap font-semibold ${couleurSigne(l.resultatNet)}`}>{formatMoney(l.resultatNet, l.devise, locale)}</dd></div>
                     <div className="min-w-0"><dt className="text-slate-500">ROI</dt><dd className={`font-bold ${l.roi === null ? "text-navy" : couleurSigne(l.roi)}`}>{l.roi === null ? tr("valueToEnter") : formatPct(l.roi, locale)}</dd></div>
                     <div className="min-w-0"><dt className="text-slate-500">{tr("netMargin")}</dt><dd className={`font-bold ${l.marge === null ? "text-navy" : couleurSigne(l.marge)}`}>{l.marge === null ? "—" : formatPct(l.marge, locale)}</dd></div>
                     <div className="min-w-0"><dt className="text-slate-500">{tr("occupancy")}</dt><dd className={`font-bold ${couleurOccupation(l.occupation)}`}>{l.occupation === null ? "—" : formatPct(l.occupation, locale)}</dd></div>

@@ -256,22 +256,26 @@ export default function AppartementDetailPage({ params }: { params: { id: string
               ) : null}
               {immeuble ? ` — ${immeuble.ville}` : null}
             </p>
-            <dl className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {/* Correctif tuiles statistiques 2026-11-08 (même patron
+                que le passeport du bien) : montants insécables en
+                whitespace-nowrap, taille par paliers, 4 colonnes à lg
+                seulement — jamais de débordement, format complet. */}
+            <dl className="mt-3 grid grid-cols-2 gap-4 lg:grid-cols-4">
               <div>
                 <dt className="text-sm text-slate-500">{t("apartments.fields.defaultRent")}</dt>
-                <dd className="text-lg font-bold text-navy">{formatMoney(appartement.loyer_defaut, appartement.devise, locale)}</dd>
+                <dd className="whitespace-nowrap text-base font-bold text-navy lg:text-lg">{formatMoney(appartement.loyer_defaut, appartement.devise, locale)}</dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">{t("apartments.fields.surface")}</dt>
-                <dd className="text-lg font-bold text-navy">{appartement.surface_m2 !== null ? `${appartement.surface_m2} m²` : "—"}</dd>
+                <dd className="whitespace-nowrap text-base font-bold text-navy lg:text-lg">{appartement.surface_m2 !== null ? `${appartement.surface_m2} m²` : "—"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">{t("apartments.fields.floor")}</dt>
-                <dd className="text-lg font-bold text-navy">{appartement.etage !== null ? appartement.etage : "—"}</dd>
+                <dd className="whitespace-nowrap text-base font-bold text-navy lg:text-lg">{appartement.etage !== null ? appartement.etage : "—"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">{t("apartments.fields.status")}</dt>
-                <dd className="text-lg font-bold text-navy">{t(`apartments.${cleStatut(appartement.statut)}`)}</dd>
+                <dd className="whitespace-nowrap text-base font-bold text-navy lg:text-lg">{t(`apartments.${cleStatut(appartement.statut)}`)}</dd>
               </div>
             </dl>
             {appartement.description ? <p className="mt-3 text-base text-slate-700">{appartement.description}</p> : null}

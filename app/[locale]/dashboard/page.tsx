@@ -446,7 +446,7 @@ export default function DashboardPage() {
                   {indicateurs.depensesMois.slice(0, 5).map((d) => (
                     <li key={d.id} className="flex items-center justify-between gap-2 py-2">
                       <p className="min-w-0 break-words font-semibold text-navy">{d.libelle}</p>
-                      <p className="shrink-0 break-all text-sm font-semibold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
+                      <p className="shrink-0 whitespace-nowrap text-sm font-semibold text-red-700">{formatMoney(d.montant, d.devise, locale)}</p>
                     </li>
                   ))}
                 </ul>

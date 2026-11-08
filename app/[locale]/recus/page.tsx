@@ -231,7 +231,7 @@ export default function RecusPage() {
                       <p className="break-words text-sm text-slate-600">
                         {moisAffiche(r.mois, locale)} · {r.immeuble_nom} — {r.appartement_numero}
                       </p>
-                      <p className={`mt-1 break-all text-base font-bold ${couleurMontantRecu(r.statut)}`}>{formatMoney(r.montant, r.devise, locale)}</p>
+                      <p className={`mt-1 whitespace-nowrap text-base font-bold ${couleurMontantRecu(r.statut)}`}>{formatMoney(r.montant, r.devise, locale)}</p>
                       <p className="text-xs text-slate-500">{formatDate(r.date_paiement, locale)}</p>
                       {r.statut === "annule" ? (
                         <p className="mt-1 text-xs font-medium text-red-700">{t("receipts.cancelledNote")}</p>

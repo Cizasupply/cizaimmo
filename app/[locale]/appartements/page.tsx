@@ -234,7 +234,7 @@ export default function AppartementsPage() {
                       {a.numero} · {a.type}
                     </Link>
                     <p className="break-words text-sm text-slate-600">{nomImmeuble(a.immeuble_id)}</p>
-                    <p className="mt-1 break-all text-base font-bold text-navy">{formatMoney(a.loyer_defaut, a.devise, locale)}</p>
+                    <p className="mt-1 whitespace-nowrap text-base font-bold text-navy">{formatMoney(a.loyer_defaut, a.devise, locale)}</p>
                     <p className="mt-1 break-words text-sm text-slate-600">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${couleurStatutAppartement(a.statut)}`}>
                         {t(`apartments.${cleStatut(a.statut)}`)}

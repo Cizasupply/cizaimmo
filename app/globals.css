@@ -28,3 +28,28 @@ textarea {
   font-size: 16px;
 }
 
+/* Correctif « une ligne qui passe au milieu » pendant le défilement
+   (2026-11-08, enregistrement d'écran du fondateur, iPhone/Safari) :
+   la barre inférieure fixe des coques (AppShell / ConsoleShell)
+   était repeinte par WebKit à une position périmée pendant le
+   scroll — bande marine translucide au milieu de l'écran, par-dessus
+   les cartes, parfois dédoublée alors que la vraie barre restait
+   visible en bas, parfois étirée. Indices dans le code : fond marine
+   PLEIN (bg-navy, aucune translucidité), aucun backdrop-blur, aucun
+   sticky, aucun ancêtre en transform/filter/perspective/will-change
+   (balayage complet du dépôt), et la barre est le SEUL élément fixe
+   visible pendant le défilement mobile (sidebar bureau masquée,
+   en-tête mobile en flux, panneaux plein écran conditionnels) —
+   mais elle n'avait aucune couche de composition propre : WebKit
+   la re-rastérisait dans la couche de défilement et la « fantômait »
+   à un ancien décalage. La promotion en couche propre ci-dessous
+   fait repeindre la barre d'un bloc, à sa place. translateZ(0) est
+   visuellement neutre : le rendu à l'arrêt ne change pas d'un pixel,
+   hauteurs et env(safe-area-inset-bottom) inchangés. */
+.barre-fixe-ios {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+

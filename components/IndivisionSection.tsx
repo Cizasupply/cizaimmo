@@ -346,18 +346,24 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
             </select>
           </label>
         </div>
-        <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
+        {/* Correctif tuiles statistiques 2026-11-08 (même patron que
+            le passeport du bien) : en 3 colonnes dès le mobile, une
+            tuile n'offrait que ~66 px utiles — tout montant débordait
+            ou cassait. Tuiles empilées sur petit téléphone (pleine
+            largeur), 3 colonnes dès 560 px, montants insécables en
+            whitespace-nowrap avec taille par paliers. */}
+        <dl className="mt-3 grid grid-cols-1 gap-3 text-center min-[560px]:grid-cols-3">
           <div className="rounded-xl bg-slate-50 p-3">
             <dt className="text-xs text-slate-500">{t("revenues")}</dt>
-            <dd className="font-bold text-navy">{formatMoney(revenus, immeuble.devise, locale)}</dd>
+            <dd className="whitespace-nowrap text-base font-bold text-navy min-[560px]:text-xs min-[900px]:text-sm lg:text-base">{formatMoney(revenus, immeuble.devise, locale)}</dd>
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
             <dt className="text-xs text-slate-500">{t("expenses")}</dt>
-            <dd className="font-bold text-navy">{formatMoney(depensesTotal, immeuble.devise, locale)}</dd>
+            <dd className="whitespace-nowrap text-base font-bold text-navy min-[560px]:text-xs min-[900px]:text-sm lg:text-base">{formatMoney(depensesTotal, immeuble.devise, locale)}</dd>
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
             <dt className="text-xs text-slate-500">{t("netResult")}</dt>
-            <dd className="font-bold text-navy">{formatMoney(repartition.resultat_net, immeuble.devise, locale)}</dd>
+            <dd className="whitespace-nowrap text-base font-bold text-navy min-[560px]:text-xs min-[900px]:text-sm lg:text-base">{formatMoney(repartition.resultat_net, immeuble.devise, locale)}</dd>
           </div>
         </dl>
         {coproprietaires.length === 0 ? (

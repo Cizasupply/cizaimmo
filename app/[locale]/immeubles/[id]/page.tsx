@@ -263,36 +263,49 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
           </div>
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-4">
+        {/* Correctif 2026-11-08 (capture du fondateur, Kaneza Home) :
+            les montants des tuiles débordaient (« 300 000 000 BIF »
+            sortait de la tuile « Valeur du bien »). Un montant formaté
+            est un jeton INSECABLE (séparateurs U+202F, espace U+00A0
+            avant la devise) : à text-xl il mesure ~146 px pour ~107 px
+            utiles dans une tuile mobile. Traitement : grille en
+            minmax(0,1fr) (grid-cols-*), passage en 3 colonnes à lg
+            seulement (à md, sidebar + 3 colonnes laissaient ~91 px
+            utiles), tuiles p-3 sur mobile, montants en whitespace-nowrap
+            avec taille par paliers (13 px mobile -> text-xl bureau).
+            Format d'affichage inchangé : montant complet, jamais
+            abrégé. Même patron que les KPI (correctif 2026-11-08
+            précédent) et les autres tuiles statistiques de l'app. */}
+        <dl className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("buildings.statsApartments")}</dt>
-            <dd className="text-xl font-bold text-navy">{stats?.nbAppartements ?? 0}</dd>
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">{stats?.nbAppartements ?? 0}</dd>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("buildings.statsOccupancy")}</dt>
-            <dd className="text-xl font-bold text-navy">
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">
               {stats?.occupation !== null && stats?.occupation !== undefined ? formatPct(stats.occupation, locale) : "—"}
             </dd>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("buildings.statsMonthlyRent")}</dt>
-            <dd className="text-xl font-bold text-navy">{formatMoney(stats?.loyersMois ?? 0, immeuble.devise, locale)}</dd>
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">{formatMoney(stats?.loyersMois ?? 0, immeuble.devise, locale)}</dd>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("buildings.statsValue")}</dt>
-            <dd className="text-xl font-bold text-navy">
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">
               {immeuble.valeur_bien ? formatMoney(immeuble.valeur_bien, immeuble.devise_valeur ?? immeuble.devise, locale) : t("common.notProvided")}
             </dd>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("passport.roiLabel")}</dt>
-            <dd className="text-xl font-bold text-navy">
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">
               {stats?.roi !== null && stats?.roi !== undefined ? formatPct(stats.roi, locale) : t("buildings.roiMissing")}
             </dd>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
             <dt className="text-sm text-slate-500">{t("passport.marginLabel")}</dt>
-            <dd className="text-xl font-bold text-navy">
+            <dd className="whitespace-nowrap text-[13px] font-bold text-navy min-[420px]:text-sm sm:text-base md:text-lg lg:text-xl">
               {stats?.marge !== null && stats?.marge !== undefined ? formatPct(stats.marge, locale) : "—"}
             </dd>
           </div>
