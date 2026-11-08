@@ -121,16 +121,23 @@ async function attendErreur(promesse) {
   const cibleAttente = await compteParEmail("attente@exemple.com");
   const avant = Date.now();
   // Checklist de vérification (2026-11-07) : revue consignée avant
-  // toute approbation — sinon ERR_CHECKLIST_INCOMPLETE.
+  // toute approbation — sinon ERR_CHECKLIST_INCOMPLETE. L'Admin
+  // INSTRUIT le dossier (la consignation lui reste ouverte).
   await p.enregistrerChecklistDossier(cibleAttente.id, {
     photo_verifiee: true, piece_coherente: true,
     infos_verifiees: true, antifraude_examinee: true,
   });
+  // Verrouillage 2026-11-08 : la DÉCISION appartient au Super
+  // Admin seul — la tentative de l'Admin est refusée.
+  const eDecisionAdmin = await attendErreur(p.approuverCompte(cibleAttente.id));
+  check("verrouillage : approbation tentée par un Admin -> ERR_SUPER_ADMIN_REQUIS",
+    eDecisionAdmin.levee && eDecisionAdmin.code === "ERR_SUPER_ADMIN_REQUIS", JSON.stringify(eDecisionAdmin));
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.approuverCompte(cibleAttente.id);
   await connecter("attente@exemple.com");
   abo = await p.getAbonnement();
   const ecartJours = abo && abo.trial_ends_at ? (new Date(abo.trial_ends_at).getTime() - avant) / 86400000 : 0;
-  check("approbation par un Admin -> essai démarré À l'approbation (+30 j)", abo && abo.statut === "essai" && ecartJours > 29 && ecartJours < 31, `${abo?.statut} / ${ecartJours}`);
+  check("approbation (décision Super Admin, dossier instruit par l'Admin) -> essai démarré À l'approbation (+30 j)", abo && abo.statut === "essai" && ecartJours > 29 && ecartJours < 31, `${abo?.statut} / ${ecartJours}`);
   // Lecture du journal : Super Admin seule depuis le verrouillage
   // 2026-11-08 — l'action vérifiée reste celle de l'Admin.
   await connecter(SUPER_ADMIN_DEMO_EMAIL);
@@ -142,6 +149,12 @@ async function attendErreur(promesse) {
   await p.signUp({ nom: "Refus Test", email: "refus@exemple.com", motDePasse: "motdepasse123", pays: "Canada", devisePrincipale: "CAD", langue: "fr", paysIp: "CA" });
   await connecter(ADMIN_DEMO_EMAIL);
   const cibleRefus = await compteParEmail("refus@exemple.com");
+  // Verrouillage 2026-11-08 : le refus est la même décision que
+  // l'approbation — refusé à l'Admin, réservé au Super Admin.
+  const eRefusAdmin = await attendErreur(p.refuserCompte(cibleRefus.id, "doublon"));
+  check("verrouillage : refus tenté par un Admin -> ERR_SUPER_ADMIN_REQUIS",
+    eRefusAdmin.levee && eRefusAdmin.code === "ERR_SUPER_ADMIN_REQUIS", JSON.stringify(eRefusAdmin));
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.refuserCompte(cibleRefus.id, "doublon");
   const eRefus = await attendErreur(p.signIn("refus@exemple.com", "motdepasse123"));
   check("compte refusé -> connexion impossible (ERR_COMPTE_REFUSE)", eRefus.levee && eRefus.code === "ERR_COMPTE_REFUSE", JSON.stringify(eRefus));
@@ -160,6 +173,8 @@ async function attendErreur(promesse) {
     photo_verifiee: true, piece_coherente: true,
     infos_verifiees: true, antifraude_examinee: true,
   });
+  // Décision Super Admin (verrouillage 2026-11-08).
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.approuverCompte(cibleFraude.id);
   await connecter("fraude@exemple.com");
   await p.modifierProfil({ pays: "Canada" });
@@ -182,6 +197,8 @@ async function attendErreur(promesse) {
     photo_verifiee: true, piece_coherente: true,
     infos_verifiees: true, antifraude_examinee: true,
   });
+  // Décision Super Admin (verrouillage 2026-11-08).
+  await connecter(SUPER_ADMIN_DEMO_EMAIL);
   await p.approuverCompte(ciblePaiement.id);
   await connecter("paiement@exemple.com");
   const mm = await p.demanderPaiementMobileMoney("ecocash", "+257 79 12 34 56", "pro");

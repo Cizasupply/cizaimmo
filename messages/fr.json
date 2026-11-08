@@ -454,6 +454,7 @@
     "checklistAntifraude": "Alerte anti-fraude examinée",
     "checklistHint": "Cochez toutes les cases pour activer le bouton « Approuver ».",
     "checklistBy": "Consignée par {actor} · {date}",
+    "decisionSuperAdminOnly": "La décision d'approbation ou de refus appartient au Super Admin. Vous instruisez le dossier (documents, checklist, messages) ; le Super Admin décidera.",
     "roleAdmin": "Admin",
     "roleSuperAdmin": "Super Admin",
     "saveFinances": "Enregistrer les paramètres",

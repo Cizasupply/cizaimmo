@@ -3133,7 +3133,15 @@ export class RealProvider implements DataProvider {
   }
 
   async approuverCompte(compteId: string): Promise<void> {
-    const acteur = await this.acteurPlateforme();
+    // Verrouillage 2026-11-08 (décision du fondateur) : la DÉCISION
+    // d'approbation appartient au SUPER ADMIN seul — « aucune
+    // approbation sans vérification de l'abonnement / du paiement »,
+    // et la chaîne argent est déjà Super Admin partout ailleurs.
+    // L'Admin INSTRUIT le dossier (documents, checklist consignée,
+    // messages) mais ne décide pas. Garde doublée dans la base :
+    // la RPC approuver_compte lève SUPER_ADMIN_REQUIS (module
+    // supabase/module-approbation-super-admin.sql).
+    const acteur = await this.acteurSuperAdmin();
     const client = this.client();
     const abo = await this.abonnementDe(compteId);
     if (!abo || abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");
@@ -3156,15 +3164,18 @@ export class RealProvider implements DataProvider {
     const checklist = (checklistRows as ChecklistDossierSaisie[] | null)?.[0] ?? null;
     const maintenant = new Date();
     // v1.4 — LA BASE DÉCIDE : la transition d'approbation est la
-    // fonction SQL public.approuver_compte (module-v14.sql). Elle
-    // vérifie le rôle plateforme en interne, démarre l'essai À
-    // L'APPROBATION avec la durée dynamique (parametres_finance) et
-    // force le pack STARTER ; elle retourne la fin d'essai posée.
+    // fonction SQL public.approuver_compte (module-v14.sql, garde
+    // checklist ajoutée par module-checklist-audit.sql, rôle porté
+    // au SUPER ADMIN par module-approbation-super-admin.sql). Elle
+    // vérifie le rôle en interne, démarre l'essai À L'APPROBATION
+    // avec la durée dynamique (parametres_finance) et force le
+    // pack STARTER ; elle retourne la fin d'essai posée.
     const { data: finEssaiRpc, error: rpcError } = await client.rpc("approuver_compte", {
       cible: compteId,
     });
     if (rpcError) {
       if (rpcError.message.includes("COMPTE_NON_EN_ATTENTE")) throw err("ERR_COMPTE_NON_EN_ATTENTE");
+      if (rpcError.message.includes("SUPER_ADMIN_REQUIS")) throw err("ERR_SUPER_ADMIN_REQUIS");
       if (rpcError.message.includes("ADMIN_PLATEFORME_REQUIS")) throw err("ERR_ACCES_PLATEFORME");
       if (rpcError.message.includes("ABONNEMENT_INTROUVABLE")) throw err("ERR_INTROUVABLE");
       if (rpcError.message.includes("CHECKLIST_INCOMPLETE")) throw err("ERR_CHECKLIST_INCOMPLETE");
@@ -3311,7 +3322,14 @@ export class RealProvider implements DataProvider {
   }
 
   async refuserCompte(compteId: string, motif: MotifRefus): Promise<void> {
-    const acteur = await this.acteurPlateforme();
+    // Verrouillage 2026-11-08 : le REFUS est la même décision
+    // d'ouverture/fermeture d'accès que l'approbation — SUPER ADMIN
+    // seul (l'Admin instruit le dossier). Décision purement
+    // applicative : aucune RPC SQL ne porte le refus, le verrou
+    // fournisseur est donc la garde (voir le module
+    // module-approbation-super-admin.sql, qui ne couvre que
+    // l'approbation, portée par la RPC approuver_compte).
+    const acteur = await this.acteurSuperAdmin();
     const client = this.client();
     const abo = await this.abonnementDe(compteId);
     if (!abo || abo.statut !== "en_attente") throw err("ERR_COMPTE_NON_EN_ATTENTE");

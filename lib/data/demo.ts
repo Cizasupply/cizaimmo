@@ -3878,12 +3878,17 @@ export class DemoProvider implements DataProvider {
 
   async approuverCompte(compteId: string): Promise<void> {
     const db = loadDb();
-    const acteur = this.acteurPlateforme(db);
+    // Verrouillage 2026-11-08 (miroir du réel) : la DÉCISION
+    // d'approbation appartient au SUPER ADMIN seul ; l'Admin
+    // instruit le dossier (checklist ci-dessous consignée par lui).
+    const acteur = this.acteurSuperAdmin(db);
     const cible = this.trouverCible(db, compteId);
     // Checklist de vérification (2026-11-07, miroir de la garde base
     // de approuver_compte) : pour un compte EN ATTENTE, la revue
     // consignée doit être complète — anti-fraude exigée seulement
-    // si le compte est signalé « a_verifier ». Le refus reste libre.
+    // si le compte est signalé « a_verifier ». Le refus, lui,
+    // n'exige aucune checklist (mais il est réservé au Super Admin
+    // depuis le verrouillage 2026-11-08, comme l'approbation).
     const statutCible = cible.principal
       ? db.abonnement.statut
       : cible.entree!.abonnement.statut;
@@ -4088,7 +4093,9 @@ export class DemoProvider implements DataProvider {
 
   async refuserCompte(compteId: string, motif: MotifRefus): Promise<void> {
     const db = loadDb();
-    const acteur = this.acteurPlateforme(db);
+    // Verrouillage 2026-11-08 (miroir du réel) : le REFUS est la
+    // même décision que l'approbation — SUPER ADMIN seul.
+    const acteur = this.acteurSuperAdmin(db);
     const cible = this.trouverCible(db, compteId);
     let emailCible: string;
     let nomCible: string;

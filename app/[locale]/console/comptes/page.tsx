@@ -416,24 +416,33 @@ export default function ConsoleComptesPage() {
                 <div className="mt-4 rounded-xl bg-amber-50 p-4">
                   <p className="text-sm font-bold text-amber-800">{t("reviewTitle")}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={occupe === compte.id}
-                      onClick={() =>
-                        agir(compte.id, () => getDataProvider().approuverCompte(compte.id), t("approvedMsg"))
-                      }
-                      className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50"
-                    >
-                      ✓ {t("approve")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={occupe === compte.id}
-                      onClick={() => setRefusOuvert(refusOuvert === compte.id ? null : compte.id)}
-                      className="rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      ✕ {t("refuse")}
-                    </button>
+                    {/* Verrouillage 2026-11-08 : approbation / refus
+                        rapides réservés au Super Admin (décision) ;
+                        l'Admin instruit depuis la page Dossier.
+                        Garde équivalente dans les fournisseurs et
+                        dans la base (RPC approuver_compte). */}
+                    {estSuper ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={occupe === compte.id}
+                          onClick={() =>
+                            agir(compte.id, () => getDataProvider().approuverCompte(compte.id), t("approvedMsg"))
+                          }
+                          className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50"
+                        >
+                          ✓ {t("approve")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={occupe === compte.id}
+                          onClick={() => setRefusOuvert(refusOuvert === compte.id ? null : compte.id)}
+                          className="rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          ✕ {t("refuse")}
+                        </button>
+                      </>
+                    ) : null}
                     {compte.abonnement?.grille !== "afrique" ? (
                       <button
                         type="button"
@@ -459,7 +468,12 @@ export default function ConsoleComptesPage() {
                       </button>
                     ) : null}
                   </div>
-                  {refusOuvert === compte.id ? (
+                  {!estSuper ? (
+                    <p className="mt-3 text-sm font-semibold text-slate-600">
+                      {t("decisionSuperAdminOnly")}
+                    </p>
+                  ) : null}
+                  {estSuper && refusOuvert === compte.id ? (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <label className="text-sm font-semibold text-slate-700" htmlFor={`motif-${compte.id}`}>
                         {t("refusalReason")}

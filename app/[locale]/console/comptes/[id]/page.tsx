@@ -266,6 +266,14 @@ export default function ConsoleDossierPage({
               <p className="mt-2 text-xs font-semibold text-amber-700">{t("checklistHint")}</p>
             ) : null}
           </div>
+          {/* Verrouillage 2026-11-08 : la DÉCISION (approuver /
+              refuser, motifs compris) appartient au Super Admin
+              seul. L'Admin instruit le dossier — la checklist
+              ci-dessus reste visible et consignable par lui — et
+              voit cet encadré à la place des boutons. Garde
+              équivalente dans les fournisseurs et dans la base
+              (RPC approuver_compte). */}
+          {moi?.role === "super_admin" ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -296,6 +304,11 @@ export default function ConsoleDossierPage({
               ✕ {t("confirmRefusal")}
             </button>
           </div>
+          ) : (
+            <p className="mt-3 rounded-xl bg-white/70 px-4 py-3 text-sm font-semibold text-slate-600">
+              {t("decisionSuperAdminOnly")}
+            </p>
+          )}
         </section>
       ) : null}
 

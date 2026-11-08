@@ -454,6 +454,7 @@
     "checklistAntifraude": "Anti-fraud alert reviewed",
     "checklistHint": "Tick every box to enable the “Approve” button.",
     "checklistBy": "Recorded by {actor} · {date}",
+    "decisionSuperAdminOnly": "The approval or refusal decision belongs to the Super Admin. You prepare the file (documents, checklist, messages); the Super Admin will decide.",
     "roleAdmin": "Admin",
     "roleSuperAdmin": "Super Admin",
     "saveFinances": "Save settings",

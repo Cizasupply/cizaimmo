@@ -294,6 +294,73 @@ check("formatDateTime : null -> tiret", formatDateTime(null, "fr") === "—");
     Array.isArray(journalSuper) && journalSuper.length > 0,
     `n=${Array.isArray(journalSuper) ? journalSuper.length : "?"}`);
 
+  console.log("== 9. Verrouillage 2026-11-08 : approbation + refus Super Admin seuls ==");
+  const sqlVerrou = lire("supabase/module-approbation-super-admin.sql");
+  check("sql verrou : approuver_compte recréée avec est_super_admin() + SUPER_ADMIN_REQUIS",
+    sqlVerrou.includes("create or replace function public.approuver_compte(cible uuid)") &&
+    sqlVerrou.includes("if not public.est_super_admin() then") &&
+    sqlVerrou.includes("raise exception 'SUPER_ADMIN_REQUIS'"));
+  check("sql verrou : garde CHECKLIST_INCOMPLETE préservée intégralement",
+    sqlVerrou.includes("CHECKLIST_INCOMPLETE") &&
+    sqlVerrou.includes("not v_check.photo_verifiee") &&
+    sqlVerrou.includes("not v_check.piece_coherente") &&
+    sqlVerrou.includes("not v_check.infos_verifiees") &&
+    sqlVerrou.includes("not v_check.antifraude_examinee"));
+  function segment(src, debut, longueur) {
+    const i = src.indexOf(debut);
+    return i < 0 ? "" : src.slice(i, i + longueur);
+  }
+  check("real : approuverCompte exige acteurSuperAdmin()",
+    segment(real, "async approuverCompte", 1600).includes("acteurSuperAdmin()"));
+  check("real : refuserCompte exige acteurSuperAdmin()",
+    segment(real, "async refuserCompte", 1600).includes("acteurSuperAdmin()"));
+  check("real : le retour RPC SUPER_ADMIN_REQUIS est traduit en ERR_SUPER_ADMIN_REQUIS",
+    real.includes('rpcError.message.includes("SUPER_ADMIN_REQUIS")') &&
+    real.includes('err("ERR_SUPER_ADMIN_REQUIS")'));
+  check("demo : approuverCompte exige acteurSuperAdmin(db)",
+    segment(demo, "async approuverCompte", 1200).includes("acteurSuperAdmin(db)"));
+  check("demo : refuserCompte exige acteurSuperAdmin(db)",
+    segment(demo, "async refuserCompte", 1200).includes("acteurSuperAdmin(db)"));
+  check("page dossier : décision conditionnée au Super Admin + encadré pour l'Admin",
+    page.includes('moi?.role === "super_admin"') && page.includes('t("decisionSuperAdminOnly")'));
+  const pageComptes = lire("app/[locale]/console/comptes/page.tsx");
+  check("liste comptes : actions rapides conditionnées (estSuper) + note pour l'Admin",
+    pageComptes.includes('t("decisionSuperAdminOnly")') &&
+    pageComptes.includes("estSuper && refusOuvert"));
+  check("i18n : console.decisionSuperAdminOnly présent FR + EN",
+    typeof fr.console.decisionSuperAdminOnly === "string" &&
+    typeof en.console.decisionSuperAdminOnly === "string");
+
+  // Comportement démo : l'Admin INSTRUIT, le Super Admin DÉCIDE.
+  store.clear();
+  const p3 = new DemoProvider();
+  p3.envoyerEmailAlerteFn = async () => ({ envoye: true });
+  try { await p3.signOut(); } catch { /* pas de session */ }
+  await p3.signIn(ADMIN_DEMO_EMAIL, "motdepasse");
+  await p3.enregistrerChecklistDossier(ID6, {
+    photo_verifiee: true, piece_coherente: true,
+    infos_verifiees: true, antifraude_examinee: true,
+  });
+  const dossierVuAdmin = await p3.listerDossier(ID6);
+  check("admin : instruction ouverte (checklist consignée par lui + dossier consultable)",
+    dossierVuAdmin.checklist !== null && dossierVuAdmin.checklist.infos_verifiees === true);
+  const eApprobAdmin = await attendErreur(p3.approuverCompte(ID6));
+  check("admin : approuverCompte -> ERR_SUPER_ADMIN_REQUIS",
+    eApprobAdmin.levee && eApprobAdmin.code === "ERR_SUPER_ADMIN_REQUIS", eApprobAdmin.code);
+  const eRefusAdminV = await attendErreur(p3.refuserCompte(ID6, "doublon"));
+  check("admin : refuserCompte -> ERR_SUPER_ADMIN_REQUIS",
+    eRefusAdminV.levee && eRefusAdminV.code === "ERR_SUPER_ADMIN_REQUIS", eRefusAdminV.code);
+  try { await p3.signOut(); } catch { /* pas de session */ }
+  await p3.signIn(SUPER_ADMIN_DEMO_EMAIL, "motdepasse");
+  const eGardeChecklist = await attendErreur(p3.approuverCompte(ID7));
+  check("super admin : garde checklist toujours active (aucune revue -> ERR_CHECKLIST_INCOMPLETE)",
+    eGardeChecklist.levee && eGardeChecklist.code === "ERR_CHECKLIST_INCOMPLETE", eGardeChecklist.code);
+  await p3.approuverCompte(ID6);
+  const c6v = (await p3.listerComptesPlateforme()).find((c) => c.id === ID6);
+  check("super admin : approbation effective sur la revue consignée PAR L'ADMIN (essai démarré)",
+    c6v && c6v.abonnement && c6v.abonnement.statut === "essai",
+    c6v && c6v.abonnement && c6v.abonnement.statut);
+
   console.log(`\nChecklist + audit enrichi : ${ok} OK, ${ko} KO`);
   process.exit(ko ? 1 : 0);
 })().catch((e) => {
