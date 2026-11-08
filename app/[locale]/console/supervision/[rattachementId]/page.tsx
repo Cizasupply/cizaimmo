@@ -63,7 +63,7 @@ export default function SupervisionPage() {
         <p className="mt-6 text-sm text-slate-500">{t("loading")}</p>
       ) : supervision ? (
         <div className="mt-6">
-          <h1 className="text-2xl font-bold text-navy">
+          <h1 className="text-2xl font-semibold text-navy">
             {supervision.rattachement.gestionnaire_nom ?? supervision.rattachement.gestionnaire_email}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
@@ -81,7 +81,7 @@ export default function SupervisionPage() {
             ) : null}
             {supervision.immeubles.map((imm) => (
               <article key={imm.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 className="font-bold text-navy">{imm.nom}</h2>
+                <h2 className="font-semibold text-navy">{imm.nom}</h2>
                 <p className="text-sm text-slate-500">{imm.ville}</p>
                 <p className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                   <span className="rounded-full bg-navy/10 px-2 py-1 text-navy">

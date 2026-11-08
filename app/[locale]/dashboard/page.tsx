@@ -25,7 +25,7 @@ import type {
 import { DEVISES } from "@/lib/data";
 import { moisCourant } from "@/lib/parc";
 import { prenomDe } from "@/lib/nom";
-import { calculerIndicateurs, convertirMontant, urlActivite } from "@/lib/module4";
+import { calculerIndicateurs, convertirMontant, totauxConvertis, urlActivite } from "@/lib/module4";
 import { totalPayeValide } from "@/lib/loyers";
 import { messageErreur } from "@/lib/translateError";
 
@@ -132,38 +132,22 @@ export default function DashboardPage() {
   const appartementDe = (bail?: Bail) => (bail ? appartements.find((a) => a.id === bail.appartement_id) : undefined);
   const immeubleDe = (apt?: Appartement) => (apt ? immeubles.find((i) => i.id === apt.immeuble_id) : undefined);
 
-  /** Totaux convertis dans la devise d'affichage, avec date du taux. */
-  function totauxConvertis(groupes: { devise: Devise; total: number }[]): {
-    lignes: { devise: Devise; total: number; converti: number | null; dateTaux: string | null; source: string | null }[];
-    totalConverti: number | null;
-  } {
-    let totalConverti: number | null = 0;
-    const lignes = groupes.map(({ devise, total }) => {
-      if (devise === deviseAffichage) return { devise, total, converti: total, dateTaux: null, source: null };
-      const conv = convertirMontant(total, devise, deviseAffichage, taux);
-      if (!conv) {
-        totalConverti = null;
-        return { devise, total, converti: null, dateTaux: null, source: null };
-      }
-      if (totalConverti !== null) totalConverti += conv.montant;
-      return { devise, total, converti: conv.montant, dateTaux: conv.taux.date_taux, source: conv.taux.source };
-    });
-    return { lignes, totalConverti };
-  }
-
+  // Totaux convertis dans la devise d'affichage : fonction PARTAGÉE
+  // lib/module4.totauxConvertis — héros et KPI lisent les MÊMES objets
+  // (lignes pour les KPI, totalConverti pour le héros). L'ancienne
+  // version locale oubliait les groupes déjà dans la devise
+  // d'affichage dans le total (héros « Attendus : 0 BIF » contre KPI
+  // « 680 000 BIF » en réel) ; voir le correctif dans lib/module4.ts.
   const collectesConv = useMemo(
-    () => totauxConvertis(indicateurs.collectes),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => totauxConvertis(indicateurs.collectes, deviseAffichage, taux),
     [indicateurs, deviseAffichage, taux]
   );
   const attendusConv = useMemo(
-    () => totauxConvertis(indicateurs.attendus),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => totauxConvertis(indicateurs.attendus, deviseAffichage, taux),
     [indicateurs, deviseAffichage, taux]
   );
   const retardsConv = useMemo(
-    () => totauxConvertis(indicateurs.enRetard),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => totauxConvertis(indicateurs.enRetard, deviseAffichage, taux),
     [indicateurs, deviseAffichage, taux]
   );
 

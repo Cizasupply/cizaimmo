@@ -386,7 +386,7 @@ export default function ParametresPage() {
         <>
           {/* Profil */}
           <section aria-labelledby="profil-titre" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="profil-titre" className="text-lg font-bold text-navy">{ts("profileTitle")}</h2>
+            <h2 id="profil-titre" className="text-lg font-semibold text-navy">{ts("profileTitle")}</h2>
             <form onSubmit={sauverProfil} noValidate className="mt-4 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="profil-nom" label={ts("name")} value={nom} onChange={setNom} required />
@@ -408,7 +408,7 @@ export default function ParametresPage() {
                   ))}
                 </Field>
               </div>
-              <button type="submit" className="rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light">
+              <button type="submit" className="rounded-full bg-gold px-6 py-3 text-base font-bold text-navy hover:bg-gold-light">
                 {tc("save")}
               </button>
             </form>
@@ -417,7 +417,7 @@ export default function ParametresPage() {
           {/* Grille tarifaire du compte (v1.2 — anti-fraude, lecture seule) */}
           {grilleCompte ? (
             <section aria-labelledby="grille-titre" className="mt-6 rounded-2xl border border-gold/50 bg-gold/10 p-6 shadow-sm">
-              <h2 id="grille-titre" className="text-lg font-bold text-navy">{ts("pricingGridTitle")}</h2>
+              <h2 id="grille-titre" className="text-lg font-semibold text-navy">{ts("pricingGridTitle")}</h2>
               <p className="mt-2 text-base font-semibold text-navy">
                 {ts("pricingGridCurrent", {
                   grid: grilleCompte === "afrique" ? tsub("gridAfrique") : tsub("gridInternationale"),
@@ -429,7 +429,7 @@ export default function ParametresPage() {
 
           {/* Taux de change manuels + automatiques (module 6, spec §9) */}
           <section aria-labelledby="taux-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="taux-titre" className="text-lg font-bold text-navy">{ts("ratesTitle")}</h2>
+            <h2 id="taux-titre" className="text-lg font-semibold text-navy">{ts("ratesTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("ratesText")}</p>
             {taux.length > 0 ? (
               <p className="mt-2 text-sm font-semibold text-navy">
@@ -451,7 +451,7 @@ export default function ParametresPage() {
                 type="button"
                 onClick={actualiserTaux}
                 disabled={actualisationTaux}
-                className="rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50"
+                className="rounded-full border border-navy bg-white px-6 py-3 text-base font-semibold text-navy hover:bg-navy/5 disabled:opacity-50"
               >
                 {actualisationTaux ? ts("refreshingRates") : ts("refreshRates")}
               </button>
@@ -476,7 +476,7 @@ export default function ParametresPage() {
               <Field id="taux-valeur" label={ts("rateValue")} type="number" value={tauxValeur} onChange={setTauxValeur} required />
               <Field id="taux-date" label={ts("rateDate")} type="date" value={tauxDate} onChange={setTauxDate} required />
               <div className="sm:col-span-2 lg:col-span-4">
-                <button type="submit" className="rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light">
+                <button type="submit" className="rounded-full border border-navy bg-white px-6 py-3 text-base font-semibold text-navy hover:bg-navy/5">
                   {ts("addRate")}
                 </button>
               </div>
@@ -500,7 +500,7 @@ export default function ParametresPage() {
 
           {/* Gestionnaires */}
           <section aria-labelledby="gest-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="gest-titre" className="text-lg font-bold text-navy">{ts("managersTitle")}</h2>
+            <h2 id="gest-titre" className="text-lg font-semibold text-navy">{ts("managersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("managersText")}</p>
             {gestionnaires.length === 0 ? (
               <p className="mt-3 text-sm text-slate-600">{ts("noManager")}</p>
@@ -544,7 +544,7 @@ export default function ParametresPage() {
               {erreurInvite ? (
                 <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{erreurInvite}</p>
               ) : null}
-              <button type="submit" className="rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light">
+              <button type="submit" className="rounded-full border border-navy bg-white px-6 py-3 text-base font-semibold text-navy hover:bg-navy/5">
                 {ts("inviteManager")}
               </button>
             </form>
@@ -552,7 +552,7 @@ export default function ParametresPage() {
 
           {/* Rattachement par Display ID (v1.3) : triple validation. */}
           <section aria-labelledby="rattach-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="rattach-titre" className="text-lg font-bold text-navy">{td("linkTitle")}</h2>
+            <h2 id="rattach-titre" className="text-lg font-semibold text-navy">{td("linkTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{td("linkText")}</p>
             <div className="mt-4">
               <RattachementDisplayId />
@@ -561,7 +561,7 @@ export default function ParametresPage() {
 
           {/* Co-propriétaires d'indivision (module 6, spec §6 suite) */}
           <section aria-labelledby="coprop-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="coprop-titre" className="text-lg font-bold text-navy">{ts("coOwnersTitle")}</h2>
+            <h2 id="coprop-titre" className="text-lg font-semibold text-navy">{ts("coOwnersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("coOwnersText")}</p>
             {coproprietaires.length === 0 ? (
               <p className="mt-2 text-sm text-slate-600">{ts("noCoOwner")}</p>
@@ -584,7 +584,7 @@ export default function ParametresPage() {
 
           {/* Préférences de notifications */}
           <section aria-labelledby="notif-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="notif-titre" className="text-lg font-bold text-navy">{ts("notificationsTitle")}</h2>
+            <h2 id="notif-titre" className="text-lg font-semibold text-navy">{ts("notificationsTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("notificationsText")}</p>
             {prefs ? (
               <div className="mt-4 space-y-3">
@@ -632,7 +632,7 @@ export default function ParametresPage() {
 
           {/* Sécurité */}
           <section id="securite" aria-labelledby="securite-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="securite-titre" className="text-lg font-bold text-navy">{ts("securityTitle")}</h2>
+            <h2 id="securite-titre" className="text-lg font-semibold text-navy">{ts("securityTitle")}</h2>
             <p className="mt-2 text-base text-slate-600">{ts("securityText")}</p>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
               <p className="text-base text-slate-700">{ts("twoFaText")}</p>
@@ -669,7 +669,7 @@ export default function ParametresPage() {
                 <button
                   type="button"
                   onClick={annulerSuppression}
-                  className="mt-3 rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+                  className="mt-3 rounded-full border border-navy bg-white px-5 py-2.5 text-base font-semibold text-navy hover:bg-navy/5"
                 >
                   {t15("cancelDeletionButton")}
                 </button>

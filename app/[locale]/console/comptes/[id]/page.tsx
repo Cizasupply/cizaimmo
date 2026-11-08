@@ -186,7 +186,7 @@ export default function ConsoleDossierPage({
       </Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-navy md:text-3xl">{compte.nom}</h1>
+          <h1 className="text-2xl font-semibold text-navy md:text-3xl">{compte.nom}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {compte.email}
             {compte.display_id ? (
@@ -314,7 +314,7 @@ export default function ConsoleDossierPage({
 
       {demandesAdmin.length > 0 ? (
         <section className="mt-5 rounded-2xl border border-amber-300 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("linkReviewTitle")}</h2>
+          <h2 className="font-semibold text-navy">{t("linkReviewTitle")}</h2>
           <ul className="mt-3 space-y-2">
             {demandesAdmin.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-4 py-3">
@@ -349,7 +349,7 @@ export default function ConsoleDossierPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Identité */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileIdentity")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileIdentity")}</h2>
           <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
             <div className="flex justify-between gap-3">
               <dt className="font-semibold">{t("filePhoto")}</dt>
@@ -407,7 +407,7 @@ export default function ConsoleDossierPage({
 
         {/* Abonnement */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileSubscription")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileSubscription")}</h2>
           {compte.abonnement ? (
             <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
               <div className="flex justify-between gap-3">
@@ -443,7 +443,7 @@ export default function ConsoleDossierPage({
 
         {/* Documents */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileDocuments")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileDocuments")}</h2>
           {dossier.documents_compte.length === 0 && dossier.preuves_propriete.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noDocuments")}</p>
           ) : (
@@ -488,7 +488,7 @@ export default function ConsoleDossierPage({
 
         {/* Rattachements + demandes */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileLinks")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileLinks")}</h2>
           {dossier.rattachements_comme_proprietaire.length === 0 &&
           dossier.rattachements_comme_gestionnaire.length === 0 &&
           dossier.demandes.length === 0 ? (
@@ -523,7 +523,7 @@ export default function ConsoleDossierPage({
 
         {/* Immeubles + annonces */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileBuildings")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileBuildings")}</h2>
           {dossier.immeubles_possedes.length === 0 && dossier.immeubles_geres.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noBuildings")}</p>
           ) : (
@@ -555,7 +555,7 @@ export default function ConsoleDossierPage({
           )}
           {dossier.annonces.length > 0 ? (
             <>
-              <h3 className="mt-4 font-bold text-navy">{t("fileListings")}</h3>
+              <h3 className="mt-4 font-semibold text-navy">{t("fileListings")}</h3>
               <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
                 {dossier.annonces.map((a) => (
                   <li key={a.id}>
@@ -571,7 +571,7 @@ export default function ConsoleDossierPage({
             autorisation de gestion + propriétaire déclaré. */}
         {dossier.immeubles_en_revue.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-navy">{t17("reviewTitle")}</h2>
+            <h2 className="font-semibold text-navy">{t17("reviewTitle")}</h2>
             <p className="mt-1 text-sm text-slate-500">{t17("reviewHint")}</p>
             <ul className="mt-3 space-y-3">
               {dossier.immeubles_en_revue.map((r) => (
@@ -694,7 +694,7 @@ export default function ConsoleDossierPage({
 
         {/* Audit */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("fileAudit")}</h2>
+          <h2 className="font-semibold text-navy">{t("fileAudit")}</h2>
           {dossier.audit.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noActivity")}</p>
           ) : (
@@ -727,7 +727,7 @@ export default function ConsoleDossierPage({
           Ancre #messages : cible des liens de la boîte de réception
           console et de la Vue d'ensemble (2026-11-07). */}
       <section id="messages" className="mt-6 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-bold text-navy">{t15("messagesTitle")}</h2>
+        <h2 className="font-semibold text-navy">{t15("messagesTitle")}</h2>
         <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
         <div className="mt-4">
           {conversation ? (

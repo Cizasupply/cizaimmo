@@ -265,7 +265,7 @@ export default function RecusPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{t("receipts.colNumber")}</th>
                       <th className="px-4 py-3">{t("receipts.colDate")}</th>
                       <th className="px-4 py-3">{t("receipts.colTenant")}</th>

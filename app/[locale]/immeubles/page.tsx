@@ -173,7 +173,7 @@ export default function ImmeublesPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link
           href={`/${locale}/immeubles/nouveau`}
-          className="rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+          className="rounded-full bg-gold px-5 py-2.5 text-base font-bold text-navy hover:bg-gold-light"
         >
           {t("buildings.add")}
         </Link>
@@ -214,7 +214,7 @@ export default function ImmeublesPage() {
       ) : erreur ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur}</p>
-          <button type="button" onClick={charger} className="mt-4 rounded-full bg-navy px-5 py-2 text-sm font-bold text-white">
+          <button type="button" onClick={charger} className="mt-4 rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5">
             {t("common.retry")}
           </button>
         </div>
@@ -325,7 +325,7 @@ export default function ImmeublesPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{t("buildings.fields.name")}</th>
                       <th className="px-4 py-3">{t("buildings.fields.city")}</th>
                       <th className="px-4 py-3">{t("buildings.statsApartments")}</th>

@@ -21,12 +21,12 @@ export default function EmptyState({
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-      <h2 className="text-lg font-bold text-navy">{title}</h2>
+      <h2 className="text-lg font-semibold text-navy">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-base text-slate-600">{text}</p>
       {actionHref ? (
         <Link
           href={actionHref}
-          className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light"
+          className="mt-6 inline-block rounded-full bg-gold px-6 py-3 text-base font-bold text-navy hover:bg-gold-light"
         >
           {actionLabel}
         </Link>
@@ -34,7 +34,7 @@ export default function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="mt-6 rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light"
+          className="mt-6 rounded-full bg-gold px-6 py-3 text-base font-bold text-navy hover:bg-gold-light"
         >
           {actionLabel}
         </button>

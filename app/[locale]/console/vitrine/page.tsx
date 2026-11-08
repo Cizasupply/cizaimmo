@@ -118,7 +118,7 @@ export default function ConsoleVitrinePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("consoleTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("consoleTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("consoleSubtitle")}</p>
 
       {message ? (

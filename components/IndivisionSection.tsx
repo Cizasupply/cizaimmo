@@ -286,7 +286,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
   if (chargement) {
     return (
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("title")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("title")}</h2>
         <p className="mt-2 text-slate-500">{tc("loading")}</p>
       </section>
     );
@@ -294,7 +294,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
 
   return (
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-bold text-navy">{t("title")}</h2>
+      <h2 className="text-lg font-semibold text-navy">{t("title")}</h2>
       <p className="mt-2 text-sm text-slate-600">{t("subtitle")}</p>
       <p role="note" className="mt-3 rounded-xl border border-gold/50 bg-amber-50 px-4 py-3 text-sm font-semibold text-navy">
         {t("hardRule")}
@@ -321,7 +321,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
       {/* Répartition des revenus de la période */}
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-bold text-navy">{t("yourShareTitle")}</h3>
+          <h3 className="font-semibold text-navy">{t("yourShareTitle")}</h3>
           <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
             {t("periodLabel")}
             <select
@@ -413,7 +413,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
       {/* Gestion des parts (propriétaire, plan autorisé) */}
       {estProprietaire && planAutorise ? (
         <form onSubmit={enregistrer} noValidate className="mt-6 border-t border-slate-100 pt-4">
-          <h3 className="font-bold text-navy">{t("inviteTitle")}</h3>
+          <h3 className="font-semibold text-navy">{t("inviteTitle")}</h3>
           <p className="mt-1 text-sm text-slate-600">{t("shareHint")}</p>
           <div className="mt-3 space-y-4">
             {lignes.map((l) => (
@@ -488,7 +488,7 @@ export default function IndivisionSection({ immeuble }: { immeuble: Immeuble }) 
             <button type="button" onClick={ajouterLigne} className="rounded-full border border-navy px-4 py-2 text-sm font-bold text-navy">
               {t("addCoOwner")}
             </button>
-            <button type="submit" disabled={enregistrement} className="rounded-full bg-navy px-6 py-2.5 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50">
+            <button type="submit" disabled={enregistrement} className="rounded-full border border-navy bg-white px-6 py-2.5 text-sm font-semibold text-navy hover:bg-navy/5 disabled:opacity-50">
               {enregistrement ? tc("saving") : t("saveParts")}
             </button>
             <span className={`text-sm font-bold ${Math.abs(somme - 100) < 0.01 ? "text-green-700" : "text-red-700"}`}>

@@ -186,7 +186,7 @@ export default function AlertesPage() {
             <button
               type="button"
               onClick={() => traiter(alerte.id)}
-              className="rounded-full bg-navy px-4 py-1.5 text-sm font-bold text-white hover:bg-navy-light"
+              className="rounded-full border border-navy bg-white px-4 py-1.5 text-sm font-semibold text-navy hover:bg-navy/5"
             >
               {ta("markTreated")}
             </button>
@@ -228,7 +228,7 @@ export default function AlertesPage() {
       ) : (
         <>
           <section aria-labelledby="actives-titre">
-            <h2 id="actives-titre" className="text-lg font-bold text-navy">
+            <h2 id="actives-titre" className="text-lg font-semibold text-navy">
               {ta("activeTitle", { count: actives.length })}
             </h2>
             {actives.length === 0 ? (
@@ -238,7 +238,7 @@ export default function AlertesPage() {
             )}
           </section>
           <section aria-labelledby="traitees-titre" className="mt-6">
-            <h2 id="traitees-titre" className="text-lg font-bold text-navy">
+            <h2 id="traitees-titre" className="text-lg font-semibold text-navy">
               {ta("treatedTitle", { count: traitees.length })}
             </h2>
             {traitees.length === 0 ? (

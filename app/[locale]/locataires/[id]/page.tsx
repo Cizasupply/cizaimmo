@@ -180,7 +180,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-navy">{t("tenants.detailContact")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{t("tenants.detailContact")}</h2>
             <dl className="mt-3 space-y-1 text-base">
               <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.phone")}</dt><dd className="font-semibold text-navy">{locataire.telephone}</dd></div>
               <div className="flex gap-2"><dt className="w-40 shrink-0 text-slate-500">{t("tenants.fields.email")}</dt><dd>{locataire.email ?? t("common.notProvided")}</dd></div>
@@ -209,14 +209,14 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
         ) : (
           <p className="mt-4 text-slate-600">{t("tenants.noActiveLease")}</p>
         )}
-        <Link href={`/${locale}/locataires/${locataire.id}/baux/nouveau`} className="mt-4 inline-block rounded-full bg-navy px-4 py-2 text-sm font-bold text-white">
+        <Link href={`/${locale}/locataires/${locataire.id}/baux/nouveau`} className="mt-4 inline-block rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light">
           {t("tenants.newLease")}
         </Link>
       </section>
 
       {/* Lien lecture seule */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("tenants.tenantLink")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("tenants.tenantLink")}</h2>
         <p className="mt-2 text-sm text-slate-600">{t("tenants.tenantLinkHint")}</p>
         {locataire.lien_token ? (
           <div className="mt-3">
@@ -243,7 +243,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
         ) : (
           <div className="mt-3">
             <p className="text-sm text-slate-600">{t("tenants.linkNone")}</p>
-            <button type="button" onClick={genererLien} className="mt-3 rounded-full bg-navy px-4 py-2 text-sm font-bold text-white">
+            <button type="button" onClick={genererLien} className="mt-3 rounded-full border border-navy bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-navy/5">
               {t("tenants.generateLink")}
             </button>
           </div>
@@ -252,7 +252,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
 
       {/* Baux */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("tenants.detailLeases")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("tenants.detailLeases")}</h2>
         {baux.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("leases.noHistory")}</p>
         ) : (
@@ -288,7 +288,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
 
       {/* Historique loyers / reçus (module 3 : lecture des échéances déjà présentes) */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("tenants.detailRentHistory")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("tenants.detailRentHistory")}</h2>
         {echeances.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("tenants.detailRentHistoryEmpty")}</p>
         ) : (
@@ -313,7 +313,7 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("tenants.detailDocuments")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("tenants.detailDocuments")}</h2>
         <DocumentList documents={documents} onChange={charger} />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">
           {t("tenants.detailDocumentsAll")}

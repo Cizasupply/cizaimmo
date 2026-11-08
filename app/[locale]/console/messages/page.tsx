@@ -42,7 +42,7 @@ export default function ConsoleMessagesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">
         {t("messagesTitle")}
         {totalNonLus > 0 ? (
           <span className="ml-3 align-middle rounded-full bg-gold px-2.5 py-1 text-sm font-bold text-navy-dark">

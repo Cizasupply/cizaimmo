@@ -138,7 +138,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-cream">
       <aside className="fixed inset-y-0 left-0 hidden w-60 bg-navy-dark p-6 text-white md:block">
         <Link href={`/${locale}/console`} className="mb-1 block" aria-label="CizaImmo Console">
           <Image src="/cizaimmo-logo-compact.png" alt="CizaImmo" width={170} height={54} priority />

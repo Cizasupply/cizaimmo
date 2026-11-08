@@ -68,7 +68,7 @@ export default function ConsoleAdminsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("adminsTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("adminsTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("adminsSubtitle")}</p>
 
       {message ? (
@@ -87,7 +87,7 @@ export default function ConsoleAdminsPage() {
           return (
           <article key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
             <div className="min-w-0">
-              <h2 className="truncate font-bold text-navy">{a.nom}</h2>
+              <h2 className="truncate font-semibold text-navy">{a.nom}</h2>
               <p className="truncate text-sm text-slate-500">{a.email}</p>
               <p className="mt-1 flex flex-wrap gap-2">
                 <span className={`rounded-full px-2 py-1 text-xs font-bold ${a.role === "super_admin" ? "bg-gold/20 text-yellow-800" : "bg-navy/10 text-navy"}`}>
@@ -181,7 +181,7 @@ export default function ConsoleAdminsPage() {
       ) : null}
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-bold text-navy">{t("promoteTitle")}</h2>
+        <h2 className="font-semibold text-navy">{t("promoteTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("promoteText")}</p>
         <form
           className="mt-3 flex flex-wrap gap-2"
@@ -208,7 +208,7 @@ export default function ConsoleAdminsPage() {
       </section>
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-bold text-navy">{t("createAdminTitle")}</h2>
+        <h2 className="font-semibold text-navy">{t("createAdminTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("createAdminText")}</p>
         <form
           className="mt-3 flex flex-wrap gap-2"

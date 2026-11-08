@@ -158,14 +158,14 @@ export default function VitrinePage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="font-bold text-navy">{t("planRequired")}</p>
           <p className="mt-2 text-slate-600">{t("planRequiredText")}</p>
-          <Link href={`/${locale}/abonnement`} className="mt-4 inline-block rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white">
+          <Link href={`/${locale}/abonnement`} className="mt-4 inline-block rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy hover:bg-gold-light">
             {t("viewPlans")}
           </Link>
         </div>
       ) : (
         <>
           <div className="mb-4 flex flex-wrap gap-3">
-            <Link href={`/${locale}/a-louer`} target="_blank" rel="noreferrer" className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white">
+            <Link href={`/${locale}/a-louer`} target="_blank" rel="noreferrer" className="rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy hover:bg-gold-light">
               {t("goToPublic")}
             </Link>
           </div>
@@ -213,7 +213,7 @@ export default function VitrinePage() {
                         <button
                           type="button"
                           onClick={() => demander(a)}
-                          className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white"
+                          className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light"
                         >
                           {t16("requestPublication")}
                         </button>
@@ -222,7 +222,7 @@ export default function VitrinePage() {
                         <button
                           type="button"
                           onClick={() => retirer(a)}
-                          className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white"
+                          className="rounded-full border border-navy bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-navy/5"
                         >
                           {t16("withdrawPublication")}
                         </button>

@@ -655,7 +655,7 @@ export default function LoyersPage() {
           </div>
 
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-bold text-navy">{t("rents.totalsTitle")} — {moisAffiche(moisIso, locale)}</h2>
+            <h2 className="text-sm font-semibold text-navy">{t("rents.totalsTitle")} — {moisAffiche(moisIso, locale)}</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {totaux.map(([deviseTot, tot]) => (
                 <div key={deviseTot} className="rounded-xl border border-slate-200 p-3">
@@ -704,7 +704,7 @@ export default function LoyersPage() {
                         {x.bail ? t("rents.dueDay", { day: String(x.bail.jour_exigibilite) }) : ""} · {moisAffiche(x.echeance.mois, locale)}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => ouvrirDeclaration(x)} className="rounded-full bg-navy px-3 py-1.5 text-sm font-bold text-white">
+                        <button type="button" onClick={() => ouvrirDeclaration(x)} className="rounded-full bg-gold px-3 py-1.5 text-sm font-bold text-navy hover:bg-gold-light">
                           {t("rents.declare")}
                         </button>
                         <button type="button" onClick={() => basculerOuvert(x.echeance.id)} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy">
@@ -738,7 +738,7 @@ export default function LoyersPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{t("rents.colTenant")}</th>
                       <th className="px-4 py-3">{t("rents.colDue")}</th>
                       <th className="px-4 py-3">{t("rents.colPaidRemaining")}</th>
@@ -817,7 +817,7 @@ export default function LoyersPage() {
       {echCible ? (
         <div role="dialog" aria-modal="true" aria-label={aCorriger ? t("rents.declareTitleCorrect") : t("rents.declareTitle")} className="fixed inset-0 z-50 flex items-end justify-center bg-navy-dark/60 p-4 sm:items-center" onClick={fermerFormulaire}>
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-navy">{aCorriger ? t("rents.declareTitleCorrect") : t("rents.declareTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{aCorriger ? t("rents.declareTitleCorrect") : t("rents.declareTitle")}</h2>
             <p className="mt-1 text-sm text-slate-600">
               {t("rents.declareFor", { name: echCible.locataire?.nom ?? "—", month: moisAffiche(echCible.echeance.mois, locale) })} — {t("rents.remainingLabel")} : <span className={`font-semibold ${couleurRestant(echCible)}`}>{formatMoney(echCible.restant, echCible.echeance.devise, locale)}</span>
             </p>
@@ -882,7 +882,7 @@ export default function LoyersPage() {
                   type="button"
                   onClick={soumettreDeclaration}
                   disabled={enregistrement}
-                  className="flex-1 rounded-full bg-navy px-4 py-2.5 text-base font-bold text-white disabled:opacity-50"
+                  className="flex-1 rounded-full bg-gold px-4 py-2.5 text-base font-bold text-navy disabled:opacity-50"
                 >
                   {enregistrement ? t("common.saving") : t("common.save")}
                 </button>

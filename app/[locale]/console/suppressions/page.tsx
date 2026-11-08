@@ -63,7 +63,7 @@ export default function ConsoleSuppressionsPage() {
   if (!chargement && profil && profil.role !== "super_admin") {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
+        <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
         <p role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
           {t("superOnly")}
         </p>
@@ -73,7 +73,7 @@ export default function ConsoleSuppressionsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("deletionsSubtitle")}</p>
 
       {message ? (

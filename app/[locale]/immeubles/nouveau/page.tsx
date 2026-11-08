@@ -119,7 +119,7 @@ export default function NouvelImmeublePage() {
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : limiteAtteinte && abonnement ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-lg font-bold text-navy">{t("buildings.limitReached")}</h2>
+          <h2 className="text-lg font-semibold text-navy">{t("buildings.limitReached")}</h2>
           <p className="mt-2 text-base text-slate-700">
             {t("buildings.limitText", {
               plan: abonnement.plan,
@@ -127,7 +127,7 @@ export default function NouvelImmeublePage() {
               used: String(nbActifs),
             })}
           </p>
-          <Link href={`/${locale}/immeubles`} className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-base font-bold text-white">
+          <Link href={`/${locale}/immeubles`} className="mt-6 inline-block rounded-full border border-navy bg-white px-6 py-3 text-base font-semibold text-navy hover:bg-navy/5">
             {t("common.back")}
           </Link>
         </div>

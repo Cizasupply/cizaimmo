@@ -121,7 +121,7 @@ export default function ConsoleJournalPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("journalTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("journalTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("journalSubtitle")}</p>
 
       {/* Barre de filtres — carte au patron console (recherche +

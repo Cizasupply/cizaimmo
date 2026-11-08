@@ -45,7 +45,7 @@ export default function ConsoleMessagesSupervisesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("supervisedTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("supervisedTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("supervisedSubtitle")}</p>
       <p className="mt-3 inline-block rounded-full bg-slate-700 px-3 py-1 text-xs font-bold text-white">
         🔒 {t("supervisionReadOnly")}
@@ -107,7 +107,7 @@ export default function ConsoleMessagesSupervisesPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           {selection ? (
             <>
-              <h2 className="text-lg font-bold text-navy">
+              <h2 className="text-lg font-semibold text-navy">
                 {selection.proprietaire_nom ?? t("ownerLabel")} ↔{" "}
                 {selection.gestionnaire_nom ?? t("managerLabel")}
               </h2>

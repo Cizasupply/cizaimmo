@@ -72,7 +72,7 @@ export default function ConsoleMesDossiersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("myFilesTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("myFilesTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("myFilesSubtitle")}</p>
 
       {erreur ? (
@@ -100,7 +100,7 @@ export default function ConsoleMesDossiersPage() {
 
       {filsNonLus.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-bold text-navy">{t("unreadThreads")}</h2>
+          <h2 className="font-semibold text-navy">{t("unreadThreads")}</h2>
           <ul className="mt-3 space-y-2">
             {filsNonLus.map((c) => (
               <li
@@ -152,7 +152,7 @@ export default function ConsoleMesDossiersPage() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5"
             >
               <div className="min-w-0">
-                <h2 className="truncate font-bold text-navy">{c.nom}</h2>
+                <h2 className="truncate font-semibold text-navy">{c.nom}</h2>
                 <p className="truncate text-sm text-slate-500">
                   {c.email}
                   {c.display_id ? (

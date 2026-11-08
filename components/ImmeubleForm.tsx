@@ -381,7 +381,7 @@ export default function ImmeubleForm({
       <button
         type="submit"
         disabled={saving}
-        className="w-full rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50 sm:w-auto"
+        className="w-full rounded-full bg-gold px-6 py-3 text-base font-bold text-navy hover:bg-gold-light disabled:opacity-50 sm:w-auto"
       >
         {saving ? tc("saving") : submitLabel}
       </button>

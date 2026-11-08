@@ -163,7 +163,7 @@ export default function ConsoleComptesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("accountsTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("accountsTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("accountsSubtitle")}</p>
 
       {/* v1.5 : KPI dossiers non assignés (aucun Admin responsable). */}
@@ -300,7 +300,7 @@ export default function ConsoleComptesPage() {
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="truncate font-bold text-navy">{compte.nom}</h2>
+                  <h2 className="truncate font-semibold text-navy">{compte.nom}</h2>
                   <p className="truncate text-sm text-slate-500">{compte.email}</p>
                   {/* v1.3 : Display ID + téléphone + intention du dossier. */}
                   <p className="text-xs text-slate-500">

@@ -157,7 +157,7 @@ export default function ContratPage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-navy">{t("contractTitle")}</h2>
+          <h2 className="text-lg font-semibold text-navy">{t("contractTitle")}</h2>
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${COULEUR_CONTRAT[statut]}`}>
             {t(`contractStatus.${statut}` as "contractStatus.valide")}
           </span>
@@ -181,7 +181,7 @@ export default function ContratPage() {
             type="button"
             onClick={telecharger}
             disabled={!contenuBase64}
-            className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50"
+            className="rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy hover:bg-gold-light disabled:opacity-50"
           >
             ⬇ {t("downloadContract")}
           </button>
@@ -208,7 +208,7 @@ export default function ContratPage() {
       </section>
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("requestsTitle")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("requestsTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("requestsText")}</p>
         {demandes.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">{t("noRequests")}</p>

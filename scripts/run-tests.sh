@@ -292,6 +292,22 @@ else
   ECHEC=1
 fi
 
+# Design « Marine & Or » déployé aux pages (2026-11-07, soir) :
+# cohérence héros ↔ KPI du tableau de bord. Bug réel vu par le
+# fondateur (Kaneza) : héros « Attendus : 0 BIF » contre KPI
+# « 680 000 BIF » — l'ancienne fonction locale totauxConvertis
+# n'additionnait pas les groupes déjà dans la devise d'affichage.
+# La fonction vit dans lib/module4.ts (déjà au harnais) et la page
+# l'utilise pour héros ET KPI ; le test verrouille les deux.
+echo ""
+echo "===== Design déployé (cohérence héros ↔ KPI) ====="
+if node "scripts/test-design-heros.cjs"; then
+  echo "Cohérence héros/KPI : OK"
+else
+  echo "Cohérence héros/KPI : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

@@ -72,7 +72,7 @@ export default function ConsoleGestionnairesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("managersTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("managersTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("managersSubtitle")}</p>
 
       {message ? (
@@ -89,7 +89,7 @@ export default function ConsoleGestionnairesPage() {
         {rattachements.map((r) => (
           <article key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
             <div className="min-w-0">
-              <h2 className="truncate font-bold text-navy">{r.gestionnaire_nom ?? r.gestionnaire_email}</h2>
+              <h2 className="truncate font-semibold text-navy">{r.gestionnaire_nom ?? r.gestionnaire_email}</h2>
               <p className="truncate text-sm text-slate-500">{r.gestionnaire_email}</p>
               <p className="mt-1 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-navy/10 px-2 py-1 font-bold text-navy">
@@ -129,7 +129,7 @@ export default function ConsoleGestionnairesPage() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-bold text-navy">{t("createAttachmentTitle")}</h2>
+        <h2 className="font-semibold text-navy">{t("createAttachmentTitle")}</h2>
         <form
           className="mt-4 grid gap-3 md:grid-cols-2"
           onSubmit={(e) => {

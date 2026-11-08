@@ -302,10 +302,10 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       {/* Appartements */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-navy">{t("buildings.detailApartments")}</h2>
+          <h2 className="text-lg font-semibold text-navy">{t("buildings.detailApartments")}</h2>
           {!estCoproprietaire ? (
             <div className="flex gap-2">
-              <Link href={`/${locale}/appartements/nouveau?immeuble=${immeuble.id}`} className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white">
+              <Link href={`/${locale}/appartements/nouveau?immeuble=${immeuble.id}`} className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light">
                 {t("apartments.add")}
               </Link>
               <Link href={`/${locale}/appartements/nouveau?immeuble=${immeuble.id}&lot=1`} className="rounded-full border border-navy px-4 py-2 text-sm font-bold text-navy">
@@ -343,7 +343,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
 
       {/* Dépenses */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("buildings.detailExpenses")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("buildings.detailExpenses")}</h2>
         {depenses.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("expenses.empty")}</p>
         ) : (
@@ -360,7 +360,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("buildings.detailDocuments")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("buildings.detailDocuments")}</h2>
         <DocumentList documents={documents} onChange={charger} />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">
           {t("buildings.detailDocumentsAll")}
@@ -371,10 +371,10 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
           valeur (+ date d'estimation, ROI), travaux (avec justificatifs),
           historique complet (baux, paiements, alertes, fil), documents. */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-navy">{t("passport.title")}</h2>
+        <h2 className="text-lg font-semibold text-navy">{t("passport.title")}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div>
-            <h3 className="font-bold text-navy">{t("passport.identity")}</h3>
+            <h3 className="font-semibold text-navy">{t("passport.identity")}</h3>
             <p className="mt-1 text-sm text-slate-700">
               {immeuble.nom}<br />{immeuble.adresse}, {immeuble.ville} — {immeuble.pays}
             </p>
@@ -421,7 +421,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             </ul>
           </div>
           <div>
-            <h3 className="font-bold text-navy">{t("passport.acquisition")}</h3>
+            <h3 className="font-semibold text-navy">{t("passport.acquisition")}</h3>
             <p className="mt-1 text-sm text-slate-700">
               {t("passport.acquisitionDate")} : {formatDate(immeuble.date_acquisition, locale)}<br />
               {t("passport.acquisitionPrice")} : {immeuble.prix_acquisition !== null ? formatMoney(immeuble.prix_acquisition, immeuble.devise_valeur ?? immeuble.devise, locale) : t("common.notProvided")}<br />
@@ -429,7 +429,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             </p>
           </div>
           <div>
-            <h3 className="font-bold text-navy">{t("passport.value")}</h3>
+            <h3 className="font-semibold text-navy">{t("passport.value")}</h3>
             <p className="mt-1 text-sm text-slate-700">
               {t("passport.valueLabel")} : {immeuble.valeur_bien ? formatMoney(immeuble.valeur_bien, immeuble.devise_valeur ?? immeuble.devise, locale) : t("buildings.roiMissing")}<br />
               {t("passport.estimationDate")} : {formatDate(immeuble.date_estimation, locale)}<br />
@@ -437,7 +437,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             </p>
           </div>
         </div>
-        <h3 className="mt-6 font-bold text-navy">{t("passport.works")}</h3>
+        <h3 className="mt-6 font-semibold text-navy">{t("passport.works")}</h3>
         {depenses.filter((d) => d.categorie === "reparation" || d.categorie === "entretien").length === 0 ? (
           <p className="mt-1 text-sm text-slate-600">{t("passport.noWorks")}</p>
         ) : (
@@ -455,7 +455,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             ))}
           </ul>
         )}
-        <h3 className="mt-6 font-bold text-navy">{t("passport.history")}</h3>
+        <h3 className="mt-6 font-semibold text-navy">{t("passport.history")}</h3>
         <h4 className="mt-3 text-sm font-bold text-navy">{t("passport.historyLeases")}</h4>
         {bauxImmeuble.length === 0 ? (
           <p className="mt-1 text-sm text-slate-600">{t("leases.noHistory")}</p>
@@ -497,7 +497,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
             ))}
           </ul>
         )}
-        <h3 className="mt-6 font-bold text-navy">{t("passport.documentsInPassport")}</h3>
+        <h3 className="mt-6 font-semibold text-navy">{t("passport.documentsInPassport")}</h3>
         {documents.length === 0 ? (
           <p className="mt-1 text-sm text-slate-600">{t("passport.noDocuments")}</p>
         ) : (

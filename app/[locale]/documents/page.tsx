@@ -207,7 +207,7 @@ export default function DocumentsPage() {
             <button
               type="button"
               onClick={() => setAAjouter((v) => !v)}
-              className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy-light"
+              className="rounded-full border border-navy bg-white px-5 py-2.5 text-sm font-semibold text-navy hover:bg-navy/5"
             >
               {td("upload")}
             </button>
@@ -240,7 +240,7 @@ export default function DocumentsPage() {
               <button
                 type="submit"
                 disabled={envoi}
-                className="w-full rounded-full bg-navy px-6 py-3 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50 sm:w-auto"
+                className="w-full rounded-full bg-gold px-6 py-3 text-base font-bold text-navy hover:bg-gold-light disabled:opacity-50 sm:w-auto"
               >
                 {envoi ? tc("saving") : td("uploadButton")}
               </button>

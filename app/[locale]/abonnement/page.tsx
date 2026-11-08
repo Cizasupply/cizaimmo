@@ -326,7 +326,7 @@ export default function AbonnementPage() {
       ) : erreur ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p role="alert" className="text-red-700">{erreur}</p>
-          <button type="button" onClick={charger} className="mt-4 rounded-full bg-navy px-5 py-2 text-sm font-bold text-white">
+          <button type="button" onClick={charger} className="mt-4 rounded-full border border-navy bg-white px-5 py-2 text-sm font-semibold text-navy hover:bg-navy/5">
             {t("common.retry")}
           </button>
         </div>
@@ -369,7 +369,7 @@ export default function AbonnementPage() {
 
           {/* Plan actuel */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-navy">{ts("currentPlan")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{ts("currentPlan")}</h2>
             <dl className="mt-3 space-y-2 text-base text-slate-700">
               <div className="flex justify-between gap-4">
                 <dt className="shrink-0 font-semibold">{ts("plan")}</dt>
@@ -428,7 +428,7 @@ export default function AbonnementPage() {
               paiement, il est seulement enregistré (plan_apres_essai). */}
           {abonnement.statut === "essai" ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-navy">{ts("trialPackTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy">{ts("trialPackTitle")}</h2>
               <p className="mt-1 text-sm text-slate-600">{ts("trialPackText")}</p>
               <div className="mt-4 space-y-2">
                 {PLANS.map((plan) => (
@@ -460,7 +460,7 @@ export default function AbonnementPage() {
               <button
                 type="button"
                 onClick={enregistrerPackApresEssai}
-                className="mt-4 rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+                className="mt-4 rounded-full border border-navy bg-white px-5 py-2.5 text-base font-semibold text-navy hover:bg-navy/5"
               >
                 {ts("trialPackSave")}
               </button>
@@ -469,14 +469,14 @@ export default function AbonnementPage() {
 
           {/* Comparaison des plans */}
           <section className="mb-6">
-            <h2 className="mb-3 text-lg font-bold text-navy">{ts("compareTitle")}</h2>
+            <h2 className="mb-3 text-lg font-semibold text-navy">{ts("compareTitle")}</h2>
             <div className="grid gap-4 md:grid-cols-3">
               {PLANS.map((plan) => {
                 const estActuel = plan === abonnement.plan && !abonnement.plan_en_attente;
                 const estDescente = RANG_PLAN[plan] < RANG_PLAN[abonnement.plan];
                 return (
                   <article key={plan} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-lg font-bold text-navy">{ts(`plans.${plan}`)}</h3>
+                    <h3 className="text-lg font-semibold text-navy">{ts(`plans.${plan}`)}</h3>
                     <p className="mt-2 text-2xl font-bold text-navy">
                       {formatMoney(prixPlans[plan][abonnement.grille], "USD", locale)}
                       <span className="text-sm font-normal text-slate-500"> {ts("perMonth")}</span>
@@ -509,7 +509,7 @@ export default function AbonnementPage() {
                         "mt-4 w-full rounded-full px-4 py-2.5 text-base font-bold " +
                         (estActuel
                           ? "bg-slate-100 text-slate-400"
-                          : "bg-navy text-white hover:bg-navy-light")
+                          : "border border-navy bg-white font-bold text-navy hover:bg-navy/5")
                       }
                     >
                       {estActuel
@@ -527,7 +527,7 @@ export default function AbonnementPage() {
           {/* Paiement du plan choisi */}
           {planChoisi ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-navy">
+              <h2 className="text-lg font-semibold text-navy">
                 {ts("payTitle", { plan: ts(`plans.${planChoisi}`) })}
               </h2>
               <p className="mt-1 text-base text-slate-700">
@@ -547,14 +547,14 @@ export default function AbonnementPage() {
                   <button
                     type="button"
                     onClick={() => payerCarte(planChoisi)}
-                    className="rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+                    className="rounded-full bg-gold px-5 py-2.5 text-base font-bold text-navy hover:bg-gold-light"
                   >
                     {ts("payByCard")}
                   </button>
                 )}
               </div>
               <div className="mt-6 border-t border-slate-200 pt-4">
-                <h3 className="font-bold text-navy">{ts("payByMobileMoney")}</h3>
+                <h3 className="font-semibold text-navy">{ts("payByMobileMoney")}</h3>
                 <div className="mt-3 space-y-3">
                   <Field id="operateur" label={ts("operator")} value={operateur} onChange={(v) => setOperateur(v as OperateurMobileMoney)}>
                     <option value="ecocash">EcoCash</option>
@@ -573,7 +573,7 @@ export default function AbonnementPage() {
                     type="button"
                     disabled={paiementEnCours || !telephone.trim()}
                     onClick={() => demanderMobileMoney(planChoisi)}
-                    className="w-full rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light disabled:opacity-50"
+                    className="w-full rounded-full border border-navy bg-white px-5 py-2.5 text-base font-semibold text-navy hover:bg-navy/5 disabled:opacity-50"
                   >
                     {ts("requestPayment")}
                   </button>
@@ -592,7 +592,7 @@ export default function AbonnementPage() {
           {/* Paiements mobile money */}
           {paiementsMm.length > 0 ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-navy">{ts("mmTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy">{ts("mmTitle")}</h2>
               <ul className="mt-3 space-y-3">
                 {paiementsMm.map((p) => (
                   <li key={p.id} className="rounded-xl border border-slate-200 p-4">
@@ -634,7 +634,7 @@ export default function AbonnementPage() {
 
           {/* Factures */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-navy">{ts("invoicesTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{ts("invoicesTitle")}</h2>
             {factures.length === 0 ? (
               <p className="mt-3 text-base text-slate-500">{ts("invoicesEmpty")}</p>
             ) : (
@@ -670,7 +670,7 @@ export default function AbonnementPage() {
 
           {/* Annulation */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-navy">{ts("cancelTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{ts("cancelTitle")}</h2>
             {abonnement.resiliation_programmee ? (
               <p className="mt-2 text-base text-slate-700">
                 {ts("cancellationScheduledText", { date: formatDate(abonnement.fin_periode, locale) })}
@@ -708,7 +708,7 @@ export default function AbonnementPage() {
                 <button
                   type="button"
                   onClick={annulerSuppression}
-                  className="mt-3 rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light"
+                  className="mt-3 rounded-full border border-navy bg-white px-5 py-2.5 text-base font-semibold text-navy hover:bg-navy/5"
                 >
                   {t15("cancelDeletionButton")}
                 </button>

@@ -113,7 +113,7 @@ export default function ConsoleAccueilPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("overviewTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("overviewTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("overviewSubtitle")}</p>
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -238,7 +238,7 @@ export default function ConsoleAccueilPage() {
       ) : null}
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-bold text-navy">{t("recentActivity")}</h2>
+        <h2 className="font-semibold text-navy">{t("recentActivity")}</h2>
         {!charge ? (
           <p className="mt-3 text-sm text-slate-500">{t("loading")}</p>
         ) : journal.length === 0 ? (

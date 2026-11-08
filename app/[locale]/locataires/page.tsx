@@ -209,7 +209,7 @@ export default function LocatairesPage() {
   return (
     <AppShell title={tp("tenants.title")}>
       <div className="mb-4 flex flex-wrap gap-2">
-        <Link href={`/${locale}/locataires/nouveau`} className="rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light">
+        <Link href={`/${locale}/locataires/nouveau`} className="rounded-full bg-gold px-5 py-2.5 text-base font-bold text-navy hover:bg-gold-light">
           {t("tenants.add")}
         </Link>
         <button
@@ -330,7 +330,7 @@ export default function LocatairesPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{t("tenants.fields.fullName")}</th>
                       <th className="px-4 py-3">{t("tenants.fields.phone")}</th>
                       <th className="px-4 py-3">{t("tenants.currentApartment")}</th>

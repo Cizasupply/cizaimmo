@@ -156,7 +156,7 @@ export default function AppartementsPage() {
   return (
     <AppShell title={tp("apartments.title")}>
       <div className="mb-4">
-        <Link href={`/${locale}/appartements/nouveau`} className="rounded-full bg-navy px-5 py-2.5 text-base font-bold text-white hover:bg-navy-light">
+        <Link href={`/${locale}/appartements/nouveau`} className="rounded-full bg-gold px-5 py-2.5 text-base font-bold text-navy hover:bg-gold-light">
           {t("apartments.add")}
         </Link>
       </div>
@@ -270,7 +270,7 @@ export default function AppartementsPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{t("apartments.fields.number")}</th>
                       <th className="px-4 py-3">{t("apartments.fields.building")}</th>
                       <th className="px-4 py-3">{t("apartments.fields.type")}</th>

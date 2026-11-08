@@ -90,6 +90,53 @@ export function convertirMontant(
   return { montant: montant * trouve.taux, taux: trouve };
 }
 
+/** Une ligne de totaux convertis (tableau de bord). */
+export interface LigneTotauxConvertis {
+  devise: Devise;
+  total: number;
+  converti: number | null;
+  dateTaux: string | null;
+  source: string | null;
+}
+
+/**
+ * Totaux convertis dans la devise d'affichage (tableau de bord) : pour
+ * chaque groupe par devise, le montant converti (ou le montant tel quel
+ * quand le groupe est DÉJÀ dans la devise d'affichage), et le total
+ * converti — somme des lignes converties, `null` dès qu'un taux manque.
+ *
+ * CORRECTIF (2026-11-07, design « Marine & Or ») : la version locale à
+ * la page du tableau de bord n'ajoutait au total QUE les groupes
+ * convertis (autre devise) ; un groupe déjà dans la devise d'affichage
+ * retournait tôt sans s'additionner. Résultat vécu en réel (Kaneza,
+ * tout en BIF, affichage BIF) : la carte héros affichait « Attendus :
+ * 0 BIF » alors que la carte KPI du même écran — qui lit les LIGNES —
+ * affichait 680 000 BIF. Héros et KPI lisent désormais CETTE fonction
+ * unique (mêmes objets : lignes pour les KPI, total pour le héros),
+ * et le test scripts/test-design-heros.cjs verrouille la cohérence.
+ */
+export function totauxConvertis(
+  groupes: { devise: Devise; total: number }[],
+  deviseAffichage: Devise,
+  taux: TauxChange[]
+): { lignes: LigneTotauxConvertis[]; totalConverti: number | null } {
+  let totalConverti: number | null = 0;
+  const lignes = groupes.map(({ devise, total }) => {
+    if (devise === deviseAffichage) {
+      if (totalConverti !== null) totalConverti += total;
+      return { devise, total, converti: total, dateTaux: null, source: null };
+    }
+    const conv = convertirMontant(total, devise, deviseAffichage, taux);
+    if (!conv) {
+      totalConverti = null;
+      return { devise, total, converti: null, dateTaux: null, source: null };
+    }
+    if (totalConverti !== null) totalConverti += conv.montant;
+    return { devise, total, converti: conv.montant, dateTaux: conv.taux.date_taux, source: conv.taux.source };
+  });
+  return { lignes, totalConverti };
+}
+
 /** Somme par devise : on ne mélange jamais deux devises dans une somme. */
 export function sommerParDevise<T extends { montant: number; devise: Devise }>(
   items: T[]

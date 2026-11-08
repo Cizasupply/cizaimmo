@@ -114,7 +114,7 @@ export default function ConsoleFinancesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy md:text-3xl">{t("financesTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("financesTitle")}</h1>
       <p className="mt-1 max-w-2xl text-sm text-slate-600">{t("financesSubtitle")}</p>
 
       {message ? (
@@ -130,7 +130,7 @@ export default function ConsoleFinancesPage() {
         <form onSubmit={enregistrer} className="mt-6 space-y-6">
           {GRILLES.map((grille) => (
             <section key={grille} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="font-bold text-navy">
+              <h2 className="font-semibold text-navy">
                 {grille === "afrique" ? t("grid.afrique") : t("grid.internationale")}
               </h2>
               <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -156,7 +156,7 @@ export default function ConsoleFinancesPage() {
           ))}
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-navy">{t("financeParamsTitle")}</h2>
+            <h2 className="font-semibold text-navy">{t("financeParamsTitle")}</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {champNombre(t("annualDiscount"), parametres.remise_annuelle_pct, (n) =>
                 setParametres({ ...parametres, remise_annuelle_pct: n }), "%")}

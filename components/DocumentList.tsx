@@ -166,7 +166,7 @@ export default function DocumentList({
       {aRenommer ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-navy">{t("renameTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{t("renameTitle")}</h2>
             <label htmlFor="nouveau-nom" className="mt-4 block text-sm font-semibold text-slate-900">
               {t("fileName")}
             </label>
@@ -180,7 +180,7 @@ export default function DocumentList({
               <button type="button" onClick={() => setARenommer(null)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy">
                 {tc("cancel")}
               </button>
-              <button type="button" onClick={confirmerRenommage} className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white">
+              <button type="button" onClick={confirmerRenommage} className="rounded-full border border-navy bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-navy/5">
                 {tc("save")}
               </button>
             </div>

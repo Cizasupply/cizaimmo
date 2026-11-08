@@ -121,7 +121,7 @@ export default function MessagesPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {selection ? (
             <>
-              <h2 className="text-lg font-bold text-navy">{libelleFil(selection)}</h2>
+              <h2 className="text-lg font-semibold text-navy">{libelleFil(selection)}</h2>
               <p className="mb-4 mt-1 text-sm text-slate-500">
                 {selection.type === "plateforme"
                   ? t("platformThreadDesc")

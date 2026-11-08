@@ -280,7 +280,7 @@ export default function DepensesPage() {
             <button
               type="button"
               onClick={() => setAAjouter(true)}
-              className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy-light"
+              className="rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy hover:bg-gold-light"
             >
               {te("add")}
             </button>
@@ -364,7 +364,7 @@ export default function DepensesPage() {
           {totauxParCategorie.length > 0 ? (
             <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-bold text-navy">{te("totalsByCategory")}</h2>
+                <h2 className="text-sm font-semibold text-navy">{te("totalsByCategory")}</h2>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParCategorie.map((x) => (
                     <li key={`${x.categorie}-${x.devise}`} className="flex items-center justify-between gap-2">
@@ -375,7 +375,7 @@ export default function DepensesPage() {
                 </ul>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-bold text-navy">{te("totalsByBuilding")}</h2>
+                <h2 className="text-sm font-semibold text-navy">{te("totalsByBuilding")}</h2>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {totauxParImmeuble.map((x) => (
                     <li key={`${x.immeubleId}-${x.devise}`} className="flex justify-between gap-2">
@@ -395,7 +395,7 @@ export default function DepensesPage() {
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-600">
+                    <tr className="border-b border-slate-200 bg-cream font-semibold text-navy">
                       <th className="px-4 py-3">{te("fields.date")}</th>
                       <th className="px-4 py-3">{te("fields.building")}</th>
                       <th className="px-4 py-3">{te("fields.apartment")}</th>
@@ -470,7 +470,7 @@ export default function DepensesPage() {
       {aAjouter ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="mx-auto mt-8 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-navy">{te("formTitleNew")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{te("formTitleNew")}</h2>
             <div className="mt-4">
               <DepenseForm immeubles={immeubles} appartements={appartements} onSubmit={handleCreer} submitLabel={tc("create")} />
             </div>
@@ -484,7 +484,7 @@ export default function DepensesPage() {
       {aModifier ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="mx-auto mt-8 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-navy">{te("formTitleEdit")}</h2>
+            <h2 className="text-lg font-semibold text-navy">{te("formTitleEdit")}</h2>
             <div className="mt-4">
               <DepenseForm immeubles={immeubles} appartements={appartements} depense={aModifier} onSubmit={handleModifier} submitLabel={tc("save")} />
             </div>
