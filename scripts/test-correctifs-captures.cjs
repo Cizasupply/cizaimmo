@@ -43,6 +43,19 @@
 //     refusé ; le Super Admin voit tout. Le filtre existait déjà
 //     dans les deux fournisseurs : verrouillé ici en démo, et côté
 //     réel dans scripts/test-finances-reel.cjs.
+//  10. Renommage de la vue Finances pour l'Admin (ajout fondateur,
+//     2026-11-08) : le périmètre données était déjà filtré et
+//     prouvé, mais les libellés parlaient de la plateforme entière
+//     (« Finances de la plateforme », « Paie des employés ») alors
+//     que l'Admin ne voit que ses données. La vue Admin passe à la
+//     première personne : titre « Ma paie et mes dépenses » +
+//     sous-titre adapté, « Mes totaux du mois », « Ma paie »,
+//     « Mon historique de paies » (FR + EN) ; la section dépenses
+//     était déjà « Mes dépenses ». Vue Super Admin STRICTEMENT
+//     inchangée. Contrôles statiques : patron conditionnel par
+//     rôle dans la page + valeurs exactes des clés des deux rôles
+//     dans les deux langues (la parité FR/EN est vérifiée par
+//     scripts/i18n-check.py dans run-tests.sh).
 // Fournisseur démo pour le runtime ; localStorage simulé en mémoire.
 // Compilation préalable via scripts/run-tests.sh (TEST_BUILD_DIR).
 const fs = require("fs");
@@ -565,6 +578,39 @@ const PARAMS_A = {
     errArchAdmin.code === "ERR_SUPER_ADMIN_REQUIS" &&
     errListeAdmin9.code === "ERR_SUPER_ADMIN_REQUIS",
     `${errLuAdmin.code}/${errArchAdmin.code}/${errListeAdmin9.code}`);
+
+  console.log("== Point 10 : finances — libellés première personne pour l'Admin (renommage 2026-11-08) ==");
+  const msgFr10 = JSON.parse(lire("messages/fr.json")).financesPlateforme;
+  const msgEn10 = JSON.parse(lire("messages/en.json")).financesPlateforme;
+  check("page : titre et sous-titre conditionnels par rôle (patron estSuper)",
+    finances.includes('estSuper ? tf("title") : tf("titleAdmin")') &&
+    finances.includes('estSuper ? tf("subtitle") : tf("subtitleAdmin")'));
+  check("page : totaux, section paie et historique conditionnels par rôle",
+    finances.includes('estSuper ? tf("totalsTitle") : tf("totalsTitleAdmin")') &&
+    finances.includes('estSuper ? tf("payTitle") : tf("payTitleAdmin")') &&
+    finances.includes('estSuper ? tf("historyTitle") : tf("historyTitleAdmin")'));
+  check("FR : libellés Admin exacts",
+    msgFr10.titleAdmin === "Ma paie et mes dépenses" &&
+    msgFr10.totalsTitleAdmin === "Mes totaux du mois" &&
+    msgFr10.payTitleAdmin === "Ma paie" &&
+    msgFr10.historyTitleAdmin === "Mon historique de paies" &&
+    typeof msgFr10.subtitleAdmin === "string" && msgFr10.subtitleAdmin.length > 0);
+  check("FR : libellés Super Admin inchangés (vue plateforme)",
+    msgFr10.title === "Finances de la plateforme" &&
+    msgFr10.subtitle === "Paie des employés et dépenses de fonctionnement de CizaImmo." &&
+    msgFr10.totalsTitle === "Totaux du mois" &&
+    msgFr10.payTitle === "Paie des employés" &&
+    msgFr10.historyTitle === "Historique des paies émises");
+  check("EN : libellés Admin exacts, Super inchangés",
+    msgEn10.titleAdmin === "My pay and my expenses" &&
+    msgEn10.totalsTitleAdmin === "My monthly totals" &&
+    msgEn10.payTitleAdmin === "My pay" &&
+    msgEn10.historyTitleAdmin === "My pay history" &&
+    typeof msgEn10.subtitleAdmin === "string" && msgEn10.subtitleAdmin.length > 0 &&
+    msgEn10.title === "Platform finances" &&
+    msgEn10.totalsTitle === "Monthly totals" &&
+    msgEn10.payTitle === "Employee payroll" &&
+    msgEn10.historyTitle === "Issued payroll history");
 
   console.log(`\nRésultat : ${ok} OK, ${ko} KO`);
   process.exit(ko > 0 ? 1 : 0);

@@ -15,6 +15,11 @@
  *  - L'Admin ne voit ici que SA ligne de paie, SES dépenses et SON
  *    historique (le fournisseur filtre par rôle ; la RLS double en
  *    réel pour la validation).
+ *  - PRÉSENTATION PAR RÔLE (2026-11-08) : la vue Admin porte des
+ *    libellés à la première personne (« Ma paie et mes dépenses »,
+ *    « Mes totaux du mois », « Ma paie », « Mon historique de
+ *    paies ») pour ne pas laisser croire à une vue plateforme —
+ *    la vue Super Admin garde les libellés plateforme inchangés.
  *  - Totaux du mois PAR DEVISE — aucune conversion inventée.
  */
 
@@ -213,8 +218,12 @@ export default function FinancesPlateformePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-navy md:text-2xl">{tf("title")}</h1>
-        <p className="mt-1 text-sm text-slate-500">{tf("subtitle")}</p>
+        <h1 className="text-xl font-bold text-navy md:text-2xl">
+          {estSuper ? tf("title") : tf("titleAdmin")}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {estSuper ? tf("subtitle") : tf("subtitleAdmin")}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -242,7 +251,9 @@ export default function FinancesPlateformePage() {
 
       {/* ---- Totaux du mois, par devise ---- */}
       <section className={CARTE}>
-        <h2 className="text-base font-bold text-navy">{tf("totalsTitle")}</h2>
+        <h2 className="text-base font-bold text-navy">
+          {estSuper ? tf("totalsTitle") : tf("totalsTitleAdmin")}
+        </h2>
         {vue && vue.totaux.length > 0 ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {vue.totaux.map((t) => (
@@ -280,7 +291,9 @@ export default function FinancesPlateformePage() {
 
       {/* ---- Paie des employés ---- */}
       <section className={CARTE}>
-        <h2 className="text-base font-bold text-navy">{tf("payTitle")}</h2>
+        <h2 className="text-base font-bold text-navy">
+          {estSuper ? tf("payTitle") : tf("payTitleAdmin")}
+        </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("payIntro") : tf("payIntroAdmin")}
         </p>
@@ -427,7 +440,7 @@ export default function FinancesPlateformePage() {
 
         {/* Historique des paies émises. */}
         <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-slate-500">
-          {tf("historyTitle")}
+          {estSuper ? tf("historyTitle") : tf("historyTitleAdmin")}
         </h3>
         {vue && vue.historique_paies.length > 0 ? (
           <ul className="mt-2 divide-y divide-slate-100">

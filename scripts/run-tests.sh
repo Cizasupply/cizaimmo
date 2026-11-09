@@ -588,7 +588,7 @@ fi
 # historique, totaux), talon d'un autre refusé, Super voit tout
 # (démo ici, réel contraint dans test-finances-reel.cjs).
 echo ""
-echo "===== Passe corrective captures (8 points, 2026-11-08) ====="
+echo "===== Passe corrective captures (points 1-10, 2026-11-08) ====="
 if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-correctifs-captures.cjs"; then
   echo "Passe corrective captures : OK"
 else
