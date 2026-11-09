@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import FilMessages, { erreurV15 } from "@/components/FilMessages";
 import { getDataProvider } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
@@ -45,11 +46,16 @@ export default function ConsoleMessagesSupervisesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("supervisedTitle")}</h1>
-      <p className="mt-1 text-sm text-slate-600">{t("supervisedSubtitle")}</p>
-      <p className="mt-3 inline-block rounded-full bg-slate-700 px-3 py-1 text-xs font-bold text-white">
-        🔒 {t("supervisionReadOnly")}
-      </p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08) :
+          la pastille « lecture seule » passe en variante or
+          translucide, lisible sur le marine. */}
+      <BandeauPage>
+        <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("supervisedTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("supervisedSubtitle")}</p>
+        <p className="mt-3 inline-block rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-bold text-gold">
+          🔒 {t("supervisionReadOnly")}
+        </p>
+      </BandeauPage>
 
       {erreur ? (
         <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

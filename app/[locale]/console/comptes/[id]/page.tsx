@@ -22,6 +22,7 @@ import { getDataProvider } from "@/lib/data";
 import type { DossierCompte, MotifRefus, Profil } from "@/lib/data";
 import type { ChecklistDossierSaisie, Conversation } from "@/lib/data/types";
 import AssignationModale from "@/components/AssignationModale";
+import BandeauPage from "@/components/BandeauPage";
 import FilMessages from "@/components/FilMessages";
 import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
@@ -51,6 +52,10 @@ export default function ConsoleDossierPage({
   const [moi, setMoi] = useState<Profil | null>(null);
   const [assignationOuverte, setAssignationOuverte] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
+  // Accordéon Messages (2026-11-08) : section repliée par défaut
+  // pour raccourcir la page ; arrivée par l'ancre #messages (boîte
+  // de réception console, carte Vue d'ensemble) = section dépliée.
+  const [messagesOuverts, setMessagesOuverts] = useState(false);
   const [introuvable, setIntrouvable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -89,6 +94,18 @@ export default function ConsoleDossierPage({
   useEffect(() => {
     charger();
   }, [charger]);
+
+  // Ancre #messages : ouvrir l'accordéon à l'arrivée (et lors d'un
+  // changement de hash) — la section elle-même porte l'id, son haut
+  // ne bouge pas selon l'état, l'ancrage natif reste exact.
+  useEffect(() => {
+    const ouvrirSiAncre = () => {
+      if (window.location.hash === "#messages") setMessagesOuverts(true);
+    };
+    ouvrirSiAncre();
+    window.addEventListener("hashchange", ouvrirSiAncre);
+    return () => window.removeEventListener("hashchange", ouvrirSiAncre);
+  }, []);
 
   // Resynchronise les coches quand le dossier (re)chargé change de
   // consignation (autre Admin passé entre-temps, rechargement…).
@@ -254,24 +271,29 @@ export default function ConsoleDossierPage({
 
   return (
     <div>
-      <Link href={`/${locale}/console/comptes`} className="text-sm font-semibold text-navy underline">
-        ← {t("accountsTitle")}
-      </Link>
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-navy md:text-3xl">{compte.nom}</h1>
-          <p className="mt-1 break-words text-sm text-slate-500">
-            {compte.email}
-            {compte.display_id ? (
-              <>
-                {" · "}
-                <strong className="whitespace-nowrap font-bold tracking-wide text-navy">{compte.display_id}</strong>
-              </>
-            ) : null}
-            {" · "}
-            {t(`intention.${compte.type_intention}` as "intention.proprietaire")}
-          </p>
-        </div>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08) :
+          lien retour or, titre blanc, méta slate-300, Display ID
+          en accent or (insécable conservé), pastilles claires
+          inchangées — lisibles sur le marine. */}
+      <BandeauPage>
+        <Link href={`/${locale}/console/comptes`} className="text-sm font-semibold text-gold underline">
+          ← {t("accountsTitle")}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-white md:text-3xl">{compte.nom}</h1>
+            <p className="mt-1 break-words text-sm text-slate-300">
+              {compte.email}
+              {compte.display_id ? (
+                <>
+                  {" · "}
+                  <strong className="whitespace-nowrap font-bold tracking-wide text-gold">{compte.display_id}</strong>
+                </>
+              ) : null}
+              {" · "}
+              {t(`intention.${compte.type_intention}` as "intention.proprietaire")}
+            </p>
+          </div>
         <div className="flex flex-wrap gap-2">
           {!compte.dossier_complet ? (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
@@ -287,8 +309,9 @@ export default function ConsoleDossierPage({
               ⚠ {t("badgeToVerify")}
             </span>
           ) : null}
+          </div>
         </div>
-      </div>
+      </BandeauPage>
 
       {message ? (
         <p role="status" className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
@@ -908,17 +931,52 @@ export default function ConsoleDossierPage({
       {/* v1.5 : fil plateforme du client — la plateforme peut répondre
           (fil « plateforme » ; marquerLu à l'ouverture via FilMessages).
           Ancre #messages : cible des liens de la boîte de réception
-          console et de la Vue d'ensemble (2026-11-07). */}
+          console et de la Vue d'ensemble (2026-11-07).
+          Accordéon (2026-11-08, demande du fondateur) : replié par
+          défaut pour raccourcir la page — l'en-tête (titre, pastille
+          des non-lus déjà chargés, chevron) reste visible ; le fil
+          et le formulaire de réponse ne se montent qu'à l'ouverture
+          (FilMessages marque alors le fil comme lu, comme avant).
+          Arrivée par l'ancre #messages = déplié (effet ci-dessus). */}
       <section id="messages" className="mt-6 scroll-mt-6 rounded-2xl border border-gold/40 bg-white p-5">
-        <h2 className="font-semibold text-navy">{t15("messagesTitle")}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
-        <div className="mt-4">
-          {conversation ? (
-            <FilMessages conversationId={conversation.id} />
-          ) : (
-            <p className="text-sm text-slate-500">{t15("noConversations")}</p>
-          )}
-        </div>
+        <h2>
+          <button
+            type="button"
+            onClick={() => setMessagesOuverts((ouvert) => !ouvert)}
+            aria-expanded={messagesOuverts}
+            aria-controls="messages-contenu"
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-navy">{t15("messagesTitle")}</span>
+              {conversation?.non_lus ? (
+                <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-bold text-navy-dark">
+                  {conversation.non_lus}
+                </span>
+              ) : null}
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className={`h-5 w-5 shrink-0 text-navy transition-transform duration-200 ${messagesOuverts ? "rotate-180" : ""}`}
+            >
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </h2>
+        {messagesOuverts ? (
+          <div id="messages-contenu">
+            <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
+            <div className="mt-4">
+              {conversation ? (
+                <FilMessages conversationId={conversation.id} />
+              ) : (
+                <p className="text-sm text-slate-500">{t15("noConversations")}</p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {assignationOuverte ? (

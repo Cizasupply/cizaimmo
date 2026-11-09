@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import { getDataProvider } from "@/lib/data";
 import type { SupervisionGestionnaire } from "@/lib/data";
 
@@ -63,15 +64,20 @@ export default function SupervisionPage() {
         <p className="mt-6 text-sm text-slate-500">{t("loading")}</p>
       ) : supervision ? (
         <div className="mt-6">
-          <h1 className="text-2xl font-semibold text-navy">
-            {supervision.rattachement.gestionnaire_nom ?? supervision.rattachement.gestionnaire_email}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {supervision.rattachement.gestionnaire_email} ·{" "}
-            {supervision.rattachement.contexte === "cizagroup"
-              ? t("contextCizaGroup")
-              : `${t("contextOwner")} : ${supervision.rattachement.proprietaire_nom ?? supervision.rattachement.proprietaire_id ?? ""}`}
-          </p>
+          {/* Bandeau de titre marine « Marine & Or » (2026-11-08) :
+              titre + méta du fil supervisé (la page garde son lien
+              retour et sa bannière de supervision au-dessus). */}
+          <BandeauPage>
+            <h1 className="text-2xl font-semibold text-white">
+              {supervision.rattachement.gestionnaire_nom ?? supervision.rattachement.gestionnaire_email}
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              {supervision.rattachement.gestionnaire_email} ·{" "}
+              {supervision.rattachement.contexte === "cizagroup"
+                ? t("contextCizaGroup")
+                : `${t("contextOwner")} : ${supervision.rattachement.proprietaire_nom ?? supervision.rattachement.proprietaire_id ?? ""}`}
+            </p>
+          </BandeauPage>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {supervision.immeubles.length === 0 ? (

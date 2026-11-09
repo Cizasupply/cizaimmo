@@ -98,7 +98,10 @@ for (const cle of ["overview", "accounts", "managers", "myFiles", "supervisedMes
 // ---------- 2. Vue d'ensemble : héros + KPI à accents ----------
 const accueil = lire("app/[locale]/console/page.tsx");
 check("vue d'ensemble : carte héros marine (fond bg-navy, chiffres or)",
-  accueil.includes("rounded-2xl bg-navy p-5 text-white shadow-sm") &&
+  // Harmonisation 2026-11-08 : le héros reçoit la bordure or/40 du
+  // patron BandeauPage (même marine, même chiffres or) — la chaîne
+  // exacte inclut désormais « border border-gold/40 ».
+  accueil.includes("rounded-2xl border border-gold/40 bg-navy p-5 text-white shadow-sm") &&
   (accueil.split("text-3xl font-bold text-gold").length - 1) >= 3);
 check("vue d'ensemble : héros bâti sur les compteurs existants (enAttente, comptes, totalMessagesNonLus)",
   accueil.includes("{enAttente.length}") && accueil.includes("{comptes.length}") &&

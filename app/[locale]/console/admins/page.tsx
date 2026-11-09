@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import PackEmployeAdmin from "@/components/PackEmployeAdmin";
@@ -102,8 +103,11 @@ export default function ConsoleAdminsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("adminsTitle")}</h1>
-      <p className="mt-1 text-sm text-slate-600">{t("adminsSubtitle")}</p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("adminsTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("adminsSubtitle")}</p>
+      </BandeauPage>
 
       {message ? (
         <p role="status" className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">{message}</p>

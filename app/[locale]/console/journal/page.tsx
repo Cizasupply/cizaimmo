@@ -35,6 +35,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import { getDataProvider } from "@/lib/data";
 import type { EntreeAudit, Profil } from "@/lib/data";
 import { actionAuditConnue, formatCibleAudit, formatDateTime, formatDetailsAudit, paginerListe, periodeJournalContient } from "@/lib/format";
@@ -254,7 +255,10 @@ export default function ConsoleJournalPage() {
   if (charge && profil && profil.role !== "super_admin") {
     return (
       <div>
-        <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("journalTitle")}</h1>
+        {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+        <BandeauPage>
+          <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("journalTitle")}</h1>
+        </BandeauPage>
         <p role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
           {t15("superOnly")}
         </p>
@@ -264,8 +268,11 @@ export default function ConsoleJournalPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("journalTitle")}</h1>
-      <p className="mt-1 text-sm text-slate-600">{t("journalSubtitle")}</p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("journalTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("journalSubtitle")}</p>
+      </BandeauPage>
 
       {/* Barre de filtres — carte au patron console (recherche +
           Action / Acteur / Période + réinitialiser + compteur). */}

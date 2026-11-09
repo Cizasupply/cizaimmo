@@ -137,7 +137,7 @@ export default function ConsoleAccueilPage() {
           en 3 colonnes étroites, les libellés se touchaient (« EN
           ATTENTE D'APPROBATION » collé à « COMPTES CLIENTS ») — les
           3 compteurs s'empilent sur mobile, 3 colonnes dès sm. */}
-      <section className="mt-6 rounded-2xl bg-navy p-5 text-white shadow-sm">
+      <section className="mt-6 rounded-2xl border border-gold/40 bg-navy p-5 text-white shadow-sm">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
           <div className="min-w-0">
             <p className="text-3xl font-bold text-gold">{enAttente.length}</p>

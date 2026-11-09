@@ -40,6 +40,7 @@ import type {
   VueFinancesPlateforme,
 } from "@/lib/data";
 import { DEVISES } from "@/lib/data";
+import BandeauPage from "@/components/BandeauPage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import DocumentUpload from "@/components/DocumentUpload";
@@ -229,14 +230,15 @@ export default function FinancesPlateformePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-navy md:text-2xl">
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-xl font-bold text-white md:text-2xl">
           {estSuper ? tf("title") : tf("titleAdmin")}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-300">
           {estSuper ? tf("subtitle") : tf("subtitleAdmin")}
         </p>
-      </div>
+      </BandeauPage>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm font-semibold text-navy">

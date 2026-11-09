@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import { getDataProvider } from "@/lib/data";
 import type { MembreEquipe, Profil, VerificationEmploye } from "@/lib/data";
 import { filtrerMembresEmployes } from "@/lib/pack-employe";
@@ -112,7 +113,10 @@ export default function PageVerifierEmploye() {
   if (charge && profil && profil.role !== "super_admin") {
     return (
       <div className="mx-auto w-full max-w-2xl">
-        <h1 className="text-xl font-bold text-navy">{t("verifyTitle")}</h1>
+        {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+        <BandeauPage>
+          <h1 className="text-xl font-bold text-white">{t("verifyTitle")}</h1>
+        </BandeauPage>
         <p
           role="alert"
           className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700"
@@ -125,8 +129,11 @@ export default function PageVerifierEmploye() {
 
   return (
     <div className="mx-auto w-full max-w-2xl xl:max-w-6xl">
-      <h1 className="text-xl font-bold text-navy">{t("verifyTitle")}</h1>
-      <p className="mt-1 text-sm text-slate-600">{t("verifySubtitle")}</p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-xl font-bold text-white">{t("verifyTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("verifySubtitle")}</p>
+      </BandeauPage>
 
       {/* Bureau large (xl) : recherche + liste des employés à
           gauche, fiche de vérification à droite. En dessous de xl,

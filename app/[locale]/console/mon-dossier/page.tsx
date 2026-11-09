@@ -23,6 +23,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { DossierEmploye, PackEmploye, PaieEmploye } from "@/lib/data";
+import BandeauPage from "@/components/BandeauPage";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
@@ -371,11 +372,12 @@ export default function MonDossierEmployePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-navy">{t("title")}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">{t("intro")}</p>
-      </div>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-xl font-bold text-white">{t("title")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("subtitle")}</p>
+        <p className="mt-2 max-w-2xl text-sm text-slate-300">{t("intro")}</p>
+      </BandeauPage>
 
       {message ? (
         <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">

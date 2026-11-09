@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import { erreurV15 } from "@/components/FilMessages";
 import { getDataProvider } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
@@ -42,15 +43,19 @@ export default function ConsoleMessagesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-navy md:text-3xl">
-        {t("messagesTitle")}
-        {totalNonLus > 0 ? (
-          <span className="ml-3 align-middle rounded-full bg-gold px-2.5 py-1 text-sm font-bold text-navy-dark">
-            {totalNonLus}
-          </span>
-        ) : null}
-      </h1>
-      <p className="mt-1 text-sm text-slate-600">{t("messagesSubtitle")}</p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08) :
+          la pastille or des non-lus ressort sur le marine. */}
+      <BandeauPage>
+        <h1 className="text-2xl font-semibold text-white md:text-3xl">
+          {t("messagesTitle")}
+          {totalNonLus > 0 ? (
+            <span className="ml-3 align-middle rounded-full bg-gold px-2.5 py-1 text-sm font-bold text-navy-dark">
+              {totalNonLus}
+            </span>
+          ) : null}
+        </h1>
+        <p className="mt-1 text-sm text-slate-300">{t("messagesSubtitle")}</p>
+      </BandeauPage>
 
       {erreur ? (
         <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

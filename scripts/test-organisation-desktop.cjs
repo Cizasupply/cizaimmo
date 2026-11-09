@@ -163,5 +163,84 @@ check("Correctif Vérifier : colonnes xl réductibles (min-w-0)",
 check("Correctif Vue d'ensemble : colonnes xl réductibles (min-w-0)",
   contient(vue, "space-y-8 xl:space-y-6 min-w-0") && contient(vue, "xl:mt-0 min-w-0"));
 
+// ---------------------------------------------------------------------------
+// Bandeau de titre marine (2026-11-08, ordre du fondateur : « Donne
+// le fond d'écran au titre ») — la zone d'en-tête des pages console
+// repose sur le composant PARTAGÉ BandeauPage (fond marine #1B2A4A,
+// coins arrondis, bordure or/40 assortie aux cartes) au lieu du fond
+// crème : titre en blanc, méta/sous-titre en slate-300, accents or.
+// Aucune structure de grille ajoutée par le bandeau (le mobile garde
+// sa structure ; seule la teinte de la zone titre change).
+const bandeau = lire("components/BandeauPage.tsx");
+check("Bandeau : composant partagé — marine, bordure or/40, arrondi, texte blanc",
+  contient(bandeau, "rounded-2xl border border-gold/40 bg-navy") &&
+  contient(bandeau, "text-white shadow-sm"));
+check("Bandeau : aucune structure de grille/bureau dans le composant (cosmétique)",
+  !contient(bandeau, "grid") && !contient(bandeau, "xl:") && !contient(bandeau, "lg:"));
+
+const comptesListe = lire("app/[locale]/console/comptes/page.tsx");
+const financesParametres = lire("app/[locale]/console/finances/page.tsx");
+const mesDossiers = lire("app/[locale]/console/mes-dossiers/page.tsx");
+const gestionnaires = lire("app/[locale]/console/gestionnaires/page.tsx");
+const messagesSupervises = lire("app/[locale]/console/messages-supervises/page.tsx");
+const suppressions = lire("app/[locale]/console/suppressions/page.tsx");
+const supervision = lire("app/[locale]/console/supervision/[rattachementId]/page.tsx");
+
+const pagesBandeau = [
+  ["Dossier client", dossier],
+  ["Finances plateforme", fin],
+  ["Mon dossier employé", monDossier],
+  ["Équipe", equipe],
+  ["Vérifier un employé", verifier],
+  ["Journal d'audit", journal],
+  ["Messages", messages],
+  ["Messages supervisés", messagesSupervises],
+  ["Vitrine (supervision)", vitrine],
+  ["Mes dossiers", mesDossiers],
+  ["Gestionnaires", gestionnaires],
+  ["Comptes", comptesListe],
+  ["Finances (paramètres)", financesParametres],
+  ["Suppressions", suppressions],
+  ["Supervision (détail)", supervision],
+];
+for (const [nom, src] of pagesBandeau) {
+  check(`Bandeau : page ${nom} — BandeauPage présent, titre H1 en blanc`,
+    contient(src, "<BandeauPage>") && /<h1 className="[^"]*text-white/.test(src));
+}
+check("Bandeau : Dossier — lien retour en accent or",
+  contient(dossier, "font-semibold text-gold underline"));
+check("Bandeau : Dossier — méta en slate-300 sur marine",
+  contient(dossier, "break-words text-sm text-slate-300"));
+check("Bandeau : Messages supervisés — pastille lecture seule en variante or translucide",
+  contient(messagesSupervises, "border-gold/40 bg-gold/15") &&
+  contient(messagesSupervises, "text-gold"));
+check("Bandeau : Vue d'ensemble — héros marine harmonisé (bordure or/40, pas de doublon)",
+  contient(vue, "rounded-2xl border border-gold/40 bg-navy p-5 text-white shadow-sm") &&
+  !contient(vue, "<BandeauPage>"));
+
+// ---------------------------------------------------------------------------
+// Accordéon Messages du Dossier (2026-11-08) : section repliée par
+// défaut (seul l'en-tête reste visible), ouverture par clic
+// (aria-expanded) et arrivée par l'ancre #messages = dépliée ;
+// l'ancre elle-même (id de la section) est inchangée.
+check("Accordéon Messages : état replié par défaut (useState(false))",
+  contient(dossier, "const [messagesOuverts, setMessagesOuverts] = useState(false)"));
+check("Accordéon Messages : bouton accessible (aria-expanded + aria-controls)",
+  contient(dossier, "aria-expanded={messagesOuverts}") &&
+  contient(dossier, 'aria-controls="messages-contenu"') &&
+  contient(dossier, 'id="messages-contenu"'));
+check("Accordéon Messages : ouverture à l'arrivée par l'ancre #messages",
+  contient(dossier, 'window.location.hash === "#messages"') &&
+  contient(dossier, '"hashchange"'));
+check("Accordéon Messages : ancre #messages inchangée (id de la section)",
+  contient(dossier, '<section id="messages"'));
+check("Accordéon Messages : fil monté seulement une fois déplié (rendu conditionnel)",
+  contient(dossier, "{messagesOuverts ? (") &&
+  contient(dossier, "<FilMessages conversationId={conversation.id} />"));
+check("Accordéon Messages : pastille des non-lus déjà chargés (aucun nouvel appel)",
+  contient(dossier, "conversation?.non_lus"));
+check("Accordéon Messages : chevron qui pivote à l'ouverture",
+  contient(dossier, 'messagesOuverts ? "rotate-180" : ""'));
+
 console.log(`\nOrganisation desktop premium : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

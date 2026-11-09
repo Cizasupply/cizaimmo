@@ -40,7 +40,10 @@ const cibles = [
    '<strong className="whitespace-nowrap font-bold tracking-wide text-navy">{compte.display_id}</strong>',
    "console comptes : Display ID insécable"],
   ["app/[locale]/console/comptes/[id]/page.tsx",
-   '<strong className="whitespace-nowrap font-bold tracking-wide text-navy">{compte.display_id}</strong>',
+   // Bandeau de titre marine (2026-11-08) : le Display ID de
+   // l'en-tête passe en accent OR sur fond marine — l'insécable
+   // (whitespace-nowrap) est inchangé, seule la couleur change.
+   '<strong className="whitespace-nowrap font-bold tracking-wide text-gold">{compte.display_id}</strong>',
    "console dossier : Display ID insécable"],
   ["app/[locale]/console/mes-dossiers/page.tsx",
    '<strong className="whitespace-nowrap font-bold tracking-wide text-navy">',

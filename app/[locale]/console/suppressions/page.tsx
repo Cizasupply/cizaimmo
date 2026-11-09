@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BandeauPage from "@/components/BandeauPage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { erreurV15 } from "@/components/FilMessages";
 import { getDataProvider } from "@/lib/data";
@@ -63,7 +64,10 @@ export default function ConsoleSuppressionsPage() {
   if (!chargement && profil && profil.role !== "super_admin") {
     return (
       <div>
-        <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
+        {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+        <BandeauPage>
+          <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("deletionsTitle")}</h1>
+        </BandeauPage>
         <p role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
           {t("superOnly")}
         </p>
@@ -73,8 +77,11 @@ export default function ConsoleSuppressionsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-navy md:text-3xl">{t("deletionsTitle")}</h1>
-      <p className="mt-1 text-sm text-slate-600">{t("deletionsSubtitle")}</p>
+      {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
+      <BandeauPage>
+        <h1 className="text-2xl font-semibold text-white md:text-3xl">{t("deletionsTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{t("deletionsSubtitle")}</p>
+      </BandeauPage>
 
       {message ? (
         <p role="status" className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">

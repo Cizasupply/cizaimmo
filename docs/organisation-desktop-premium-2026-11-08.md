@@ -208,3 +208,82 @@ i18n intacte).
   préexistants du Module 3 (fixtures démo sensibles à la date :
   « dû » devenu « en retard »), signalés et non corrigés.
 - `npx tsc --noEmit` propre ; `npm run build` propre (101/101 pages).
+
+## Ajout du même jour — Bandeau de titre marine (« Donne le fond d'écran au titre »)
+
+Ordre du fondateur sur la capture du Dossier corrigé : le titre
+(« Kaneza Rehema ») reposait directement sur le fond crème. La **zone
+d'en-tête** des pages console (lien retour éventuel + titre H1 + ligne
+méta/sous-titre + pastilles d'état) reçoit désormais un **bandeau
+marine** assorti aux cartes.
+
+### Patron retenu — composant partagé `components/BandeauPage.tsx`
+
+- Classes : `rounded-2xl border border-gold/40 bg-navy p-4 text-white
+  shadow-sm md:p-5` — marine #1B2A4A, coins arrondis comme les cartes,
+  bordure or/40 assortie à celle des cartes, ombre légère.
+- À l'intérieur : titre en **blanc** (gras conservé), méta et
+  sous-titre en **slate-300**, accents **or** pour le lien retour et le
+  Display ID (insécable conservé — le test « Display ID insécable » a
+  été ajusté à la nouvelle couleur, protection inchangée).
+- Pastilles présentes dans la zone : celles du Dossier (ambre/vert
+  claires) restent telles quelles — lisibles sur marine ; la pastille
+  or des non-lus (Messages) ressort sur le marine ; la pastille
+  « lecture seule » des Messages supervisés passe en variante or
+  translucide (`border-gold/40 bg-gold/15 text-gold`), l'ancienne
+  slate-700 étant illisible sur marine.
+- Mobile ET bureau : même bandeau (compact sur mobile, pleine largeur
+  du conteneur 1600 px sur bureau). Aucun texte, aucune règle, aucun
+  fournisseur modifiés ; les bordures des cartes hors zone titre sont
+  inchangées.
+
+### Pages traitées
+
+Dossier client (`comptes/[id]` — lien retour + titre + méta +
+pastilles dans le bandeau), Finances plateforme, Mon dossier employé,
+Équipe (`admins`), Vérifier un employé (vue normale **et** vue refus),
+Journal d'audit (vue normale **et** vue refus), Messages, Messages
+supervisés, Vitrine (supervision), Mes dossiers, Gestionnaires — plus,
+au même patron (en-tête titre + sous-titre identique) : Comptes,
+Finances (paramètres), Suppressions (les deux vues) et la page détail
+Supervision (titre + méta bannerés ; son lien retour et sa bannière de
+supervision or, au-dessus, sont inchangés).
+
+**Vue d'ensemble** : son héros marine existant n'est PAS doublé — il
+est seulement harmonisé par l'ajout de la bordure `border-gold/40` du
+patron (le test « design console » a été ajusté à la nouvelle chaîne).
+
+### Accordéon Messages du Dossier (ajout du même jour)
+
+La section « Messages » du Dossier client (bas de page) devient un
+**accordéon** pour raccourcir la page :
+
+- **Repliée par défaut** : seul l'en-tête reste visible — titre,
+  chevron (SVG, pivote à l'ouverture), pastille or des **non-lus déjà
+  chargés** par la page (`conversation.non_lus`, aucun nouvel appel ;
+  le nombre total de messages n'étant pas chargé par la page, aucun
+  compteur total n'est affiché).
+- Clic sur l'en-tête (`<button aria-expanded aria-controls>`) :
+  déplie le fil complet et le formulaire de réponse, strictement
+  identiques. Le fil (`FilMessages`) ne se monte qu'à l'ouverture :
+  il marque donc le fil comme lu **à l'ouverture de la section**
+  (avant : dès l'affichage du Dossier).
+- **Exception ancre `#messages`** : arrivée avec le hash (lien de la
+  page console Messages, carte Vue d'ensemble) = section **dépliée**
+  (état initial + écoute `hashchange`), ancrage inchangé — la section
+  porte toujours `id="messages"`, et son haut ne bouge pas selon
+  l'état, donc l'ancrage natif reste exact.
+
+### Vérifications
+
+- `scripts/test-organisation-desktop.cjs` : **80 OK / 0 KO** (28
+  contrôles ajoutés : composant partagé, présence du bandeau et titre
+  blanc sur les 15 pages/vues, variantes de pastilles, héros
+  harmonisé, accordéon — repli par défaut, aria, ancre, pastille).
+- `scripts/test-display-id-insecable.cjs` : **10 OK / 0 KO** ;
+  `scripts/test-design-console.cjs` : **54 OK / 0 KO**.
+- Suite complète : **1 767 OK / 3 KO** — les 3 KO sont exactement les
+  préexistants du Module 3 (fixtures démo sensibles à la date),
+  signalés et non corrigés.
+- `npx tsc --noEmit` propre ; `npm run build` propre ; parité i18n
+  intacte (2 137 clés, aucun texte ajouté).
