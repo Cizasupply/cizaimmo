@@ -357,10 +357,10 @@ check("Système : Dashboard client — items de la paire en min-w-0 (anti-débor
   compte(dash, "min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6") === 2);
 check("Système : Fiche immeuble — enveloppe modèle 2 (lg:grid-cols-3, items-start)",
   contient(fiche, "lg:grid lg:grid-cols-3 lg:items-start lg:gap-6 lg:mt-6"));
-check("Système : Fiche immeuble — principale en col-span-2 (2 sections), sections en min-w-0 (4)",
-  compte(fiche, "lg:col-span-2 lg:mt-0 min-w-0") === 2 && compte(fiche, "lg:mt-0 min-w-0") === 4);
-check("Système : Fiche immeuble — grille interne du passeport à 1 colonne dans la latérale (lg:grid-cols-1)",
-  contient(fiche, "md:grid-cols-3 lg:grid-cols-1"));
+check("Système : Fiche immeuble — principale en col-span-2 (3 sections : Appartements, Dépenses, Passeport), sections en min-w-0 (4)",
+  compte(fiche, "lg:col-span-2 lg:mt-0 min-w-0") === 3 && compte(fiche, "lg:mt-0 min-w-0") === 4);
+check("Système : Fiche immeuble — grille interne du passeport adaptée à la principale (lg 2 col., xl 3 col. ; plus de lg:grid-cols-1)",
+  contient(fiche, "md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3") && !contient(fiche, "lg:grid-cols-1"));
 check("Système : Équipe — panneau de création teinté crème à bordure or",
   contient(equipe, "border-gold/40 bg-cream p-5 xl:mt-0 min-w-0"));
 check("Système : AppShell client — contenu plafonné 1600 px (md:max-w-[1600px])",
@@ -392,6 +392,7 @@ const etatsVides = [
   ["Suppressions (vide)", suppressions],
   ["Journal (vide / aucun résultat)", journal],
   ["Immeubles client (aucun résultat)", lire("app/[locale]/immeubles/page.tsx")],
+  ["Fiche immeuble (aucune dépense)", fiche],
   ["Dépenses client (aucun résultat)", lire("app/[locale]/depenses/page.tsx")],
   ["Vitrine client (vide)", lire("app/[locale]/vitrine/page.tsx")],
 ];
@@ -421,6 +422,7 @@ const fichiersTouches = [
   "app/[locale]/contrat/page.tsx", "app/[locale]/depenses/page.tsx",
   "app/[locale]/vitrine/page.tsx", "components/AppShell.tsx",
   "components/EmptyState.tsx", "components/EtatVideCentre.tsx",
+  "components/DocumentList.tsx",
 ];
 // TuileIcone est volontairement hors balayage : ses seules tailles
 // fixes sont la tuile (h-8 w-8) et l'icône interne (18 px), toutes
@@ -437,6 +439,44 @@ check("Anti-débordement : tableaux bureau à min-w contenus dans un overflow-x-
   contient(journal, "overflow-x-auto") && contient(suppressions, "overflow-x-auto") && contient(rapports, "overflow-x-auto"));
 check("Anti-débordement : les accordéons mobiles n'ajoutent aucune largeur (bouton en p-1.5, shrink-0)",
   compte(dossier, "shrink-0 rounded-full border border-slate-300 bg-white p-1.5 text-navy hover:border-gold lg:hidden") === 2);
+
+// ---------- Correctif fiche immeuble (captures bureau du fondateur,
+// Kaneza Home) ----------
+// Défauts photographiés : (1) le Passeport du bien (contenu long)
+// vivait dans la latérale 1/3 — carte étroite étirée, grand vide à
+// droite ; il passe dans la colonne principale 2/3, à la suite
+// d'Appartements et Dépenses ; la latérale ne garde que Documents.
+// (2) la carte Documents de la latérale était écrasée (pastille
+// catégorie cassée au milieu, méta sur plusieurs lignes, boutons
+// serrés) : DocumentList reçoit un mode `compact` pour colonnes
+// étroites. (3) l'état vide des Dépenses n'était pas centré.
+const docList = lire("components/DocumentList.tsx");
+check("Correctif fiche immeuble : Passeport en colonne principale — il suit Dépenses dans le DOM (ordre Appartements < Dépenses < Passeport)",
+  fiche.indexOf("buildings.detailExpenses") < fiche.indexOf("passport.title") &&
+  compte(fiche, "lg:col-span-2 lg:mt-0 min-w-0") === 3);
+check("Correctif fiche immeuble : latérale réduite aux Documents (1 section sans col-span dans la grille)",
+  compte(fiche, "lg:mt-0 min-w-0") - compte(fiche, "lg:col-span-2 lg:mt-0 min-w-0") === 1);
+check("Correctif fiche immeuble : Documents de la latérale rendus en mode compact",
+  contient(fiche, "<DocumentList documents={documents} onChange={charger} compact />"));
+check("Correctif fiche immeuble : état vide des Dépenses centré (EtatVideCentre importé et rendu)",
+  contient(fiche, "import EtatVideCentre from \"@/components/EtatVideCentre\"") &&
+  contient(fiche, "<EtatVideCentre><p className=\"text-slate-600\">{t(\"expenses.empty\")}</p></EtatVideCentre>") &&
+  !contient(fiche, "<p className=\"mt-2 text-slate-600\">{t(\"expenses.empty\")}</p>"));
+check("DocumentList : prop compact dédiée (défaut false)",
+  contient(docList, "compact = false") && contient(docList, "compact?: boolean"));
+check("DocumentList : ligne compacte toujours en colonne (jamais la rangée sm), en min-w-0",
+  contient(docList, "\"flex min-w-0 flex-col gap-2 py-3\""));
+check("DocumentList : pastille catégorie sans casse interne (whitespace-nowrap dans les deux modes)",
+  compte(docList, "whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold") === 2);
+check("DocumentList compact : pastille sous le nom, en bloc (inline-block)",
+  contient(docList, "inline-block whitespace-nowrap rounded-full"));
+check("DocumentList compact : méta date · taille sur une ligne (truncate + whitespace-nowrap)",
+  contient(docList, "truncate whitespace-nowrap text-sm text-slate-600"));
+check("DocumentList compact : actions en rangée de petits boutons tenant dans la carte (gap-1.5, px-2.5 py-1 text-xs ×3)",
+  contient(docList, "\"flex flex-wrap gap-1.5\"") && compte(docList, "px-2.5 py-1 text-xs font-semibold") === 3);
+check("DocumentList : mode standard inchangé (rangée dès sm, boutons px-3 py-1.5 text-sm)",
+  contient(docList, "\"flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between\"") &&
+  compte(docList, "px-3 py-1.5 text-sm font-semibold") === 3);
 
 console.log(`\nOrganisation desktop premium : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

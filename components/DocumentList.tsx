@@ -17,17 +17,26 @@ import { tailleMo } from "@/components/DocumentUpload";
  * En démo, un document dont le contenu n'a pas pu être conservé (fichier
  * trop gros pour localStorage) l'affiche honnêtement au lieu de prétendre
  * le conserver.
+ *
+ * Mode `compact` (correctif captures bureau du fondateur) : pour les
+ * listes rendues dans une COLONNE ÉTROITE (latérale de fiche) — la
+ * ligne reste en colonne à toute largeur : nom tronqué sur une ligne,
+ * pastille catégorie entière sous le nom (jamais de casse interne),
+ * méta date · taille sur une ligne, actions en rangée de petits
+ * boutons. En pleine largeur (défaut), la ligne passe en rangée dès sm.
  */
 export default function DocumentList({
   documents,
   onChange,
   showEntity = false,
   nomEntite,
+  compact = false,
 }: {
   documents: Document[];
   onChange: () => void;
   showEntity?: boolean;
   nomEntite?: (d: Document) => string;
+  compact?: boolean;
 }) {
   const t = useTranslations("documents");
   const tc = useTranslations("crud.common");
@@ -117,27 +126,57 @@ export default function DocumentList({
       ) : null}
       <ul className="divide-y divide-slate-200">
         {documents.map((doc) => (
-          <li key={doc.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <li
+            key={doc.id}
+            className={
+              compact
+                ? "flex min-w-0 flex-col gap-2 py-3"
+                : "flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"
+            }
+          >
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-navy" title={doc.nom_fichier}>{doc.nom_fichier}</p>
-              <p className="break-words text-sm text-slate-600">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${couleurTypeDocument(doc.type)}`}>
-                  {typeLabel(doc.type)}
-                </span>
-                {showEntity && nomEntite ? ` · ${nomEntite(doc)}` : ""}
-                {` · ${formatDate(doc.created_at.slice(0, 10), locale)}`}
-                {doc.taille_octets !== null && doc.taille_octets !== undefined ? ` · ${tailleMo(doc.taille_octets)}` : ""}
-              </p>
+              {compact ? (
+                <>
+                  {/* Colonne étroite : pastille catégorie SOUS le nom,
+                      entière (whitespace-nowrap — « Justificatif de
+                      paiement » ne casse plus au milieu), puis la méta
+                      (entité · date · taille) sur UNE ligne tronquée. */}
+                  <p className="mt-1">
+                    <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${couleurTypeDocument(doc.type)}`}>
+                      {typeLabel(doc.type)}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 truncate whitespace-nowrap text-sm text-slate-600">
+                    {showEntity && nomEntite ? `${nomEntite(doc)} · ` : ""}
+                    {formatDate(doc.created_at.slice(0, 10), locale)}
+                    {doc.taille_octets !== null && doc.taille_octets !== undefined ? ` · ${tailleMo(doc.taille_octets)}` : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="break-words text-sm text-slate-600">
+                  <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${couleurTypeDocument(doc.type)}`}>
+                    {typeLabel(doc.type)}
+                  </span>
+                  {showEntity && nomEntite ? ` · ${nomEntite(doc)}` : ""}
+                  {` · ${formatDate(doc.created_at.slice(0, 10), locale)}`}
+                  {doc.taille_octets !== null && doc.taille_octets !== undefined ? ` · ${tailleMo(doc.taille_octets)}` : ""}
+                </p>
+              )}
               {doc.contenu_non_conserve ? (
                 <p className="text-sm font-medium text-amber-700">{t("demoContentNotKept")}</p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className={compact ? "flex flex-wrap gap-1.5" : "flex shrink-0 flex-wrap gap-2"}>
               <button
                 type="button"
                 disabled={doc.contenu_non_conserve || action === doc.id}
                 onClick={() => telecharger(doc)}
-                className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy disabled:opacity-40"
+                className={
+                  compact
+                    ? "rounded-full border border-slate-300 px-2.5 py-1 text-xs font-semibold text-navy disabled:opacity-40"
+                    : "rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy disabled:opacity-40"
+                }
               >
                 {t("download")}
               </button>
@@ -147,14 +186,22 @@ export default function DocumentList({
                   setARenommer(doc);
                   setNouveauNom(doc.nom_fichier);
                 }}
-                className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy"
+                className={
+                  compact
+                    ? "rounded-full border border-slate-300 px-2.5 py-1 text-xs font-semibold text-navy"
+                    : "rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy"
+                }
               >
                 {t("rename")}
               </button>
               <button
                 type="button"
                 onClick={() => setASupprimer(doc)}
-                className="rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700"
+                className={
+                  compact
+                    ? "rounded-full border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-700"
+                    : "rounded-full border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700"
+                }
               >
                 {tc("delete")}
               </button>

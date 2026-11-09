@@ -68,7 +68,7 @@ Cette passe généralise le reste du système :
 |---|---|---|
 | Tableau de bord | 1 — Tableau de bord | **Conformé** : KPI déjà en tuiles ; paire « Fins de bail » 2/3 + « Dépenses du mois » 1/3 en lg (`lg:grid-cols-3` + `lg:col-span-2`, items `min-w-0`) ; tuiles d'en-tête (×6) |
 | Immeubles (liste) | Liste (cartes mobile / tableau bureau) | Déjà conforme (organisation validée antérieurement) ; état « aucun résultat » centré ; `EmptyState` gagne l'anneau |
-| Fiche immeuble / passeport | 2 — Fiche | **Conformée** : dès lg, principale (Appartements, Dépenses) 2/3 \| latérale (Documents, Passeport) 1/3 ; grille interne du passeport ramenée à 1 colonne dans la latérale (`lg:grid-cols-1`) ; sections en `min-w-0` ; tuiles d'en-tête (×4). Mobile : colonne unique, ordre DOM inchangé |
+| Fiche immeuble / passeport | 2 — Fiche | **Conformée** : dès lg, principale (Appartements, Dépenses) 2/3 \| latérale (Documents, Passeport) 1/3 ; grille interne du passeport ramenée à 1 colonne dans la latérale (`lg:grid-cols-1`) ; sections en `min-w-0` ; tuiles d'en-tête (×4). Mobile : colonne unique, ordre DOM inchangé. **Corrigée depuis** : voir la section « Correctif fiche immeuble » ci-dessous (le passeport a rejoint la principale) |
 | Appartements, Locataires, Reçus | Listes/tableaux | Déjà conformes (cartes mobile, tableaux bureau en `overflow-x-auto`) ; `EmptyState` gagne l'anneau |
 | Loyers | Liste + formulaire | Déjà conforme (tuiles de totaux, tableau contenu) ; en-têtes `text-sm` sans tuile (voir écarts) |
 | Finances du client (Dépenses) | Liste + totaux | Déjà conforme (formulaires en modales, pas de panneau latéral applicable) ; état « aucun résultat » centré |
@@ -131,9 +131,53 @@ finances Admin, accordéon Messages avec ouverture sur ancre
   (patron validé) — le modèle 3 s'y applique par les tuiles de
   totaux et la liste, pas par un panneau latéral.
 - **Fiche immeuble** : l'Indivision reste pleine largeur sous la
-  grille (section autonome) ; le passeport, très long, vit dans la
-  latérale en hauteur naturelle (`items-start`, aucune carte
-  étirée).
+  grille (section autonome). Le passeport, d'abord placé dans la
+  latérale en hauteur naturelle, a depuis rejoint la colonne
+  principale — voir « Correctif fiche immeuble » ci-dessous.
+
+## Correctif fiche immeuble (captures bureau du fondateur — Kaneza Home)
+
+Trois défauts photographiés sur la fiche de « Kaneza Home », corrigés
+dans la même organisation (modèle 2 — Fiche) :
+
+1. **Passeport dans la mauvaise colonne** : le passeport du bien
+   (identité, photos, valeur, travaux, historique complet, documents
+   du bien) vivait dans la latérale 1/3 — carte étroite étirée en
+   hauteur, grand vide à droite sous la carte Documents. Il passe
+   dans la **colonne principale 2/3** (`lg:col-span-2`), à la suite
+   d'Appartements et Dépenses ; sa grille interne suit la largeur
+   (`md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3`, le
+   `lg:grid-cols-1` de la latérale disparaît). La latérale ne garde
+   que **Documents**, bloc court. Mobile : ordre DOM et colonne
+   unique inchangés.
+2. **Carte Documents écrasée dans la latérale** : nom tronqué sans
+   garde, pastille catégorie cassée au milieu (« Justificati / f de
+   paiement »), méta date · taille sur plusieurs lignes, boutons
+   serrés. `DocumentList` reçoit un mode **`compact`** (fiche
+   immeuble seule l'active) : ligne toujours en colonne, nom sur une
+   ligne (`min-w-0` + truncate), pastille entière sous le nom
+   (`whitespace-nowrap` — appliqué aussi au mode standard, où la
+   casse interne disparaît partout), méta sur une ligne
+   (`truncate whitespace-nowrap`), actions en rangée de petits
+   boutons (`px-2.5 py-1 text-xs`, `flex-wrap`).
+   **Balayage colonnes étroites côté client** : fiche locataire —
+   section Documents en pleine largeur (sections empilées, aucune
+   latérale), aucun changement ; fiche appartement — pas de
+   `DocumentList` (liste texte du passeport en pleine largeur),
+   aucun changement ; page Documents — liste en carte pleine
+   largeur sans latérale, aucun changement. La fiche immeuble était
+   le seul rendu en colonne étroite.
+3. **État vide des Dépenses non centré** : « Aucune dépense pour
+   l'instant » passe par `EtatVideCentre`, comme les autres listes.
+
+Tests : bloc organisation étendu — les deux assertions qui
+verrouillaient l'ancien placement du passeport sont mises à jour
+(même protection, patron corrigé, commentées) et 11 contrôles
+« Correctif fiche immeuble / DocumentList compact » sont ajoutés
+(181 OK / 0 KO) ; suite complète **1 868 OK / 3 KO** (les 3 KO
+préexistants du Module 3, fixtures sensibles à la date) ; `tsc` et
+build propres ; aucun texte, aucune règle, aucun fournisseur
+touchés.
 
 ## Tests
 

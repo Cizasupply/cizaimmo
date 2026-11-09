@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentList from "@/components/DocumentList";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import IndivisionSection from "@/components/IndivisionSection";
 import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatPct } from "@/lib/format";
@@ -313,10 +314,13 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
         </dl>
       </div>
 
-      {/* Organisation bureau (système d’organisation, 2026-11-08) :
-          modèle Fiche — principale (Appartements, Dépenses) en 2/3,
-          latérale (Documents, Passeport) en 1/3 dès lg ; mobile :
-          colonne unique, ordre DOM inchangé. */}
+      {/* Organisation bureau (système d’organisation, 2026-11-08 ;
+          correctif captures bureau du fondateur, fiche Kaneza Home) :
+          modèle Fiche — principale (Appartements, Dépenses, Passeport)
+          en 2/3, latérale (Documents, bloc court) en 1/3 dès lg ;
+          mobile : colonne unique, ordre DOM inchangé. Le Passeport,
+          contenu long, vivait écrasé dans la latérale (carte étroite,
+          grand vide à droite) : il rejoint la colonne principale. */}
       <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-6 lg:mt-6">
       {/* Appartements */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 lg:mt-0 min-w-0">
@@ -364,7 +368,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 lg:mt-0 min-w-0">
         <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="expenses" />{t("buildings.detailExpenses")}</h2>
         {depenses.length === 0 ? (
-          <p className="mt-2 text-slate-600">{t("expenses.empty")}</p>
+          <EtatVideCentre><p className="text-slate-600">{t("expenses.empty")}</p></EtatVideCentre>
         ) : (
           <ul className="mt-4 space-y-2">
             {depenses.map((d) => (
@@ -380,7 +384,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:mt-0 min-w-0">
         <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="documents" />{t("buildings.detailDocuments")}</h2>
-        <DocumentList documents={documents} onChange={charger} />
+        <DocumentList documents={documents} onChange={charger} compact />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">
           {t("buildings.detailDocumentsAll")}
         </Link>
@@ -388,10 +392,14 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
 
       {/* Passeport du bien (spec §6 suite) — complet : identité, acquisition,
           valeur (+ date d'estimation, ROI), travaux (avec justificatifs),
-          historique complet (baux, paiements, alertes, fil), documents. */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:mt-0 min-w-0">
+          historique complet (baux, paiements, alertes, fil), documents.
+          Correctif captures fondateur : le passeport vit dans la colonne
+          PRINCIPALE (col-span-2), à la suite d'Appartements et Dépenses —
+          sa grille interne suit la largeur (2 colonnes en lg où la
+          principale est encore resserrée, 3 colonnes dès xl). */}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 lg:mt-0 min-w-0">
         <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="buildings" />{t("passport.title")}</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-3 lg:grid-cols-1">
+        <div className="mt-4 grid gap-4 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
           <div>
             <h3 className="font-semibold text-navy">{t("passport.identity")}</h3>
             <p className="mt-1 text-sm text-slate-700">
