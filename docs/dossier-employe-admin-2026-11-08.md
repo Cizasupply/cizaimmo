@@ -120,3 +120,36 @@ Admins » de `scripts/run-tests.sh`, harnais étendu à
 Suite complète verte (0 KO) et `npm run build` OK (route
 `/[locale]/console/mon-dossier` FR + EN). i18n : parité 1 880 clés
 FR = EN, namespace `dossierEmploye` + `console.myEmployeeFile`.
+
+## Texte d'introduction de « Mon dossier employé » (2026-11-08)
+
+Demande du fondateur sur capture (« le commentaire dans la page mon
+dossier, commentaire en haut à changer »), texte validé mot pour mot
+par lui : les deux anciens textes internes de l'en-tête — le
+sous-titre du bandeau (« Identité et adresse de l'employé — suivi par
+le Super Admin, jamais bloquant. ») et le paragraphe d'introduction
+(« …suivi par le Super Admin — sans jamais bloquer votre accès à la
+console. ») — sont remplacés par un texte unique, affiché une seule
+fois dans le bandeau (clé `dossierEmploye.subtitle`) :
+
+- FR : « Votre dossier d'employé CizaImmo : votre identité, votre
+  adresse et vos documents professionnels, réunis en un seul endroit.
+  Gardez vos informations à jour — elles servent à votre contrat, à
+  votre carte d'employé et à votre paie. »
+- EN : “Your CizaImmo employee file: your identity, your address and
+  your professional documents, all in one place. Keep your
+  information up to date — it is used for your contract, your
+  employee card and your pay.”
+
+La clé `dossierEmploye.intro` (devenue inutile, utilisée par cette
+seule page) est retirée des deux fichiers de messages ; la page
+n'affiche plus que `t("title")` + `t("subtitle")` dans le bandeau.
+Aucun autre changement (ni structure, ni règles, ni autres pages).
+
+Tests : 5 contrôles statiques ajoutés à
+`scripts/test-dossier-employe.cjs` (textes FR + EN verbatim, clé
+`intro` absente, anciennes formulations « suivi par le Super Admin » /
+« jamais bloquant » / EN absentes des messages, page sans
+`t("intro")`) — bloc Dossier employé 31 OK / 0 KO ; parité i18n
+2 136 clés FR = EN ; suite complète : seuls les 3 KO préexistants
+du Module 3 (fixtures sensibles à la date) subsistent.

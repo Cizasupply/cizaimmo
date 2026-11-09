@@ -376,8 +376,7 @@ export default function MonDossierEmployePage() {
       {/* Bandeau de titre marine « Marine & Or » (2026-11-08). */}
       <BandeauPage>
         <h1 className="text-xl font-bold text-white">{t("title")}</h1>
-        <p className="mt-1 text-sm text-slate-300">{t("subtitle")}</p>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">{t("intro")}</p>
+        <p className="mt-1 max-w-2xl text-sm text-slate-300">{t("subtitle")}</p>
       </BandeauPage>
 
       {message ? (

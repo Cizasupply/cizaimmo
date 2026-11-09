@@ -219,6 +219,35 @@ const PETITE_PHOTO = "data:image/jpeg;base64," + Buffer.from("photo-employe").to
     membrePromu.dossier_employe_manquants.includes("adresse"),
     membrePromu && JSON.stringify(membrePromu.dossier_employe_manquants));
 
+  console.log("== Texte d'introduction de « Mon dossier employé » (2026-11-08) ==");
+  // Texte validé mot pour mot par le fondateur : il remplace les deux
+  // anciens textes internes (sous-titre du bandeau + paragraphe
+  // d'introduction) par UN texte unique dans le bandeau (clé
+  // dossierEmploye.subtitle) ; la clé dossierEmploye.intro est retirée.
+  const TEXTE_FR = "Votre dossier d'employé CizaImmo : votre identité, votre adresse et vos documents professionnels, réunis en un seul endroit. Gardez vos informations à jour — elles servent à votre contrat, à votre carte d'employé et à votre paie.";
+  const TEXTE_EN = "Your CizaImmo employee file: your identity, your address and your professional documents, all in one place. Keep your information up to date — it is used for your contract, your employee card and your pay.";
+  const msgFrBrut = fs.readFileSync(path.join(RACINE, "messages/fr.json"), "utf8");
+  const msgEnBrut = fs.readFileSync(path.join(RACINE, "messages/en.json"), "utf8");
+  const msgFr = JSON.parse(msgFrBrut);
+  const msgEn = JSON.parse(msgEnBrut);
+  check("messages FR : dossierEmploye.subtitle = texte validé verbatim",
+    msgFr.dossierEmploye.subtitle === TEXTE_FR, msgFr.dossierEmploye.subtitle);
+  check("messages EN : dossierEmploye.subtitle = traduction validée verbatim",
+    msgEn.dossierEmploye.subtitle === TEXTE_EN, msgEn.dossierEmploye.subtitle);
+  check("messages FR+EN : clé dossierEmploye.intro retirée (parité conservée)",
+    !("intro" in msgFr.dossierEmploye) && !("intro" in msgEn.dossierEmploye));
+  const ANCIENS = [
+    "suivi par le Super Admin", "jamais bloquant", "sans jamais bloquer",
+    "tracked by the Super Admin", "never blocking", "without ever blocking",
+  ];
+  check("messages FR+EN : aucun ancien texte interne ne subsiste",
+    ANCIENS.every((a) => !msgFrBrut.includes(a) && !msgEnBrut.includes(a)),
+    ANCIENS.filter((a) => msgFrBrut.includes(a) || msgEnBrut.includes(a)).join(" | "));
+  const pageMonDossier = fs.readFileSync(
+    path.join(RACINE, "app/[locale]/console/mon-dossier/page.tsx"), "utf8");
+  check("page mon-dossier : bandeau avec le seul t(\"subtitle\"), t(\"intro\") disparu",
+    pageMonDossier.includes('{t("subtitle")}') && !pageMonDossier.includes('{t("intro")}'));
+
   console.log(`\nRésultat : ${ok} OK, ${ko} KO`);
   process.exit(ko ? 1 : 0);
 })().catch((e) => {
