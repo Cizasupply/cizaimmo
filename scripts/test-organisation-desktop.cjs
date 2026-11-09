@@ -74,6 +74,36 @@ check("Finances : dépenses liste 2/3 + formulaire 1/3 (xl:order)", contient(fin
 check("Finances : formulaire sticky en colonne latérale", contient(fin, "xl:sticky xl:top-6 xl:grid-cols-1"));
 check("Finances : racine mobile inchangée (pile space-y-5)", contient(fin, '<div className="space-y-5">'));
 
+// Équilibrage bureau Finances (captures du fondateur, 2026-11-08) :
+// la page restait déséquilibrée — carte de paie unique en
+// demi-cellule avec un grand vide à droite (vue Admin), liste de
+// dépenses vide laissant un vaste blanc pendant que le formulaire
+// flottait étroit à l'extrême droite. Traitement xl seulement.
+check("Équilibrage Finances : vue Admin — paie 7/12 | historique 5/12 côte à côte (grille xl 12 colonnes)",
+  contient(fin, "xl:grid xl:grid-cols-12 xl:items-start xl:gap-6") &&
+  contient(fin, "min-w-0 xl:col-span-7") && contient(fin, "min-w-0 xl:col-span-5"));
+check("Équilibrage Finances : titre historique Admin aligné sur le haut de la carte paie (xl:mt-4)",
+  contient(fin, "tracking-wide text-slate-500 xl:mt-4"));
+check("Équilibrage Finances : vue Admin — lignes de paie en pile pleine colonne (pas de grille xl)",
+  contient(fin, ': "mt-4 space-y-3"'));
+check("Équilibrage Finances : singleton paie Super Admin en pleine largeur (xl:col-span-2 conditionnel)",
+  contient(fin, "estSuper && (vue?.lignes_paie.length ?? 0) === 1") &&
+  contient(fin, '" xl:col-span-2"'));
+check("Équilibrage Finances : proportions dépenses par rôle (Super grille 3, Admin grille 5)",
+  contient(fin, 'estSuper ? "xl:grid-cols-3" : "xl:grid-cols-5"'));
+check("Équilibrage Finances : dépenses Admin — liste 3/5, formulaire 2/5",
+  contient(fin, "xl:order-1 xl:col-span-3 min-w-0") &&
+  contient(fin, "xl:order-2 xl:col-span-2 min-w-0"));
+check("Équilibrage Finances : formulaire = panneau latéral teinté (xl : crème, bordure or/40, arrondi, padding)",
+  contient(fin, "xl:rounded-2xl xl:border xl:border-gold/40 xl:bg-cream xl:p-5"));
+check("Équilibrage Finances : état vide des dépenses centré verticalement (grille stretch + colonne flex + flex-1)",
+  contient(fin, "xl:items-stretch") &&
+  contient(fin, "xl:flex xl:flex-1 xl:items-center xl:justify-center"));
+check("Équilibrage Finances : totaux — une seule devise = carte pleine largeur (pas de tiers de grille vide)",
+  contient(fin, "vue.totaux.length === 1") && contient(fin, '"mt-3 grid gap-3"'));
+check("Équilibrage Finances : mobile intact — base du formulaire sans préfixe conservée",
+  contient(fin, 'className="grid gap-3 md:grid-cols-2 xl:sticky'));
+
 // ---------- 4. Mon dossier employé ----------
 const monDossier = lire("app/[locale]/console/mon-dossier/page.tsx");
 check("Mon dossier : patron CARTE teinté or", contient(monDossier, 'const CARTE = "rounded-2xl border border-gold/40 bg-white p-5 shadow-sm"'));

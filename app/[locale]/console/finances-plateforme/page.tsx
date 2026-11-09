@@ -273,7 +273,17 @@ export default function FinancesPlateformePage() {
           {tf("totalsTitle")}
         </h2>
         {vue && vue.totaux.length > 0 ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          // Équilibrage bureau (2026-11-08) : une seule devise =
+          // sa carte prend la pleine largeur (ses 3 tuiles xl
+          // remplissent la rangée) au lieu d'un tiers de grille
+          // avec un grand vide à droite.
+          <div
+            className={
+              vue.totaux.length === 1
+                ? "mt-3 grid gap-3"
+                : "mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            }
+          >
             {vue.totaux.map((t) => (
               <div key={t.devise} className="rounded-xl border border-slate-200 p-3 min-w-0">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -322,15 +332,41 @@ export default function FinancesPlateformePage() {
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("payIntro") : tf("payIntroAdmin")}
         </p>
-        {/* Bureau large (xl) : les lignes de paie passent en
-            grille 2 colonnes au lieu d'une pile pleine largeur ;
-            en dessous, pile verticale d'origine. */}
-        <div className="mt-4 space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0">
-          {(vue?.lignes_paie ?? []).map((ligne) => (
-            <article
-              key={ligne.compte_id}
-              className="min-w-0 rounded-xl border border-slate-200 p-4"
+        {/* Bureau large (xl) — ÉQUILIBRAGE (captures bureau du
+            fondateur, 2026-11-08) :
+            - Vue Admin : sa ligne de paie et son historique se
+              placent CÔTE À CÔTE (grille 12 colonnes : paie 7/12,
+              historique 5/12, hauteurs équilibrées) au lieu d'être
+              empilés avec la carte paie en demi-cellule et un grand
+              vide à droite.
+            - Vue Super Admin : grille 2 colonnes pleine largeur
+              (inchangée), historique dessous ; si UNE seule ligne
+              de paie existe, elle occupe la pleine largeur de la
+              grille (xl:col-span-2) au lieu de laisser une
+              demi-cellule vide béante.
+            En dessous de xl : pile verticale d'origine, inchangée. */}
+        <div
+          className={
+            estSuper ? "" : "xl:grid xl:grid-cols-12 xl:items-start xl:gap-6"
+          }
+        >
+          <div className={estSuper ? "" : "min-w-0 xl:col-span-7"}>
+            <div
+              className={
+                estSuper
+                  ? "mt-4 space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0"
+                  : "mt-4 space-y-3"
+              }
             >
+              {(vue?.lignes_paie ?? []).map((ligne) => (
+                <article
+                  key={ligne.compte_id}
+                  className={`min-w-0 rounded-xl border border-slate-200 p-4${
+                    estSuper && (vue?.lignes_paie.length ?? 0) === 1
+                      ? " xl:col-span-2"
+                      : ""
+                  }`}
+                >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-navy">{ligne.nom}</h3>
@@ -463,11 +499,19 @@ export default function FinancesPlateformePage() {
                 </div>
               ) : null}
             </article>
-          ))}
-        </div>
+              ))}
+            </div>
+          </div>
 
-        {/* Historique des paies émises. */}
-        <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-slate-500">
+          <div className={estSuper ? "" : "min-w-0 xl:col-span-5"}>
+            {/* Historique des paies émises. */}
+            <h3
+              className={
+                estSuper
+                  ? "mt-6 text-sm font-bold uppercase tracking-wide text-slate-500"
+                  : "mt-6 text-sm font-bold uppercase tracking-wide text-slate-500 xl:mt-4"
+              }
+            >
           {estSuper ? tf("historyTitle") : tf("historyTitleAdmin")}
         </h3>
         {vue && vue.historique_paies.length > 0 ? (
@@ -511,6 +555,8 @@ export default function FinancesPlateformePage() {
         ) : (
           <p className="mt-2 text-sm text-slate-600">{tf("historyEmpty")}</p>
         )}
+          </div>
+        </div>
       </section>
 
       {/* ---- Bloc DÉPENSES (lot A : domaine 2 — chez l'Admin, ses
@@ -525,17 +571,36 @@ export default function FinancesPlateformePage() {
           {estSuper ? tf("expensesIntroSuper") : tf("expensesIntroAdmin")}
         </p>
 
-        {/* Bureau large (xl) : liste des dépenses à gauche (2/3),
-            formulaire de saisie en colonne droite (1/3, sticky).
+        {/* Bureau large (xl) — ÉQUILIBRAGE (2026-11-08) : liste à
+            gauche, formulaire de saisie en colonne droite ANCRÉE
+            comme un panneau latéral assumé (fond crème, bordure
+            or/40, sticky). Proportions par rôle : Admin = liste
+            3/5, formulaire 2/5 (grille 5 colonnes) ; Super Admin =
+            liste 2/3, formulaire 1/3 (grille 3 colonnes, inchangé).
             L'ordre DOM reste formulaire PUIS liste — la lecture
             mobile est strictement inchangée, xl:order-* n'échange
-            que la présentation bureau. */}
-        <div className="mt-4 xl:grid xl:grid-cols-3 xl:items-start xl:gap-6">
-          <div className="xl:order-2 xl:col-span-1 min-w-0">
-        {/* Formulaire de saisie (plateforme) : une colonne dans la
-            colonne latérale xl, deux colonnes en md comme avant. */}
-        <form
-          className="grid gap-3 md:grid-cols-2 xl:sticky xl:top-6 xl:grid-cols-1"
+            que la présentation bureau. La grille est en
+            items-stretch : la colonne liste épouse la hauteur du
+            panneau, et l'état vide se centre verticalement au lieu
+            de flotter en haut d'un vaste blanc. */}
+        <div
+          className={`mt-4 xl:grid xl:items-stretch xl:gap-6 ${
+            estSuper ? "xl:grid-cols-3" : "xl:grid-cols-5"
+          }`}
+        >
+          <div
+            className={
+              estSuper
+                ? "xl:order-2 xl:col-span-1 min-w-0"
+                : "xl:order-2 xl:col-span-2 min-w-0"
+            }
+          >
+            {/* Formulaire de saisie (plateforme) : une colonne dans
+            la colonne latérale xl, deux colonnes en md comme
+            avant ; en xl, le formulaire EST le panneau latéral
+            (fond crème + bordure or/40 + padding), sticky. */}
+            <form
+              className="grid gap-3 md:grid-cols-2 xl:sticky xl:top-6 xl:grid-cols-1 xl:rounded-2xl xl:border xl:border-gold/40 xl:bg-cream xl:p-5"
           onSubmit={(e) => {
             e.preventDefault();
             void ajouterDepense();
@@ -619,7 +684,13 @@ export default function FinancesPlateformePage() {
         </form>
           </div>
 
-          <div className="xl:order-1 xl:col-span-2 min-w-0">
+          <div
+            className={
+              estSuper
+                ? "xl:order-1 xl:col-span-2 min-w-0 xl:flex xl:flex-col"
+                : "xl:order-1 xl:col-span-3 min-w-0 xl:flex xl:flex-col"
+            }
+          >
         {/* Filtre par statut + liste du mois. */}
         <div className="mt-6 flex flex-wrap items-center gap-2 xl:mt-0">
           <label className="text-sm font-semibold text-navy">
@@ -739,7 +810,9 @@ export default function FinancesPlateformePage() {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-slate-600">{tf("expensesEmpty")}</p>
+          <p className="mt-3 text-sm text-slate-600 xl:flex xl:flex-1 xl:items-center xl:justify-center">
+            {tf("expensesEmpty")}
+          </p>
         )}
           </div>
         </div>

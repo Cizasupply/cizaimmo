@@ -287,3 +287,42 @@ La section « Messages » du Dossier client (bas de page) devient un
   signalés et non corrigés.
 - `npx tsc --noEmit` propre ; `npm run build` propre ; parité i18n
   intacte (2 137 clés, aucun texte ajouté).
+
+## Équilibrage bureau de la page Finances (captures du fondateur, même jour)
+
+Le bandeau marine en place, la page « Ma paie et mes dépenses » restait
+déséquilibrée sur grand écran : **carte de paie unique en demi-cellule**
+avec un grand vide à droite (vue Admin), et dans « Mes demandes de
+dépenses » la **liste vide laissait un vaste blanc** pendant que le
+formulaire flottait, étroit et perdu, à l'extrême droite. Traitement,
+**bureau (xl) seulement** — mobile structurellement inchangé, aucun
+contenu, aucune règle, aucun fournisseur ni périmètre touchés,
+bordures or conservées :
+
+| Zone | Avant | Après |
+|---|---|---|
+| Vue Admin — bloc paie | « Ma paie » (grille xl 2 colonnes partagée avec le Super Admin : la carte unique tombe en demi-cellule) puis « Mon historique de paies » empilé en dessous | **Côte à côte** : grille `xl:grid-cols-12` — paie **7/12** (la carte remplit sa colonne, pile pleine largeur de colonne), historique **5/12** (`xl:mt-4`, aligné sur le haut de la carte), hauteurs équilibrées |
+| Vue Super Admin — lignes de paie | Grille xl 2 colonnes ; avec UNE seule ligne, une demi-cellule vide béante | Même grille ; **singleton = pleine largeur** : la ligne unique reçoit `xl:col-span-2` (condition `estSuper && lignes_paie.length === 1`, verrouillé par test statique) |
+| Dépenses — proportions | Grille xl 3 colonnes pour les deux rôles (liste 2/3, formulaire 1/3) | Par rôle : **Super Admin inchangé** (2/3 + 1/3) ; **Admin : grille 5 colonnes — liste 3/5, formulaire 2/5** |
+| Dépenses — formulaire | Colonne latérale nue, sticky | **Panneau latéral assumé** en xl : le formulaire porte `xl:rounded-2xl xl:border xl:border-gold/40 xl:bg-cream xl:p-5` (fond crème de la palette, bordure or/40 assortie aux cartes), toujours sticky ; aucun titre ajouté (le libellé de section existe déjà) |
+| Dépenses — état vide | « Aucune dépense pour ce mois » flotte en haut d'un vaste blanc (liste courte face au long formulaire) | La grille passe en `xl:items-stretch`, la colonne liste devient `xl:flex xl:flex-col` et l'état vide `xl:flex-1` **centré verticalement et horizontalement** dans sa colonne |
+| Totaux (Super Admin) — une seule devise | Carte devise à 1/3 de la grille `lg:grid-cols-3`, 2/3 de vide | Singleton pleine largeur (`vue.totaux.length === 1` → grille simple) : ses 3 tuiles xl remplissent la rangée |
+
+Balayage « vide disproportionné » (point 4 de la demande) : les
+coordonnées de paiement vivent dans la carte membre (aucun vide
+propre) ; les tuiles des totaux gardent leur patron ; seul le cas
+singleton des totaux ci-dessus appelait le même traitement que la
+paie. Aucun autre élément de la page n'a été touché.
+
+### Vérifications
+
+- `scripts/test-organisation-desktop.cjs` : **90 OK / 0 KO** (10
+  contrôles ajoutés : grille 7/5 Admin, alignement du titre
+  d'historique, singleton paie pleine largeur, proportions dépenses
+  par rôle, panneau formulaire teinté, état vide centré, totaux
+  singleton, bases mobiles intactes).
+- Suite complète : **1 777 OK / 3 KO** — les 3 KO sont exactement les
+  préexistants du Module 3 (fixtures démo sensibles à la date),
+  signalés et non corrigés.
+- `npx tsc --noEmit` propre ; `npm run build` propre ; parité i18n
+  intacte (aucun texte ajouté).
