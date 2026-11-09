@@ -273,7 +273,7 @@ export default function FinancesPlateformePage() {
         {vue && vue.totaux.length > 0 ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {vue.totaux.map((t) => (
-              <div key={t.devise} className="rounded-xl border border-slate-200 p-3">
+              <div key={t.devise} className="rounded-xl border border-slate-200 p-3 min-w-0">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   {t.devise}
                 </p>
@@ -283,21 +283,21 @@ export default function FinancesPlateformePage() {
                     lignes étirées. En dessous de xl : lignes
                     libellé/valeur d'origine, inchangées. */}
                 <dl className="mt-2 space-y-1 text-sm xl:grid xl:grid-cols-3 xl:gap-2 xl:space-y-0">
-                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5 min-w-0">
                     <dt className="text-slate-600">{tf("totalsPay")}</dt>
-                    <dd className="font-bold text-navy xl:text-base">
+                    <dd className="font-bold text-navy xl:text-base whitespace-nowrap">
                       {formatMoney(t.paie_emise, t.devise, locale)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5 min-w-0">
                     <dt className="text-slate-600">{tf("totalsValidated")}</dt>
-                    <dd className="font-bold text-navy xl:text-base">
+                    <dd className="font-bold text-navy xl:text-base whitespace-nowrap">
                       {formatMoney(t.depenses_validees, t.devise, locale)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5 min-w-0">
                     <dt className="text-slate-600">{tf("totalsPending")}</dt>
-                    <dd className="font-semibold text-amber-700 xl:text-base">
+                    <dd className="font-semibold text-amber-700 xl:text-base whitespace-nowrap">
                       {formatMoney(t.depenses_en_attente, t.devise, locale)}
                     </dd>
                   </div>
@@ -529,7 +529,7 @@ export default function FinancesPlateformePage() {
             mobile est strictement inchangée, xl:order-* n'échange
             que la présentation bureau. */}
         <div className="mt-4 xl:grid xl:grid-cols-3 xl:items-start xl:gap-6">
-          <div className="xl:order-2 xl:col-span-1">
+          <div className="xl:order-2 xl:col-span-1 min-w-0">
         {/* Formulaire de saisie (plateforme) : une colonne dans la
             colonne latérale xl, deux colonnes en md comme avant. */}
         <form
@@ -617,7 +617,7 @@ export default function FinancesPlateformePage() {
         </form>
           </div>
 
-          <div className="xl:order-1 xl:col-span-2">
+          <div className="xl:order-1 xl:col-span-2 min-w-0">
         {/* Filtre par statut + liste du mois. */}
         <div className="mt-6 flex flex-wrap items-center gap-2 xl:mt-0">
           <label className="text-sm font-semibold text-navy">

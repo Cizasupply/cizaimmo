@@ -132,7 +132,7 @@ export default function PageVerifierEmploye() {
           gauche, fiche de vérification à droite. En dessous de xl,
           pile verticale d'origine, ordre inchangé. */}
       <div className="xl:grid xl:grid-cols-2 xl:items-start xl:gap-5">
-      <div>
+      <div className="min-w-0">
       <form
         onSubmit={verifier}
         className="mt-5 flex gap-2 rounded-2xl border border-gold/40 bg-white p-4 shadow-sm"
@@ -228,7 +228,7 @@ export default function PageVerifierEmploye() {
 
       </div>
 
-      <div className="mt-4 space-y-4 xl:mt-5 xl:space-y-5">
+      <div className="mt-4 space-y-4 xl:mt-5 xl:space-y-5 min-w-0">
       {introuvable ? (
         <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
           {t("verifyNotFound")}

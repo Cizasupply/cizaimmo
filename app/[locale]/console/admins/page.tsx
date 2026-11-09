@@ -242,7 +242,7 @@ export default function ConsoleAdminsPage() {
                     </p>
                   ) : null}
                   <div className="mt-3 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-navy">{td("photo")}</p>
                       {dossierDetail.photo_profil_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -255,7 +255,7 @@ export default function ConsoleAdminsPage() {
                         <p>{dossierDetail.photo_profil_path ? `✓ ${td("received")}` : td("missing")}</p>
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-navy">{td("piece")}</p>
                       {dossierDetail.piece_identite ? (
                         <p className="flex flex-wrap items-center gap-2">
@@ -268,11 +268,11 @@ export default function ConsoleAdminsPage() {
                         <p>{td("missing")}</p>
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-navy">{td("phone")}</p>
                       <p>{dossierDetail.telephone ?? td("missing")}</p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-navy">{td("addressSection")}</p>
                       {dossierDetail.adresse ? (
                         <p>
@@ -289,7 +289,7 @@ export default function ConsoleAdminsPage() {
                         bloc structuré selon le moyen — visibles par le
                         Super Admin, elles conditionnent l'émission de
                         la paie. */}
-                    <div className="md:col-span-2">
+                    <div className="min-w-0 md:col-span-2">
                       <p className="font-semibold text-navy">{td("paymentSection")}</p>
                       {dossierDetail.coordonnees_paiement ? (
                         <CoordonneesPaiementVue
@@ -331,7 +331,7 @@ export default function ConsoleAdminsPage() {
 
       {/* Bureau large (xl) : promotion et création côte à côte. */}
       <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
-      <section className="rounded-2xl border border-gold/40 bg-white p-5">
+      <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0">
         <h2 className="font-semibold text-navy">{t("promoteTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("promoteText")}</p>
         <form
@@ -358,7 +358,7 @@ export default function ConsoleAdminsPage() {
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0">
+      <section className="mt-6 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0 min-w-0">
         <h2 className="font-semibold text-navy">{t("createAdminTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("createAdminText")}</p>
         <form

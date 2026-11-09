@@ -113,5 +113,55 @@ check("Vitrine : cartes teintées or (structure dense inchangée)", contient(vit
 const dossierBloc = lire("components/DossierBloc.tsx");
 check("DossierBloc client : bordure teintée or, structure inchangée", contient(dossierBloc, "rounded-xl border border-gold/40 p-3"));
 
+// ---------- 8. Correctif grille Dossier (captures bureau du
+// fondateur, 2026-11-08) : la passe desktop avait laissé la zone
+// principale SANS xl:col-span-2 dans la grille xl 3 colonnes —
+// affamée au tiers de la largeur, ses cartes internes (grille lg
+// 2 colonnes) tombaient à ~1/6 de page : « Immeubles » rendu
+// lettre par lettre, paires de définitions chevauchées, dates
+// cassées. Correctif : col-span retrouvé, items de grille en
+// min-w-0 partout, valeurs atomiques en whitespace-nowrap. Même
+// famille balayée sur Finances, Mon dossier, Équipe, Vérifier et
+// Vue d'ensemble. ----------
+check("Correctif Dossier : zone principale xl:col-span-2 + min-w-0",
+  contient(dossier, "lg:grid-cols-2 xl:col-span-2 min-w-0"));
+check("Correctif Dossier : Immeubles pleine largeur de la zone (lg:col-span-2, 3 sections larges)",
+  compte(dossier, "lg:col-span-2") >= 3);
+check("Correctif Dossier : lignes de définitions réductibles (min-w-0, 12 lignes)",
+  compte(dossier, "gap-y-0.5 min-w-0") === 12);
+check("Correctif Dossier : téléphone en nowrap (valeur atomique)",
+  contient(dossier, '<dd className="min-w-0 whitespace-nowrap text-right">{compte.telephone'));
+check("Correctif Dossier : dates documents en nowrap (2 listes)",
+  compte(dossier, '<span className="whitespace-nowrap">{formatDate(d.created_at, locale)}</span>') === 2);
+check("Correctif Dossier : cartes immeuble réductibles (min-w-0, 2 listes)",
+  compte(dossier, "lg:p-3 min-w-0") === 2);
+check("Correctif Dossier : sections items de grille en min-w-0",
+  compte(dossier, "bg-white p-5 min-w-0") >= 4 &&
+  contient(dossier, "lg:col-span-2 min-w-0") && contient(dossier, "xl:self-start min-w-0"));
+
+check("Correctif Finances : colonnes dépenses xl réductibles (min-w-0)",
+  contient(fin, "xl:order-1 xl:col-span-2 min-w-0") && contient(fin, "xl:order-2 xl:col-span-1 min-w-0"));
+check("Correctif Finances : tuiles des totaux réductibles + montants nowrap",
+  compte(fin, "xl:p-2.5 min-w-0") === 3 &&
+  compte(fin, "xl:text-base whitespace-nowrap") === 3 &&
+  contient(fin, 'key={t.devise} className="rounded-xl border border-slate-200 p-3 min-w-0"'));
+
+check("Correctif Mon dossier : sections items des grilles xl en min-w-0 (8)",
+  compte(monDossier, "${CARTE} min-w-0") === 8);
+check("Correctif Mon dossier : sous-cartes Identité (photo/pièce) en min-w-0 (2)",
+  compte(monDossier, "rounded-xl border border-slate-200 p-3 min-w-0") === 2);
+
+const admins = lire("app/[locale]/console/admins/page.tsx");
+check("Correctif Équipe : items de la grille détail dossier en min-w-0 (5)",
+  compte(admins, '<div className="min-w-0">') >= 4 && contient(admins, "min-w-0 md:col-span-2"));
+check("Correctif Équipe : sections formulaires côte à côte en min-w-0",
+  contient(admins, "bg-white p-5 min-w-0") && contient(admins, "xl:mt-0 min-w-0"));
+
+check("Correctif Vérifier : colonnes xl réductibles (min-w-0)",
+  contient(verifier, 'xl:gap-5">\n      <div className="min-w-0">') &&
+  contient(verifier, "xl:mt-5 xl:space-y-5 min-w-0"));
+check("Correctif Vue d'ensemble : colonnes xl réductibles (min-w-0)",
+  contient(vue, "space-y-8 xl:space-y-6 min-w-0") && contient(vue, "xl:mt-0 min-w-0"));
+
 console.log(`\nOrganisation desktop premium : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

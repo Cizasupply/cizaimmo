@@ -174,7 +174,7 @@ export default function ConsoleAccueilPage() {
           côte à côte (les files d'attente restent empilées sous la
           carte Messages, dans le même ordre qu'en mobile). */}
       <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
-      <div className="space-y-8 xl:space-y-6">
+      <div className="space-y-8 xl:space-y-6 min-w-0">
       {/* Notification : messages clients non lus (mise en évidence
           ambre dès qu'il y en a ; carte calme à zéro). */}
       <section
@@ -289,7 +289,7 @@ export default function ConsoleAccueilPage() {
 
       </div>
 
-      <section className="mt-8 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0">
+      <section className="mt-8 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0 min-w-0">
         <h2 className="font-semibold text-navy">{t("recentActivity")}</h2>
         {!charge ? (
           <p className="mt-3 text-sm text-slate-500">{t("loading")}</p>

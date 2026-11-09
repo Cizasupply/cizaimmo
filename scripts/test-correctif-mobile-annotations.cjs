@@ -102,8 +102,14 @@ check("dossier : grille des cartes en colonne unique explicite (minmax(0,1fr))",
 // libellés protégés, comme avant.
 check("dossier : lignes libellé/valeur enroulables (flex-wrap, 12 lignes)",
   occurrences(dossier, "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5") === 12);
-check("dossier : valeurs protégées (min-w-0 + break-words, 12 valeurs)",
-  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 12);
+// Correctif bureau 2026-11-08 (captures du fondateur) : 5 valeurs
+// ATOMIQUES passent en whitespace-nowrap pour ne plus casser au
+// milieu (téléphone « +257799450 08 », dates, statuts de contrat) ;
+// les 7 autres valeurs restent en break-words. Le total protégé
+// (min-w-0) reste 12 — même protection, patron complété.
+check("dossier : valeurs protégées (min-w-0, 12 valeurs : 7 break-words + 5 atomiques nowrap)",
+  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 7 &&
+  occurrences(dossier, '<dd className="min-w-0 whitespace-nowrap text-right">') === 5);
 check("dossier : libellés jamais compressés (shrink-0, 14 libellés)",
   occurrences(dossier, '<dt className="shrink-0 font-semibold">') === 13 &&
   occurrences(dossier, '<span className="shrink-0 font-semibold">{t("filePhoto")}</span>') === 1);

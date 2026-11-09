@@ -422,7 +422,7 @@ export default function MonDossierEmployePage() {
 
           {/* Progression du pack employé : Dossier → Charte → Contrat → Carte. */}
           {pack ? (
-            <section className={CARTE}>
+            <section className={`${CARTE} min-w-0`}>
               <h2 className="text-base font-bold text-navy">
                 {tp("progressTitle")}
               </h2>
@@ -466,10 +466,10 @@ export default function MonDossierEmployePage() {
               et espacements mobiles inchangés. */}
           <div className="space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5 xl:space-y-0">
           {/* Identité : photo + pièce d'identité (bucket privé). */}
-          <section className={CARTE}>
+          <section className={`${CARTE} min-w-0`}>
             <h2 className="text-base font-bold text-navy">{t("idSection")}</h2>
             <div className="mt-3 grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-xl border border-slate-200 p-3 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-navy">{t("photo")}</span>
                   <span
@@ -538,7 +538,7 @@ export default function MonDossierEmployePage() {
                 )}
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-xl border border-slate-200 p-3 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-navy">{t("piece")}</span>
                   <span
@@ -617,7 +617,7 @@ export default function MonDossierEmployePage() {
 
           {/* Téléphone + adresse postale : lecture seule si
               renseignés, formulaire derrière « Modifier ». */}
-          <section className={CARTE}>
+          <section className={`${CARTE} min-w-0`}>
             <h2 className="text-base font-bold text-navy">{t("addressSection")}</h2>
             <p className="mt-1 text-sm text-slate-600">{t("addressHint")}</p>
             {editionAdresse ? (
@@ -723,7 +723,7 @@ export default function MonDossierEmployePage() {
               reçoit son salaire — coordonnées bancaires complètes
               structurées selon le moyen. Elles ne conditionnent QUE
               l'émission de la paie (ni le dossier, ni la carte). */}
-          <section className={CARTE}>
+          <section className={`${CARTE} min-w-0`}>
             <h2 className="text-base font-bold text-navy">{t("paymentSection")}</h2>
             <p className="mt-1 text-sm text-slate-600">{t("paymentIntro")}</p>
             {dossier.coordonnees_paiement ? (
@@ -865,7 +865,7 @@ export default function MonDossierEmployePage() {
           {pack ? (
             <div className="space-y-5">
               {/* Charte de confidentialité : statut de l'acceptation datée. */}
-              <section className={CARTE}>
+              <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
                   {tp("charteSectionTitle")}
                 </h2>
@@ -879,7 +879,7 @@ export default function MonDossierEmployePage() {
               </section>
 
               {/* Contrat d'engagement : téléchargement + dépôt du signé. */}
-              <section className={CARTE}>
+              <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
                   {tp("contratSectionTitle")}
                 </h2>
@@ -985,7 +985,7 @@ export default function MonDossierEmployePage() {
           {pack ? (
             <>
               {/* Carte employé à code-barres (dossier complet + contrat validé). */}
-              <section className={CARTE}>
+              <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
                   {tp("carteSectionTitle")}
                 </h2>
@@ -1015,7 +1015,7 @@ export default function MonDossierEmployePage() {
 
           {/* Ma paie : paies émises par la plateforme (lecture seule,
               mes données uniquement — finances de la plateforme). */}
-          <section className={CARTE}>
+          <section className={`${CARTE} min-w-0`}>
             <h2 className="text-base font-bold text-navy">{tf("myPayTitle")}</h2>
             <p className="mt-1 text-sm text-slate-600">{tf("myPayIntro")}</p>
             {paies.length > 0 ? (
