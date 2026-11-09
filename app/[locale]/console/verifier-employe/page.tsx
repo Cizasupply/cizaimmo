@@ -124,13 +124,18 @@ export default function PageVerifierEmploye() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl xl:max-w-6xl">
       <h1 className="text-xl font-bold text-navy">{t("verifyTitle")}</h1>
       <p className="mt-1 text-sm text-slate-600">{t("verifySubtitle")}</p>
 
+      {/* Bureau large (xl) : recherche + liste des employés à
+          gauche, fiche de vérification à droite. En dessous de xl,
+          pile verticale d'origine, ordre inchangé. */}
+      <div className="xl:grid xl:grid-cols-2 xl:items-start xl:gap-5">
+      <div>
       <form
         onSubmit={verifier}
-        className="mt-5 flex gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="mt-5 flex gap-2 rounded-2xl border border-gold/40 bg-white p-4 shadow-sm"
       >
         <input
           value={saisie}
@@ -151,7 +156,7 @@ export default function PageVerifierEmploye() {
       {/* Liste sélectionnable des employés (2026-11-08) : tous les
           membres plateforme, recherche par nom ou Display ID ; un
           clic charge la fiche de vérification du membre. */}
-      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="mt-5 rounded-2xl border border-gold/40 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
           {t("verifyListTitle")}
         </h2>
@@ -221,19 +226,22 @@ export default function PageVerifierEmploye() {
         )}
       </section>
 
+      </div>
+
+      <div className="mt-4 space-y-4 xl:mt-5 xl:space-y-5">
       {introuvable ? (
-        <p className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+        <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
           {t("verifyNotFound")}
         </p>
       ) : null}
       {erreur ? (
-        <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+        <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {t("errorGeneric")}
         </p>
       ) : null}
 
       {resultat ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-gold/40 bg-white shadow-sm">
           <div
             className={`px-5 py-3 text-center text-sm font-bold tracking-wide ${
               resultat.verdict === "valide"
@@ -335,6 +343,8 @@ export default function PageVerifierEmploye() {
           </div>
         </div>
       ) : null}
+      </div>
+      </div>
     </div>
   );
 }

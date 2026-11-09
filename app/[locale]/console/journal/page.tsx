@@ -269,7 +269,7 @@ export default function ConsoleJournalPage() {
 
       {/* Barre de filtres — carte au patron console (recherche +
           Action / Acteur / Période + réinitialiser + compteur). */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-5">
+      <section className="mt-6 rounded-2xl border border-gold/40 bg-white p-4 md:p-5">
         <div className="flex flex-wrap items-end gap-2">
           <label className="min-w-56 flex-1">
             <span className={etiquetteClasse}>{t("journalSearchLabel")}</span>
@@ -387,22 +387,22 @@ export default function ConsoleJournalPage() {
           patron d'affichage de l'app connectée. */}
       <div className="mt-4">
         {!charge ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500">
             {t("loading")}
           </p>
         ) : entrees.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500">
             {t("noActivity")}
           </p>
         ) : selonVue.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500">
             {t("journalNoResults")}
           </p>
         ) : (
           <>
             <div className="space-y-3 md:hidden">
               {pageAffichee.map((e) => (
-                <article key={e.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <article key={e.id} className="rounded-2xl border border-gold/40 bg-white p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-bold text-navy">
                       {libelleAction(e)}
@@ -429,7 +429,7 @@ export default function ConsoleJournalPage() {
               ))}
             </div>
 
-            <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
+            <div className="hidden overflow-x-auto rounded-2xl border border-gold/40 bg-white md:block">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-cream text-xs font-semibold uppercase tracking-wide text-navy">

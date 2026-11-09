@@ -490,31 +490,43 @@ export default function ConsoleDossierPage({
         </section>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Organisation desktop « ultra premium » (2026-11-08) :
+          grille bureau en 3 colonnes — zone principale (2/3, elle-
+          même en 2 colonnes dès lg) et Historique en colonne
+          latérale (1/3, timeline). En dessous de xl : colonne
+          unique d'origine, même ordre DOM (mobile inchangé). */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 content-start gap-6 lg:grid-cols-2">
         {/* Identité — correctif mobile 2026-11-08 (capture annotée du
             fondateur) : la carte débordait horizontalement, valeurs
             coupées au bord droit. La grille passe en colonne unique
             explicite (minmax(0,1fr)) et chaque ligne libellé/valeur
             peut s'enrouler : libellé jamais compressé (shrink-0),
-            valeur en min-w-0 + break-words, alignée à droite. */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            valeur en min-w-0 + break-words, alignée à droite.
+            Bureau (lg+) : la carte occupe toute la zone principale,
+            photo à gauche et informations à droite, la liste de
+            définitions passant en 2 colonnes en xl. */}
+        <section className="rounded-2xl border border-gold/40 bg-white p-5 lg:col-span-2">
           <h2 className="font-semibold text-navy">{t("fileIdentity")}</h2>
-          <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-              <dt className="shrink-0 font-semibold">{t("filePhoto")}</dt>
-              <dd className="min-w-0 break-words text-right">{dossier.photo_profil_path ? `✓ ${t("received")}` : t("missing")}</dd>
+          <div className="mt-3 lg:flex lg:items-start lg:gap-6">
+            <div className="shrink-0">
+              <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-slate-600">
+                <span className="shrink-0 font-semibold">{t("filePhoto")}</span>
+                <span>{dossier.photo_profil_path ? `✓ ${t("received")}` : t("missing")}</span>
+              </p>
+              {dossier.photo_profil_url ? (
+                <div className="pt-2">
+                  <a href={dossier.photo_profil_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={dossier.photo_profil_url}
+                      alt={t("filePhoto")}
+                      className="h-28 w-28 rounded-xl object-cover ring-1 ring-slate-200"
+                    />
+                  </a>
+                </div>
+              ) : null}
             </div>
-            {dossier.photo_profil_url ? (
-              <div className="pt-2">
-                <a href={dossier.photo_profil_url} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={dossier.photo_profil_url}
-                    alt={t("filePhoto")}
-                    className="h-28 w-28 rounded-xl object-cover ring-1 ring-slate-200"
-                  />
-                </a>
-              </div>
-            ) : null}
+            <dl className="mt-3 space-y-1.5 text-sm text-slate-600 lg:mt-0 lg:min-w-0 lg:flex-1 xl:grid xl:grid-cols-2 xl:gap-x-8 xl:gap-y-1.5 xl:space-y-0">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
               <dt className="shrink-0 font-semibold">{t("phoneLabel")}</dt>
               <dd className="min-w-0 break-words text-right">{compte.telephone ?? "—"}</dd>
@@ -565,11 +577,12 @@ export default function ConsoleDossierPage({
                 ) : null}
               </dd>
             </div>
-          </dl>
+            </dl>
+          </div>
         </section>
 
         {/* Abonnement */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-gold/40 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("fileSubscription")}</h2>
           {compte.abonnement ? (
             <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
@@ -605,7 +618,7 @@ export default function ConsoleDossierPage({
         </section>
 
         {/* Documents */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-gold/40 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("fileDocuments")}</h2>
           {dossier.documents_compte.length === 0 && dossier.preuves_propriete.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noDocuments")}</p>
@@ -650,7 +663,7 @@ export default function ConsoleDossierPage({
         </section>
 
         {/* Rattachements + demandes */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-gold/40 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("fileLinks")}</h2>
           {dossier.rattachements_comme_proprietaire.length === 0 &&
           dossier.rattachements_comme_gestionnaire.length === 0 &&
@@ -685,14 +698,14 @@ export default function ConsoleDossierPage({
         </section>
 
         {/* Immeubles + annonces */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-gold/40 bg-white p-5">
           <h2 className="font-semibold text-navy">{t("fileBuildings")}</h2>
           {dossier.immeubles_possedes.length === 0 && dossier.immeubles_geres.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noBuildings")}</p>
           ) : (
-            <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
+            <ul className="mt-3 space-y-1.5 text-sm text-slate-600 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
               {dossier.immeubles_possedes.map((i) => (
-                <li key={i.id} className="flex items-center gap-2">
+                <li key={i.id} className="flex items-center gap-2 lg:rounded-xl lg:border lg:border-slate-200 lg:p-3">
                   {/* v1.7 : vignette — la photo du passeport du bien. */}
                   {i.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -704,7 +717,7 @@ export default function ConsoleDossierPage({
                 </li>
               ))}
               {dossier.immeubles_geres.map((i) => (
-                <li key={i.id} className="flex items-center gap-2">
+                <li key={i.id} className="flex items-center gap-2 lg:rounded-xl lg:border lg:border-slate-200 lg:p-3">
                   {i.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={i.photo_url} alt="" className="h-9 w-11 shrink-0 rounded object-cover" />
@@ -733,7 +746,7 @@ export default function ConsoleDossierPage({
         {/* v1.7 : revue des immeubles créés par ce gestionnaire —
             autorisation de gestion + propriétaire déclaré. */}
         {dossier.immeubles_en_revue.length > 0 ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <section className="rounded-2xl border border-gold/40 bg-white p-5 lg:col-span-2">
             <h2 className="font-semibold text-navy">{t17("reviewTitle")}</h2>
             <p className="mt-1 text-sm text-slate-500">{t17("reviewHint")}</p>
             <ul className="mt-3 space-y-3">
@@ -855,15 +868,20 @@ export default function ConsoleDossierPage({
           </section>
         ) : null}
 
-        {/* Audit */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        </div>
+
+        {/* Audit — colonne latérale en xl : historique en timeline
+            (filet vertical + points or), carte épinglée en haut de
+            la colonne pendant le défilement de la zone principale. */}
+        <section className="rounded-2xl border border-gold/40 bg-white p-5 xl:sticky xl:top-6 xl:self-start">
           <h2 className="font-semibold text-navy">{t("fileAudit")}</h2>
           {dossier.audit.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noActivity")}</p>
           ) : (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3 space-y-2 xl:border-l xl:border-slate-200">
               {dossier.audit.map((e) => (
-                <li key={e.id} className="break-words border-b border-slate-100 pb-2 text-sm last:border-0">
+                <li key={e.id} className="break-words border-b border-slate-100 pb-2 text-sm last:border-0 xl:relative xl:pl-4">
+                  <span aria-hidden="true" className="absolute -left-[6px] top-[6px] hidden h-2.5 w-2.5 rounded-full bg-gold xl:block" />
                   <span className="font-semibold text-navy">
                     {actionAuditConnue(e.action)
                       ? t(`audit.${e.action}` as "audit.compte_approuve")
@@ -891,7 +909,7 @@ export default function ConsoleDossierPage({
           (fil « plateforme » ; marquerLu à l'ouverture via FilMessages).
           Ancre #messages : cible des liens de la boîte de réception
           console et de la Vue d'ensemble (2026-11-07). */}
-      <section id="messages" className="mt-6 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+      <section id="messages" className="mt-6 scroll-mt-6 rounded-2xl border border-gold/40 bg-white p-5">
         <h2 className="font-semibold text-navy">{t15("messagesTitle")}</h2>
         <p className="mt-1 text-sm text-slate-500">{t15("platformThreadDesc")}</p>
         <div className="mt-4">

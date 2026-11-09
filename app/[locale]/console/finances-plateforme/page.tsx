@@ -62,7 +62,11 @@ function fichierVersDataUrl(fichier: File): Promise<string> {
   });
 }
 
-const CARTE = "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm";
+// Organisation desktop « ultra premium » (2026-11-08) : bordure
+// des cartes teintée OR à 40 % (système Marine & Or) plutôt que le
+// slate très pâle — le blanc des cartes est cassé en restant discret.
+// Même traitement sur les autres pages console de la passe.
+const CARTE = "rounded-2xl border border-gold/40 bg-white p-5 shadow-sm";
 const BOUTON_MARINE =
   "rounded-full bg-navy px-4 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50";
 const BOUTON_OR =
@@ -273,22 +277,27 @@ export default function FinancesPlateformePage() {
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   {t.devise}
                 </p>
-                <dl className="mt-2 space-y-1 text-sm">
-                  <div className="flex justify-between gap-2">
+                {/* Bureau large (xl) : bande de statistiques — les
+                    3 métriques de la devise deviennent des tuiles
+                    (libellé au-dessus, montant en avant) au lieu de
+                    lignes étirées. En dessous de xl : lignes
+                    libellé/valeur d'origine, inchangées. */}
+                <dl className="mt-2 space-y-1 text-sm xl:grid xl:grid-cols-3 xl:gap-2 xl:space-y-0">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
                     <dt className="text-slate-600">{tf("totalsPay")}</dt>
-                    <dd className="font-bold text-navy">
+                    <dd className="font-bold text-navy xl:text-base">
                       {formatMoney(t.paie_emise, t.devise, locale)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
                     <dt className="text-slate-600">{tf("totalsValidated")}</dt>
-                    <dd className="font-bold text-navy">
+                    <dd className="font-bold text-navy xl:text-base">
                       {formatMoney(t.depenses_validees, t.devise, locale)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
+                  <div className="flex justify-between gap-2 xl:flex-col xl:justify-start xl:gap-0.5 xl:rounded-lg xl:bg-slate-50 xl:p-2.5">
                     <dt className="text-slate-600">{tf("totalsPending")}</dt>
-                    <dd className="font-semibold text-amber-700">
+                    <dd className="font-semibold text-amber-700 xl:text-base">
                       {formatMoney(t.depenses_en_attente, t.devise, locale)}
                     </dd>
                   </div>
@@ -311,11 +320,14 @@ export default function FinancesPlateformePage() {
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("payIntro") : tf("payIntroAdmin")}
         </p>
-        <div className="mt-4 space-y-3">
+        {/* Bureau large (xl) : les lignes de paie passent en
+            grille 2 colonnes au lieu d'une pile pleine largeur ;
+            en dessous, pile verticale d'origine. */}
+        <div className="mt-4 space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0">
           {(vue?.lignes_paie ?? []).map((ligne) => (
             <article
               key={ligne.compte_id}
-              className="rounded-xl border border-slate-200 p-4"
+              className="min-w-0 rounded-xl border border-slate-200 p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -511,9 +523,17 @@ export default function FinancesPlateformePage() {
           {estSuper ? tf("expensesIntroSuper") : tf("expensesIntroAdmin")}
         </p>
 
-        {/* Formulaire de saisie (plateforme). */}
+        {/* Bureau large (xl) : liste des dépenses à gauche (2/3),
+            formulaire de saisie en colonne droite (1/3, sticky).
+            L'ordre DOM reste formulaire PUIS liste — la lecture
+            mobile est strictement inchangée, xl:order-* n'échange
+            que la présentation bureau. */}
+        <div className="mt-4 xl:grid xl:grid-cols-3 xl:items-start xl:gap-6">
+          <div className="xl:order-2 xl:col-span-1">
+        {/* Formulaire de saisie (plateforme) : une colonne dans la
+            colonne latérale xl, deux colonnes en md comme avant. */}
         <form
-          className="mt-4 grid gap-3 md:grid-cols-2"
+          className="grid gap-3 md:grid-cols-2 xl:sticky xl:top-6 xl:grid-cols-1"
           onSubmit={(e) => {
             e.preventDefault();
             void ajouterDepense();
@@ -582,22 +602,24 @@ export default function FinancesPlateformePage() {
               </select>
             </label>
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 xl:col-span-1">
             <DocumentUpload
               fichier={fichierJustificatif}
               onFichierChange={setFichierJustificatif}
               label={tf("formReceipt")}
             />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 xl:col-span-1">
             <button type="submit" disabled={occupe} className={BOUTON_MARINE}>
               {tf("formSubmit")}
             </button>
           </div>
         </form>
+          </div>
 
+          <div className="xl:order-1 xl:col-span-2">
         {/* Filtre par statut + liste du mois. */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2 xl:mt-0">
           <label className="text-sm font-semibold text-navy">
             {tf("filterStatusLabel")}
             <select
@@ -717,6 +739,8 @@ export default function FinancesPlateformePage() {
         ) : (
           <p className="mt-3 text-sm text-slate-600">{tf("expensesEmpty")}</p>
         )}
+          </div>
+        </div>
       </section>
 
       {aEmettre ? (

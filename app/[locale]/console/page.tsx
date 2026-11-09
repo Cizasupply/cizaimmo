@@ -162,7 +162,7 @@ export default function ConsoleAccueilPage() {
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cartes.map((c) => (
-          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
+          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-gold/40 bg-white p-4 pl-5 shadow-sm">
             <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${c.accent}`} />
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{c.label}</p>
             <p className={`mt-1 whitespace-nowrap text-xl font-bold sm:text-2xl ${c.couleur}`}>{c.valeur}</p>
@@ -170,13 +170,18 @@ export default function ConsoleAccueilPage() {
         ))}
       </div>
 
+      {/* Bureau large (xl) : carte Messages et Activité récente
+          côte à côte (les files d'attente restent empilées sous la
+          carte Messages, dans le même ordre qu'en mobile). */}
+      <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
+      <div className="space-y-8 xl:space-y-6">
       {/* Notification : messages clients non lus (mise en évidence
           ambre dès qu'il y en a ; carte calme à zéro). */}
       <section
-        className={`mt-8 rounded-2xl border p-5 ${
+        className={`rounded-2xl border p-5 ${
           totalMessagesNonLus > 0
             ? "border-amber-300 bg-amber-50"
-            : "border-slate-200 bg-white"
+            : "border-gold/40 bg-white"
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -235,7 +240,7 @@ export default function ConsoleAccueilPage() {
       </section>
 
       {enAttente.length > 0 ? (
-        <section className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
           <h2 className="font-bold text-amber-800">{t("reviewQueueTitle")}</h2>
           <ul className="mt-3 space-y-2">
             {enAttente.slice(0, 5).map((c) => (
@@ -264,7 +269,7 @@ export default function ConsoleAccueilPage() {
       ) : null}
 
       {enRetard.length > 0 ? (
-        <section className="mt-8 rounded-2xl border border-red-200 bg-white p-5">
+        <section className="rounded-2xl border border-red-200 bg-white p-5">
           <h2 className="font-bold text-red-700">{t("lateTitle")}</h2>
           <ul className="mt-3 space-y-2">
             {enRetard.slice(0, 5).map((c) => (
@@ -282,7 +287,9 @@ export default function ConsoleAccueilPage() {
         </section>
       ) : null}
 
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
+      </div>
+
+      <section className="mt-8 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0">
         <h2 className="font-semibold text-navy">{t("recentActivity")}</h2>
         {!charge ? (
           <p className="mt-3 text-sm text-slate-500">{t("loading")}</p>
@@ -311,6 +318,7 @@ export default function ConsoleAccueilPage() {
           {t("journalCta")}
         </Link>
       </section>
+      </div>
     </div>
   );
 }

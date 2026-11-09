@@ -620,6 +620,21 @@ else
   ECHEC=1
 fi
 
+# Organisation desktop « ultra premium » (2026-11-08, fondateur,
+# captures bureau) : grilles bureau lg:/xl: des pages console
+# (Dossier client, Finances, Mon dossier employé, Vue d'ensemble,
+# Équipe, Vérifier un employé, Messages) + conteneur 1600 px +
+# bordures de cartes teintées or (Marine & Or). Test statique :
+# présence des classes bureau, classes de base mobiles intactes.
+echo ""
+echo "===== Organisation desktop premium (2026-11-08) ====="
+if python3 "scripts/i18n-check.py" && node "scripts/test-organisation-desktop.cjs"; then
+  echo "Organisation desktop premium : OK"
+else
+  echo "Organisation desktop premium : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

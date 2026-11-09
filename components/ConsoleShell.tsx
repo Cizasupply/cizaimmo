@@ -371,7 +371,15 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         </button>
       </header>
 
-      <main className="px-6 py-6 md:ml-60 md:p-10">{children}</main>
+      {/* Organisation desktop « ultra premium » (2026-11-08) : le
+          contenu console est plafonné à 1600 px et centré sur les
+          très grands écrans — les pages organisent ensuite le
+          remplissage par des grilles lg:/xl:, jamais par
+          l'étirement des cartes. L'enveloppe est neutre sur mobile
+          (bloc pleine largeur, coque h-dvh inchangée). */}
+      <main className="px-6 py-6 md:ml-60 md:p-10">
+        <div className="md:mx-auto md:w-full md:max-w-[1600px]">{children}</div>
+      </main>
         </div>
 
       {/* Barre de navigation inférieure mobile — style application :

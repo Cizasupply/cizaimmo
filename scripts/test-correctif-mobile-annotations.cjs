@@ -85,17 +85,28 @@ check("client : barre supérieure — cloche et avatar icônes (largeur fixe)",
 
 // ---------- 2. Page Dossier + grilles console : aucun débordement ----------
 const dossier = lire("app/[locale]/console/comptes/[id]/page.tsx");
+// Organisation desktop 2026-11-08 : la base MOBILE reste une colonne
+// unique explicite (grid-cols-1 = minmax(0,1fr)) aux deux niveaux —
+// grille externe (xl 3 colonnes : principale + Historique latéral)
+// et grille interne de la zone principale (lg 2 colonnes).
 check("dossier : grille des cartes en colonne unique explicite (minmax(0,1fr))",
-  dossier.includes("grid grid-cols-1 gap-6 lg:grid-cols-2"));
+  dossier.includes("grid grid-cols-1 gap-6 xl:grid-cols-3") &&
+  dossier.includes("grid grid-cols-1 content-start gap-6 lg:grid-cols-2"));
 // Compteurs 11/11/12 à l'origine ; +2 lignes au même patron exact
 // depuis l'option C (2026-11-08) : « Contrat propriétaire » + son
-// motif de refus, dans la même carte Identité.
-check("dossier : lignes libellé/valeur enroulables (flex-wrap, 13 lignes)",
-  occurrences(dossier, "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5") === 13);
-check("dossier : valeurs protégées (min-w-0 + break-words, 13 valeurs)",
-  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 13);
+// motif de refus, dans la même carte Identité. Organisation desktop
+// 2026-11-08 : la ligne « Photo de profil » sort de la liste de
+// définitions (bloc photo à gauche de la carte large en lg+) —
+// 12 lignes restent dans les listes, et le libellé Photo garde sa
+// protection dans son bloc (span shrink-0) : 13 dt + 1 span = 14
+// libellés protégés, comme avant.
+check("dossier : lignes libellé/valeur enroulables (flex-wrap, 12 lignes)",
+  occurrences(dossier, "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5") === 12);
+check("dossier : valeurs protégées (min-w-0 + break-words, 12 valeurs)",
+  occurrences(dossier, '<dd className="min-w-0 break-words text-right">') === 12);
 check("dossier : libellés jamais compressés (shrink-0, 14 libellés)",
-  occurrences(dossier, '<dt className="shrink-0 font-semibold">') === 14);
+  occurrences(dossier, '<dt className="shrink-0 font-semibold">') === 13 &&
+  occurrences(dossier, '<span className="shrink-0 font-semibold">{t("filePhoto")}</span>') === 1);
 check("dossier : documents — bloc nom réductible (flex-1, tronque réel)",
   occurrences(dossier, '<span className="min-w-0 flex-1 text-sm">') === 2);
 check("dossier : aucune ancienne ligne rigide libellé/valeur",

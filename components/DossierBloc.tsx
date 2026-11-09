@@ -39,7 +39,10 @@ function LigneDossier({
 }) {
   const t = useTranslations("dossier");
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
+    // Bordure teintée or (Marine & Or) comme les cartes console —
+    // organisation desktop 2026-11-08 ; la structure (écran
+    // d'attente centré) ne change pas.
+    <div className="rounded-xl border border-gold/40 p-3">
       <div className="flex items-center justify-between gap-2">
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-bold ${

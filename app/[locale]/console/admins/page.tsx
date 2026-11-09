@@ -112,14 +112,17 @@ export default function ConsoleAdminsPage() {
         <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{erreur}</p>
       ) : null}
 
-      <div className="mt-6 space-y-3">
+      {/* Bureau large (xl) : cartes membres en grille 2 colonnes
+          au lieu de rangées pleine largeur ; pile d'origine en
+          dessous de xl. */}
+      <div className="mt-6 space-y-3 xl:grid xl:grid-cols-2 xl:items-start xl:gap-4 xl:space-y-0">
         {admins.map((a) => {
           // v1.5 : données Équipe du même compte (charge / accès / activité).
           const membre = equipe.find((m) => m.id === a.id);
           const charge = membre?.dossiers_assignes ?? a.dossiers_assignes ?? 0;
           const accesActif = membre?.acces_admin_actif ?? a.acces_admin_actif ?? true;
           return (
-          <article key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
+          <article key={a.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-white p-5">
             <div className="min-w-0">
               <h2 className="truncate font-semibold text-navy">{a.nom}</h2>
               <p className="truncate text-sm text-slate-500">{a.email}</p>
@@ -326,7 +329,9 @@ export default function ConsoleAdminsPage() {
         />
       ) : null}
 
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
+      {/* Bureau large (xl) : promotion et création côte à côte. */}
+      <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
+      <section className="rounded-2xl border border-gold/40 bg-white p-5">
         <h2 className="font-semibold text-navy">{t("promoteTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("promoteText")}</p>
         <form
@@ -353,7 +358,7 @@ export default function ConsoleAdminsPage() {
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0">
         <h2 className="font-semibold text-navy">{t("createAdminTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("createAdminText")}</p>
         <form
@@ -387,6 +392,7 @@ export default function ConsoleAdminsPage() {
           </button>
         </form>
       </section>
+      </div>
     </div>
   );
 }

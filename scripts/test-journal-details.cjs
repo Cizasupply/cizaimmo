@@ -179,8 +179,10 @@ check(
   page.includes('t("journalResultsCount"') && page.includes("reinitialiser") && page.includes('t("journalReset")')
 );
 check(
+  // Bordure teintée or depuis l'organisation desktop 2026-11-08
+  // (ajout du fondateur : bordures de cartes Marine & Or).
   "organisation : barre de filtres en carte console (rounded-2xl border bg-white)",
-  /rounded-2xl border border-slate-200 bg-white p-4/.test(page)
+  /rounded-2xl border border-gold\/40 bg-white p-4/.test(page)
 );
 check(
   "organisation : tableau bureau (md:block) + cartes mobile (md:hidden), patron de l'app",

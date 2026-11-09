@@ -133,9 +133,9 @@ export default function ConsoleVitrinePage() {
       ) : null}
 
       {chargement ? (
-        <p className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
+        <p className="mt-6 rounded-2xl border border-gold/40 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
       ) : liste.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mt-6 rounded-2xl border border-gold/40 bg-white p-8 shadow-sm">
           <p className="font-bold text-navy">{t("consoleEmpty")}</p>
           <p className="mt-2 text-slate-600">{t("consoleEmptyText")}</p>
         </div>
@@ -153,7 +153,7 @@ export default function ConsoleVitrinePage() {
               .filter(Boolean)
               .join(", ");
             return (
-              <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <li key={a.id} className="rounded-2xl border border-gold/40 bg-white p-6 shadow-sm">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-[240px_1fr]">
                   <div className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
                     {a.photos.length > 0 ? (

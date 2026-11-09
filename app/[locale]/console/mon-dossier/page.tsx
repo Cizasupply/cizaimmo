@@ -43,7 +43,10 @@ function fichierVersDataUrl(fichier: File): Promise<string> {
   });
 }
 
-const CARTE = "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm";
+// Organisation desktop « ultra premium » (2026-11-08) : bordure
+// des cartes teintée OR à 40 % (système Marine & Or) plutôt que le
+// slate très pâle — même traitement sur les pages console de la passe.
+const CARTE = "rounded-2xl border border-gold/40 bg-white p-5 shadow-sm";
 const BOUTON_MARINE =
   "rounded-full bg-navy px-4 py-2 text-sm font-bold text-white hover:bg-navy-light disabled:opacity-50";
 const BOUTON_OR =
@@ -457,6 +460,11 @@ export default function MonDossierEmployePage() {
             </section>
           ) : null}
 
+          {/* Bureau large (xl) : Identité | Adresse en grille
+              2 colonnes au lieu de cartes pleine largeur. En
+              dessous de xl, pile verticale d'origine — ordre DOM
+              et espacements mobiles inchangés. */}
+          <div className="space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5 xl:space-y-0">
           {/* Identité : photo + pièce d'identité (bucket privé). */}
           <section className={CARTE}>
             <h2 className="text-base font-bold text-navy">{t("idSection")}</h2>
@@ -705,7 +713,12 @@ export default function MonDossierEmployePage() {
               </>
             )}
           </section>
+          </div>
 
+          {/* Bureau large (xl) : Coordonnées | (Charte + Contrat
+              empilés). Sans pack, la section Coordonnées reste
+              pleine largeur comme avant. */}
+          <div className={pack ? "space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5 xl:space-y-0" : undefined}>
           {/* Coordonnées de paiement (2026-11-08) : où l'employé
               reçoit son salaire — coordonnées bancaires complètes
               structurées selon le moyen. Elles ne conditionnent QUE
@@ -850,7 +863,7 @@ export default function MonDossierEmployePage() {
           </section>
 
           {pack ? (
-            <>
+            <div className="space-y-5">
               {/* Charte de confidentialité : statut de l'acceptation datée. */}
               <section className={CARTE}>
                 <h2 className="text-base font-bold text-navy">
@@ -962,14 +975,22 @@ export default function MonDossierEmployePage() {
                   </>
                 )}
               </section>
+            </div>
+          ) : null}
+          </div>
 
+          {/* Bureau large (xl) : Carte employé à côté de « Ma paie ».
+              Sans pack, « Ma paie » reste pleine largeur. */}
+          <div className={pack ? "space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5 xl:space-y-0" : undefined}>
+          {pack ? (
+            <>
               {/* Carte employé à code-barres (dossier complet + contrat validé). */}
               <section className={CARTE}>
                 <h2 className="text-base font-bold text-navy">
                   {tp("carteSectionTitle")}
                 </h2>
                 {pack.carte_emise ? (
-                  <div className="mt-3">
+                  <div className="mt-3 xl:flex xl:justify-center">
                     <CarteEmploye pack={pack} />
                   </div>
                 ) : (
@@ -1036,6 +1057,7 @@ export default function MonDossierEmployePage() {
               <p className="mt-2 text-sm text-slate-600">{tf("myPayEmpty")}</p>
             )}
           </section>
+          </div>
         </>
       ) : null}
     </div>

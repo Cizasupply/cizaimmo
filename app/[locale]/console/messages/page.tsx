@@ -58,13 +58,16 @@ export default function ConsoleMessagesPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 space-y-3">
+      {/* Bureau large (xl) : les fils deviennent des cartes en
+          grille 2 colonnes au lieu de rangées pleine largeur ;
+          pile d'origine en dessous de xl. */}
+      <div className="mt-6 space-y-3 xl:grid xl:grid-cols-2 xl:items-start xl:gap-4 xl:space-y-0">
         {chargement ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500 xl:col-span-2">
             {t("loading")}
           </p>
         ) : conversations.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500 xl:col-span-2">
             {t("messagesEmpty")}
           </p>
         ) : (
@@ -72,7 +75,7 @@ export default function ConsoleMessagesPage() {
             <Link
               key={c.id}
               href={`/${locale}/console/comptes/${c.proprietaire_id}#messages`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 hover:border-gold"
+              className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-white p-5 hover:border-gold"
             >
               <span className="min-w-0">
                 <span className="block truncate font-bold text-navy">
