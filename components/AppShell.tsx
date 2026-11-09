@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { Abonnement, Profil, RattachementGestionnaire } from "@/lib/data";
 import { prenomDe } from "@/lib/nom";
+import BandeauPage from "@/components/BandeauPage";
 import DossierBloc from "@/components/DossierBloc";
 import IconeNav from "@/components/IconeNav";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -211,9 +212,15 @@ function EcranBlocage({
 
 export default function AppShell({
   title,
+  retourHref,
+  retourLabel,
   children,
 }: {
   title: string;
+  /** Lien retour affiché EN OR dans le bandeau de titre (fiches :
+   * immeuble, appartement, locataire) — même patron que la console. */
+  retourHref?: string;
+  retourLabel?: string;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("nav");
@@ -529,26 +536,46 @@ export default function AppShell({
         ) : null}
       </header>
       <main className="px-6 py-6 md:ml-60 md:p-10 md:max-w-[1600px]">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Sur mobile, langue et cloche vivent dans la barre
-                supérieure marine — pas de doublon dans le titre. */}
-            <span className="hidden md:inline-flex">
-              <LanguageSwitcher className="border-slate-300 bg-white text-navy hover:border-gold" />
-            </span>
-            <span className="hidden md:inline-flex">
-              <AlertBell />
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold md:hidden"
+        {/* Bandeau de titre MARINE de l'espace client (2026-11-08,
+            décision du fondateur : « bandeau marine aussi dans
+            l'espace client », après la console) : la zone de titre de
+            TOUTES les pages clientes repose sur le BandeauPage
+            partagé — titre blanc, lien retour des fiches en or,
+            contrôles (langue bureau, cloche, déconnexion mobile) en
+            tons lisibles sur marine, comme la barre supérieure
+            mobile. Compact sur mobile, pleine largeur du conteneur
+            (1600 px) sur bureau ; titre en min-w-0 + break-words :
+            aucun débordement mobile. */}
+        <BandeauPage className="mb-6">
+          {retourHref && retourLabel ? (
+            <Link
+              href={retourHref}
+              className="mb-2 inline-block max-w-full break-words text-sm font-semibold text-gold underline"
             >
-              {tc("logout")}
-            </button>
+              ← {retourLabel}
+            </Link>
+          ) : null}
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="min-w-0 break-words text-2xl font-bold text-white md:text-3xl">{title}</h1>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Sur mobile, langue et cloche vivent dans la barre
+                  supérieure marine — pas de doublon dans le titre. */}
+              <span className="hidden md:inline-flex">
+                <LanguageSwitcher className="border-slate-500 text-slate-200 hover:border-gold hover:text-gold" />
+              </span>
+              <span className="hidden md:inline-flex">
+                <AlertBell />
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-full border border-slate-500 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-gold hover:text-gold md:hidden"
+              >
+                {tc("logout")}
+              </button>
+            </div>
           </div>
-        </div>
+        </BandeauPage>
         {children}
       </main>
         </div>

@@ -234,10 +234,11 @@ export default function AppartementDetailPage({ params }: { params: { id: string
   }
 
   return (
-    <AppShell title={`${appartement.numero} · ${appartement.type}`}>
-      <Link href={`/${locale}/appartements`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("apartments.backToList")}
-      </Link>
+    <AppShell
+      title={`${appartement.numero} · ${appartement.type}`}
+      retourHref={`/${locale}/appartements`}
+      retourLabel={t("apartments.backToList")}
+    >
       {message ? (
         <p role="status" className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{message}</p>
       ) : null}

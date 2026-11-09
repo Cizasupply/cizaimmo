@@ -478,5 +478,73 @@ check("DocumentList : mode standard inchangé (rangée dès sm, boutons px-3 py-
   contient(docList, "\"flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between\"") &&
   compte(docList, "px-3 py-1.5 text-sm font-semibold") === 3);
 
+// ---------------------------------------------------------------------------
+// Bandeau marine — ESPACE CLIENT (2026-11-08, décision explicite du
+// fondateur : « Oui, bandeau marine aussi dans l'espace client ») :
+// l'AppShell applique le BandeauPage partagé à la zone de titre de
+// TOUTES les pages clientes (titre blanc, contrôles en tons lisibles
+// sur marine) ; les fiches et les formulaires passent leur lien
+// retour EN OR dans le bandeau (props retourHref/retourLabel) au
+// lieu du lien marine en tête de contenu. Zéro débordement mobile :
+// titre en min-w-0 + break-words, retour en max-w-full + break-words.
+const appShellClient = lire("components/AppShell.tsx");
+check("Bandeau client : AppShell — BandeauPage importé et appliqué à la zone de titre (mb-6)",
+  contient(appShellClient, "import BandeauPage from \"@/components/BandeauPage\"") &&
+  contient(appShellClient, "<BandeauPage className=\"mb-6\">"));
+check("Bandeau client : AppShell — titre H1 en blanc, min-w-0 + break-words (anti-débordement)",
+  /<h1 className="min-w-0 break-words[^"]*text-white/.test(appShellClient));
+check("Bandeau client : AppShell — lien retour en or depuis les props (retourHref/retourLabel)",
+  contient(appShellClient, "retourHref && retourLabel") &&
+  contient(appShellClient, "font-semibold text-gold underline") &&
+  contient(appShellClient, "retourHref?: string") &&
+  contient(appShellClient, "retourLabel?: string"));
+check("Bandeau client : AppShell — contrôles lisibles sur marine (langue bureau + déconnexion mobile, tons slate/or)",
+  contient(appShellClient, "border-slate-500 text-slate-200 hover:border-gold hover:text-gold"));
+// Toutes les pages clientes visées passent par <AppShell title=…> :
+// le bandeau les couvre donc toutes, sans exception.
+const pagesClientesBandeau = [
+  ["Tableau de bord", "app/[locale]/dashboard/page.tsx"],
+  ["Immeubles (liste)", "app/[locale]/immeubles/page.tsx"],
+  ["Appartements", "app/[locale]/appartements/page.tsx"],
+  ["Locataires", "app/[locale]/locataires/page.tsx"],
+  ["Loyers", "app/[locale]/loyers/page.tsx"],
+  ["Reçus", "app/[locale]/recus/page.tsx"],
+  ["Dépenses", "app/[locale]/depenses/page.tsx"],
+  ["Rapports", "app/[locale]/rapports/page.tsx"],
+  ["Documents", "app/[locale]/documents/page.tsx"],
+  ["Alertes", "app/[locale]/alertes/page.tsx"],
+  ["Messages (client)", "app/[locale]/messages/page.tsx"],
+  ["Vitrine « à louer »", "app/[locale]/vitrine/page.tsx"],
+  ["Abonnement", "app/[locale]/abonnement/page.tsx"],
+  ["Mon contrat", "app/[locale]/contrat/page.tsx"],
+  ["Paramètres", "app/[locale]/parametres/page.tsx"],
+];
+for (const [nom, rel] of pagesClientesBandeau) {
+  check(`Bandeau client : page ${nom} — titre via AppShell (bandeau appliqué)`,
+    contient(lire(rel), "<AppShell"));
+}
+// Fiches + formulaires : lien retour passé au bandeau, et l'ancien
+// lien marine en tête de contenu a disparu de ces pages.
+const pagesRetourBandeau = [
+  ["Fiche immeuble", "app/[locale]/immeubles/[id]/page.tsx", "buildings.backToList"],
+  ["Fiche appartement", "app/[locale]/appartements/[id]/page.tsx", "apartments.backToList"],
+  ["Fiche locataire", "app/[locale]/locataires/[id]/page.tsx", "tenants.backToList"],
+  ["Immeuble — modifier", "app/[locale]/immeubles/[id]/modifier/page.tsx", "common.back"],
+  ["Immeuble — nouveau", "app/[locale]/immeubles/nouveau/page.tsx", "buildings.backToList"],
+  ["Appartement — modifier", "app/[locale]/appartements/[id]/modifier/page.tsx", "common.back"],
+  ["Appartement — nouveau", "app/[locale]/appartements/nouveau/page.tsx", "apartments.backToList"],
+  ["Bail — nouveau (appartement)", "app/[locale]/appartements/[id]/baux/nouveau/page.tsx", "common.back"],
+  ["Locataire — modifier", "app/[locale]/locataires/[id]/modifier/page.tsx", "common.back"],
+  ["Locataire — nouveau", "app/[locale]/locataires/nouveau/page.tsx", "tenants.backToList"],
+  ["Bail — nouveau (locataire)", "app/[locale]/locataires/[id]/baux/nouveau/page.tsx", "common.back"],
+];
+for (const [nom, rel, cle] of pagesRetourBandeau) {
+  const src = lire(rel);
+  check(`Bandeau client : ${nom} — retour en or dans le bandeau (retourLabel ${cle}), ancien lien de contenu retiré`,
+    contient(src, `retourLabel={t("${cle}")}`) &&
+    contient(src, "retourHref={`/${locale}/") &&
+    !contient(src, "mb-4 inline-block font-semibold text-navy underline"));
+}
+
 console.log(`\nOrganisation desktop premium : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);

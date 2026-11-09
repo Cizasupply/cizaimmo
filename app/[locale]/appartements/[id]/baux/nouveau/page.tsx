@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
@@ -71,10 +70,9 @@ export default function NouveauBailAppartementPage({ params }: { params: { id: s
           ? t("leases.formTitleFromApartment", { number: appartement.numero })
           : t("leases.formTitle")
       }
+      retourHref={`/${locale}/appartements/${params.id}`}
+      retourLabel={t("common.back")}
     >
-      <Link href={`/${locale}/appartements/${params.id}`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("common.back")}
-      </Link>
       {chargement ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : (

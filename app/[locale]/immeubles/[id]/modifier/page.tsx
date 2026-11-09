@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
@@ -125,10 +124,11 @@ export default function ModifierImmeublePage({ params }: { params: { id: string 
         : [];
 
   return (
-    <AppShell title={t("buildings.formTitleEdit")}>
-      <Link href={`/${locale}/immeubles/${params.id}`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("common.back")}
-      </Link>
+    <AppShell
+      title={t("buildings.formTitleEdit")}
+      retourHref={`/${locale}/immeubles/${params.id}`}
+      retourLabel={t("common.back")}
+    >
       {chargement ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : introuvable || !immeuble ? (

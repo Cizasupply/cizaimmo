@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
@@ -30,10 +29,11 @@ export default function NouveauLocatairePage() {
   }
 
   return (
-    <AppShell title={t("tenants.formTitleNew")}>
-      <Link href={`/${locale}/locataires`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("tenants.backToList")}
-      </Link>
+    <AppShell
+      title={t("tenants.formTitleNew")}
+      retourHref={`/${locale}/locataires`}
+      retourLabel={t("tenants.backToList")}
+    >
       {pret ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <LocataireForm onSubmit={handleSubmit} submitLabel={t("common.create")} />

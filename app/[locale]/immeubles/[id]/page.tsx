@@ -190,10 +190,11 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
   }
 
   return (
-    <AppShell title={immeuble.nom}>
-      <Link href={`/${locale}/immeubles`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("buildings.backToList")}
-      </Link>
+    <AppShell
+      title={immeuble.nom}
+      retourHref={`/${locale}/immeubles`}
+      retourLabel={t("buildings.backToList")}
+    >
       {message ? (
         <p role="status" className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{message}</p>
       ) : null}

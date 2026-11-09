@@ -165,10 +165,11 @@ export default function LocataireDetailPage({ params }: { params: { id: string }
   }
 
   return (
-    <AppShell title={locataire.nom}>
-      <Link href={`/${locale}/locataires`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("tenants.backToList")}
-      </Link>
+    <AppShell
+      title={locataire.nom}
+      retourHref={`/${locale}/locataires`}
+      retourLabel={t("tenants.backToList")}
+    >
       {message ? (
         <p role="status" className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{message}</p>
       ) : null}

@@ -188,3 +188,57 @@ touchés.
   démo sensibles à la date), signalés et non corrigés.
 - `npx tsc --noEmit` propre ; `npm run build` propre (101/101
   pages) ; parité i18n vérifiée par la suite.
+
+## Bandeau marine — espace client (2026-11-08, suite)
+
+Décision explicite du fondateur : « Oui, bandeau marine aussi dans
+l'espace client », après la passe console. Côté client, le titre de
+toutes les pages passe par l'`AppShell` : c'est donc lui qui
+applique désormais le composant partagé `BandeauPage` (marine
+#1B2A4A, bordure or/40, coins arrondis) à la zone de titre — une
+seule modification centrale couvre toutes les pages clientes.
+
+Traitement :
+
+- **Zone de titre de l'AppShell** : titre H1 en blanc
+  (`min-w-0 break-words`, aucun débordement mobile), bandeau
+  compact sur mobile et pleine largeur du conteneur (1600 px) sur
+  bureau. Les contrôles de la zone passent aux tons lisibles sur
+  marine, comme la barre supérieure mobile : sélecteur de langue
+  bureau et bouton « Se déconnecter » mobile en
+  `border-slate-500 text-slate-200 hover:border-gold
+  hover:text-gold` ; la cloche d'alertes garde sa pastille blanche
+  (déjà lisible sur marine, identique à la barre mobile).
+- **Pages couvertes par l'AppShell** (titre via `AppShell`) :
+  Tableau de bord, Immeubles (liste), Appartements, Locataires,
+  Loyers, Reçus, Dépenses, Rapports, Documents, Alertes, Messages,
+  Vitrine « à louer » (mes annonces), Abonnement, Mon contrat,
+  Paramètres — et, par le même mécanisme, les pages formulaires
+  (nouveau / modifier / nouveau bail).
+- **Lien retour en or dans le bandeau** : l'AppShell reçoit deux
+  props optionnelles (`retourHref`, `retourLabel`) et rend le
+  retour en or au-dessus du titre, comme le Dossier console. Les
+  pages qui affichaient un lien retour marine en tête de contenu
+  le passent au bandeau et l'ancien lien est retiré : fiches
+  immeuble, appartement et locataire ; formulaires immeuble
+  (nouveau, modifier), appartement (nouveau, modifier, nouveau
+  bail) et locataire (nouveau, modifier, nouveau bail). Sur la
+  fiche immeuble, la photo et tout le contenu restent dessous,
+  inchangés. Imports `Link` devenus inutiles retirés des
+  formulaires concernés.
+- **Écart justifié — écran d'attente (« Mon dossier »)** :
+  l'attente d'approbation et la suspension s'affichent via
+  `EcranBlocage`, une carte blanche centrée plein écran sur fond
+  marine foncé, avec son propre en-tête (icône, titre, Display ID,
+  bloc dossier `DossierBloc`). Ce patron plein écran ne se prête
+  pas à la zone de titre `BandeauPage` ; il est conservé tel quel.
+- Aucun texte modifié (parité i18n intacte), aucune règle, aucun
+  fournisseur, aucun SQL ; les pages publiques (accueil, à propos,
+  tarifs, contact, vitrine publique, connexion/inscription, page
+  publique d'annonce et lien locataire) sont hors périmètre.
+
+Tests : bloc organisation étendu (section « Bandeau client » :
+AppShell banneré, titre blanc anti-débordement, retour or, 15 pages
+couvertes via AppShell, 11 pages à retour vérifiées une à une) —
+211 OK / 0 KO au moment de la passe ; suite complète, `tsc` et
+build : voir les résultats rapportés avec le commit.

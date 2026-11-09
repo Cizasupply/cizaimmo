@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
@@ -57,10 +56,11 @@ function NouvelAppartementContenu() {
   }
 
   return (
-    <AppShell title={mode === "bulk" ? t("apartments.bulkTitle") : t("apartments.formTitleNew")}>
-      <Link href={`/${locale}/appartements`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("apartments.backToList")}
-      </Link>
+    <AppShell
+      title={mode === "bulk" ? t("apartments.bulkTitle") : t("apartments.formTitleNew")}
+      retourHref={`/${locale}/appartements`}
+      retourLabel={t("apartments.backToList")}
+    >
       <div className="mb-4 flex gap-2">
         <button
           type="button"

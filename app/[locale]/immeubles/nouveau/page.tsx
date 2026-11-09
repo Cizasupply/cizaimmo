@@ -111,10 +111,11 @@ export default function NouvelImmeublePage() {
   }
 
   return (
-    <AppShell title={t("buildings.formTitleNew")}>
-      <Link href={`/${locale}/immeubles`} className="mb-4 inline-block font-semibold text-navy underline">
-        ← {t("buildings.backToList")}
-      </Link>
+    <AppShell
+      title={t("buildings.formTitleNew")}
+      retourHref={`/${locale}/immeubles`}
+      retourLabel={t("buildings.backToList")}
+    >
       {chargement ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">{t("common.loading")}</p>
       ) : limiteAtteinte && abonnement ? (
