@@ -20,7 +20,7 @@ Créer **6 prix récurrents mensuels** (en USD, abonnement mensuel) :
 
 | Plan | Grille | Nom du prix (suggéré) | Montant mensuel | Variable d'environnement |
 |---|---|---|---|---|
-| Starter | Afrique | CizaImmo Starter — Afrique | **2,00 $** (200 cents) | `STRIPE_PRICE_AFRIQUE_STARTER` |
+| Starter | Afrique | CizaImmo Starter — Afrique | **1,99 $** (199 cents) | `STRIPE_PRICE_AFRIQUE_STARTER` |
 | Pro | Afrique | CizaImmo Pro — Afrique | **5,99 $** (599 cents) | `STRIPE_PRICE_AFRIQUE_PRO` |
 | Agence | Afrique | CizaImmo Agence — Afrique | **11,99 $** (1199 cents) | `STRIPE_PRICE_AFRIQUE_AGENCE` |
 | Starter | Internationale | CizaImmo Starter — Internationale | **4,99 $** (499 cents) | `STRIPE_PRICE_INTERNATIONALE_STARTER` |
@@ -67,7 +67,7 @@ Ne commitez **jamais** `.env.local`. Les placeholders sont dans
 3. Événements à écouter : `checkout.session.completed`,
    `invoice.payment_failed`, `customer.subscription.deleted`.
 4. La route vérifie la signature avec `STRIPE_WEBHOOK_SECRET` et
-   applique : activation du plan payé, grâce de 5 jours en cas d'échec (décision Ciza 2026-11-07 : 5 jours partout, paramètre base déjà à 5)
+   applique : activation du plan payé, grâce de 7 jours en cas d'échec
    de paiement, résiliation effective en fin de période.
 5. **Sans `SUPABASE_SERVICE_ROLE_KEY`**, le webhook accuse réception
    (HTTP 200) mais **n'applique rien** (`applied: false`) — jamais de
@@ -109,7 +109,7 @@ frais.
 ## 6. Cartes de test Stripe
 
 - Succès : `4242 4242 4242 4242`, expiration future, CVC quelconque.
-- Échec (pour tester la grâce de 5 jours) : `4000 0000 0000 0002`
+- Échec (pour tester la grâce de 7 jours) : `4000 0000 0000 0002`
   (carte refusée).
 - Authentification 3-D Secure : `4000 0025 0000 3155`.
 
