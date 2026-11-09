@@ -24,6 +24,7 @@ npx tsc --outDir "$BUILD_DIR" --module commonjs --target es2020 \
   lib/abonnement.ts lib/countries.ts lib/indivision.ts lib/whatsapp.ts lib/taux.ts \
   lib/grille.ts lib/tarifs.ts lib/avis.ts lib/contrat.ts lib/cachet.ts lib/guide.ts \
   lib/dossier-employe.ts \
+  lib/logos-pdf.ts \
   lib/code128.ts \
   lib/pack-employe.ts \
   lib/contrat-employe.ts \
@@ -567,6 +568,31 @@ if node "scripts/test-finances-reel.cjs"; then
   echo "Finances (fournisseur réel) : OK"
 else
   echo "Finances (fournisseur réel) : ÉCHEC" >&2
+  ECHEC=1
+fi
+
+# Passe corrective « captures du fondateur » (2026-11-08, 8 points) :
+# (1) carte Vitrine en colonne sur mobile ; (2) en-tête public sans
+# débordement ; (3) audit — inventaire COMPLET des actions avec
+# libellés FR/EN, repli générique, cible lisible (jamais un UUID),
+# détails de dépense au montant formaté ; (4) finances — lignes
+# Destination qui se replient, montants sur une ligne ; (5) « Ma
+# paie » — référence numérique groupée par milliers ; (6) contrats
+# PDF aux DEUX logos (génération réelle, images vérifiées dans le
+# PDF, repli texte) ; (7) dépôt du contrat employé signé — causes
+# racines : bouton mort sur iPhone (clic scripté sur input
+# display:none, ignoré par iOS -> label natif) + le HEIC iPhone
+# refusé partout alors que le bucket n'impose aucun type (flux
+# démo runtime + politiques statiques) ; (8) périmètre PAIES de
+# la vue Finances : un Admin ne voit que SA paie (lignes,
+# historique, totaux), talon d'un autre refusé, Super voit tout
+# (démo ici, réel contraint dans test-finances-reel.cjs).
+echo ""
+echo "===== Passe corrective captures (8 points, 2026-11-08) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-correctifs-captures.cjs"; then
+  echo "Passe corrective captures : OK"
+else
+  echo "Passe corrective captures : ÉCHEC" >&2
   ECHEC=1
 fi
 

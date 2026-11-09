@@ -24,6 +24,7 @@
  */
 
 import { CACHET_CIZAGROUP_JPEG_BASE64 } from "./cachet";
+import { chargerLogosPdf, type ImagesLogosPdf } from "./logos-pdf";
 import { SIGNATURE_PRESIDENT_DATA_URL } from "./signature";
 import type {
   ParametresContratEmploye,
@@ -760,7 +761,8 @@ async function chargerSignaturePresident(): Promise<string | null> {
  * et le retourne en base64 — pièce jointe d'e-mail ou téléchargement.
  */
 export async function genererContratEmployePdf(
-  donnees: DonneesContratEmploye
+  donnees: DonneesContratEmploye,
+  images?: ImagesLogosPdf
 ): Promise<{ nomFichier: string; contenuBase64: string }> {
   const t = textesContratEmploye(donnees);
   const nomFichier = nomFichierContratEmploye(donnees.displayId);
@@ -771,26 +773,63 @@ export async function genererContratEmployePdf(
   const largeurTexte = largeur - marge * 2;
   let y = 0;
 
-  // En-tête marine + filet or.
+  // En-tête marine + filet or — AUX DEUX LOGOS quand ils sont
+  // chargeables (correctif captures 2026-11-08, patron du talon de
+  // paie lib/talon-paie.ts) : bandeau porté à 32 mm, logo CizaImmo
+  // compact à gauche, logo Ciza Group à droite, et la ligne
+  // « Display ID : … » CENTRÉE entre les deux logos (à droite, elle
+  // chevaucherait le logo Ciza Group). Si les logos sont
+  // inchargeables (hors navigateur, génération serveur), repli sur
+  // l'en-tête TEXTE historique, inchangé. Les textes du contrat ne
+  // changent dans aucun des deux modes.
+  const logos = images ?? (await chargerLogosPdf());
+  const avecLogos = logos.logoCizaImmo !== null;
+  const hauteurBandeau = avecLogos ? 32 : 30;
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, largeur, 30, "F");
+  doc.rect(0, 0, largeur, hauteurBandeau, "F");
   doc.setFillColor(...GOLD);
-  doc.rect(0, 30, largeur, 1.6, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(19);
-  doc.text("CizaImmo", marge, 13);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(201, 210, 224);
-  doc.text(t.division, marge, 19.5);
-  doc.setFontSize(11);
-  doc.setTextColor(...GOLD);
+  doc.rect(0, hauteurBandeau, largeur, 1.6, "F");
   const dossierLigne = donnees.displayId
     ? `Display ID : ${donnees.displayId}`
     : "";
-  if (dossierLigne) {
-    doc.text(dossierLigne, largeur - marge - doc.getTextWidth(dossierLigne), 13);
+  if (avecLogos) {
+    // Artwork compact 820x260 : boîte 54 mm de large, hauteur ~17 mm,
+    // centrée verticalement dans le bandeau — nettement lisible.
+    doc.addImage(logos.logoCizaImmo as string, "PNG", marge, 7.4, 54, 17.1);
+    if (logos.logoCizaGroup) {
+      // Logo Ciza Group (carré) : boîte 26x26 mm à droite du bandeau.
+      doc.addImage(logos.logoCizaGroup, "PNG", largeur - marge - 26, 3, 26, 26);
+    }
+    if (dossierLigne) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...GOLD);
+      if (logos.logoCizaGroup) {
+        doc.text(dossierLigne, (72 + (largeur - marge - 26)) / 2, 15, {
+          align: "center",
+        });
+      } else {
+        doc.text(
+          dossierLigne,
+          largeur - marge - doc.getTextWidth(dossierLigne),
+          13
+        );
+      }
+    }
+  } else {
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(19);
+    doc.text("CizaImmo", marge, 13);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(201, 210, 224);
+    doc.text(t.division, marge, 19.5);
+    doc.setFontSize(11);
+    doc.setTextColor(...GOLD);
+    if (dossierLigne) {
+      doc.text(dossierLigne, largeur - marge - doc.getTextWidth(dossierLigne), 13);
+    }
   }
 
   // Titre.

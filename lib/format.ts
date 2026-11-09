@@ -143,6 +143,29 @@ function formatValeurAudit(valeur: unknown, locale: string, profondeur: number):
       const devise = typeof objet.devise === "string" ? ` ${objet.devise}` : "";
       return `${objet.grille}/${objet.plan} : ${objet.prix_mensuel}${devise}`;
     }
+    // Forme « dépense plateforme » journalisée (saisie / validation /
+    // refus d'une dépense) : le libellé et le MONTANT FORMATÉ d'abord
+    // (correctif 2026-11-08 : le montant brut « 400000 » ne doit plus
+    // apparaître), le reste (catégorie, motif…) en paires ensuite.
+    if (
+      typeof objet.libelle === "string" &&
+      typeof objet.montant === "number" &&
+      typeof objet.devise === "string"
+    ) {
+      const tete = `${objet.libelle} — ${formatMoney(objet.montant, objet.devise, locale)}`;
+      const reste = Object.entries(objet).filter(
+        ([cle]) => cle !== "libelle" && cle !== "montant" && cle !== "devise"
+      );
+      if (reste.length === 0 || profondeur >= DETAILS_PROFONDEUR_MAX) {
+        return tete;
+      }
+      const paires = reste.map(
+        ([cle, v]) => `${cle} : ${formatValeurAudit(v, locale, profondeur + 1)}`
+      );
+      return profondeur === 0
+        ? [tete, ...paires].join(" · ")
+        : `${tete} (${paires.join(", ")})`;
+    }
     const entrees = Object.entries(objet);
     if (entrees.length === 0) return "—";
     if (profondeur >= DETAILS_PROFONDEUR_MAX) return jsonCompactAudit(valeur);
@@ -168,6 +191,130 @@ export function formatDetailsAudit(
     return "";
   }
   return formatValeurAudit(details, locale, 0);
+}
+
+/**
+ * Inventaire des actions RÉELLEMENT journalisées dans le journal
+ * d'audit (fournisseurs réel + démo + fonctions SQL des modules
+ * v1.5/v1.6, finances et pack employé) — correctif 2026-11-08
+ * (captures du fondateur) : 16 actions n'avaient AUCUN libellé i18n
+ * (assignation, contrat_employe_valide, charte_acceptee, suppressions
+ * demandée/annulée/exécutée, vitrine…) et l'interface affichait la
+ * CLÉ BRUTE (« console.audit.assignation »). Chaque action d'ici a
+ * son libellé FR + EN sous console.audit.* ; une action ABSENTE de
+ * cette liste est rendue par le libellé générique
+ * console.audit.actionInconnue — jamais la clé brute. Le test
+ * scripts/test-correctifs-captures.cjs reverrouille l'inventaire
+ * contre le code des fournisseurs et le SQL.
+ */
+export const ACTIONS_AUDIT: readonly string[] = [
+  "acces_admin_modifie",
+  "admin_cree",
+  "admin_promu",
+  "admin_reactive",
+  "admin_retire",
+  "admin_suspendu",
+  "assignation",
+  "avis_envoye",
+  "charte_acceptee",
+  "compte_approuve",
+  "compte_reactive",
+  "compte_refuse",
+  "compte_supprime_definitivement",
+  "compte_suspendu",
+  "consultation_messages",
+  "contrat_employe_prepare",
+  "contrat_employe_refuse",
+  "contrat_employe_signe_depose",
+  "contrat_employe_valide",
+  "contrat_proprietaire_refuse",
+  "contrat_proprietaire_valide",
+  "contrat_valide",
+  "depense_plateforme_refusee",
+  "depense_plateforme_saisie",
+  "depense_plateforme_validee",
+  "grille_reattribuee",
+  "immeuble_gestion_refuse",
+  "immeuble_gestion_valide",
+  "paie_emise",
+  "parametres_modifies",
+  "rattachement_cree",
+  "rattachement_refuse",
+  "rattachement_retire",
+  "rattachement_valide",
+  "role_admin_retire",
+  "supervision_ouverte",
+  "suppression_annulee",
+  "suppression_demandee",
+  "suppression_executee",
+  "tarifs_modifies",
+  "vitrine_approuvee",
+  "vitrine_publication_demandee",
+  "vitrine_publication_retiree",
+  "vitrine_refusee",
+];
+
+/** L'action a-t-elle un libellé humain (console.audit.<action>) ? */
+export function actionAuditConnue(action: string): boolean {
+  return ACTIONS_AUDIT.includes(action);
+}
+
+/**
+ * Cible LISIBILE d'une entrée d'audit — JAMAIS l'identifiant technique
+ * (correctif 2026-11-08 : les entrées « dépense plateforme »
+ * affichaient l'UUID brut de la dépense). Priorité : l'e-mail de la
+ * cible ; sinon, pour une dépense, son libellé journalisé (et le
+ * montant formaté s'il est présent) ; sinon un tiret propre.
+ */
+export function formatCibleAudit(
+  entree: {
+    cible_email?: string | null;
+    cible_id?: string | null;
+    details?: Record<string, unknown> | null;
+  },
+  locale: string = "fr"
+): string {
+  if (entree.cible_email) return entree.cible_email;
+  const details = entree.details;
+  if (details && typeof details === "object") {
+    const libelle =
+      typeof details.libelle === "string" ? details.libelle : null;
+    if (libelle) {
+      if (
+        typeof details.montant === "number" &&
+        typeof details.devise === "string"
+      ) {
+        return `${libelle} — ${formatMoney(details.montant, details.devise, locale)}`;
+      }
+      return libelle;
+    }
+  }
+  return "—";
+}
+
+/**
+ * Référence libre d'une paie employé, prête à afficher : une
+ * référence PUREMENT NUMÉRIQUE (cas réel du fondateur : « 400000 »
+ * saisi comme référence) est groupée par milliers comme partout
+ * dans l'app (« 400 000 ») ; toute autre référence (numéro de
+ * virement alphanumérique, zéro initial…) passe inchangée.
+ */
+export function formatReferencePaie(
+  reference: string | null | undefined,
+  locale: string = "fr"
+): string {
+  if (!reference) return "";
+  const texte = reference.trim();
+  if (/^[1-9]\d{3,14}$/.test(texte)) {
+    try {
+      return new Intl.NumberFormat(locale === "en" ? "en-US" : "fr-FR", {
+        maximumFractionDigits: 0,
+      }).format(Number(texte));
+    } catch {
+      return reference;
+    }
+  }
+  return reference;
 }
 
 /** Périodes du filtre intelligent du journal d'audit (page console). */
@@ -197,4 +344,33 @@ export function periodeJournalContient(
   const jours = periode === "7j" ? 7 : 30;
   const ecart = maintenant.getTime() - d.getTime();
   return ecart >= 0 && ecart <= jours * 24 * 3600 * 1000;
+}
+
+/** Pagination de la page Journal (point 9, 2026-11-08) : 20 entrées par page. */
+export const TAILLE_PAGE_JOURNAL = 20;
+
+/**
+ * Découpe PURE d'une liste déjà filtrée en pages (la page Journal
+ * compose : filtres existants → vue principale/archivées → cette
+ * découpe). La page demandée est ramenée dans les bornes [1,
+ * totalPages] — une liste vide donne 1 page vide. Testée unitairement
+ * (bornes + composition avec un filtre).
+ */
+export function paginerListe<T>(
+  elements: readonly T[],
+  pageDemandee: number,
+  taille: number = TAILLE_PAGE_JOURNAL
+): { page: number; totalPages: number; elements: T[] } {
+  const parPage = Math.max(1, Math.floor(taille) || TAILLE_PAGE_JOURNAL);
+  const totalPages = Math.max(1, Math.ceil(elements.length / parPage));
+  const demandee = Math.floor(pageDemandee);
+  const page = Math.min(
+    Math.max(1, Number.isNaN(demandee) ? 1 : demandee),
+    totalPages
+  );
+  return {
+    page,
+    totalPages,
+    elements: elements.slice((page - 1) * parPage, page * parPage),
+  };
 }

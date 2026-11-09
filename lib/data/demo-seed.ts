@@ -135,6 +135,12 @@ export interface PlateformeDemo {
   comptesClients: CompteClientDemo[];
   rattachements: RattachementGestionnaire[];
   journal: EntreeAudit[];
+  /**
+   * Point 9 (2026-11-08) : état de lecture du journal (lu / archivé)
+   * par id d'entrée — miroir de la table LATÉRALE réelle
+   * journal_lecture (le journal lui-même reste append-only).
+   */
+  journalLecture: Record<string, { lu_le: string | null; archive_le: string | null; par: string | null }>;
   avis: Avis[];
   /**
    * Checklists de vérification des dossiers (2026-11-07) : dernier
@@ -785,6 +791,7 @@ export function buildDemoDb(): DemoDb {
       },
     ],
     journal: [],
+    journalLecture: {},
     avis: [],
     checklistsDossiers: {},
     // Pack employé (2026-11-08) : aucun pack pré-rempli — chaque

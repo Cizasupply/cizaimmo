@@ -23,13 +23,21 @@
  * garde ERR_SUPER_ADMIN_REQUIS chez les fournisseurs, refus propre
  * ci-dessous en accès direct par un Admin (même patron que la page
  * Suppressions). L'écriture au journal (tous rôles) est inchangée.
+ *
+ * Point 9 (2026-11-08) : ÉTAT DE LECTURE + PAGINATION — pastille
+ * « Nouveau » sur les non-lues, « Tout marquer comme lu », archivage
+ * par entrée et en masse des lues, vue « Archivées » avec
+ * désarchivage, pagination 20/page (paginerListe, lib/format.ts)
+ * composée APRÈS les filtres existants et la vue. Les marqueurs
+ * vivent dans la table latérale journal_lecture (via les
+ * fournisseurs) : le journal reste append-only.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { EntreeAudit, Profil } from "@/lib/data";
-import { formatDateTime, formatDetailsAudit, periodeJournalContient } from "@/lib/format";
+import { actionAuditConnue, formatCibleAudit, formatDateTime, formatDetailsAudit, paginerListe, periodeJournalContient } from "@/lib/format";
 import type { PeriodeJournal } from "@/lib/format";
 
 export default function ConsoleJournalPage() {
@@ -43,6 +51,11 @@ export default function ConsoleJournalPage() {
   const [filtreAction, setFiltreAction] = useState("");
   const [filtreActeur, setFiltreActeur] = useState("");
   const [periode, setPeriode] = useState<PeriodeJournal>("tout");
+  // Point 9 : vue (principale / archivées), page courante, et
+  // verrou d'action pendant un appel fournisseur.
+  const [vueArchivees, setVueArchivees] = useState(false);
+  const [page, setPage] = useState(1);
+  const [occupe, setOccupe] = useState(false);
 
   useEffect(() => {
     let actif = true;
@@ -68,8 +81,16 @@ export default function ConsoleJournalPage() {
   }, []);
 
   // Libellé humain d'une action (même rendu que la colonne Action) :
-  // la recherche libre le couvre en plus du code brut.
-  const libelleAction = (e: EntreeAudit) => t(`audit.${e.action}` as "audit.compte_approuve");
+  // la recherche libre le couvre en plus du code brut. Correctif
+  // 2026-11-08 : une action hors inventaire (ACTIONS_AUDIT,
+  // lib/format.ts) retombe sur le libellé générique — JAMAIS la clé
+  // brute « console.audit.… » qu'affichait next-intl pour les actions
+  // sans traduction (assignation, contrat employé validé…).
+  const libelleCodeAction = (action: string) =>
+    actionAuditConnue(action)
+      ? t(`audit.${action}` as "audit.compte_approuve")
+      : t("audit.actionInconnue" as "audit.compte_approuve");
+  const libelleAction = (e: EntreeAudit) => libelleCodeAction(e.action);
   const nomActeur = (e: EntreeAudit) => e.acteur_nom ?? e.acteur_email;
   const roleActeur = (e: EntreeAudit) =>
     e.acteur_role === "super_admin"
@@ -110,7 +131,7 @@ export default function ConsoleJournalPage() {
         e.action,
         libelleAction(e),
         e.cible_email ?? "",
-        e.cible_id ?? "",
+        formatCibleAudit(e, locale),
         formatDetailsAudit(e.details, locale),
       ]
         .join(" ")
@@ -127,7 +148,101 @@ export default function ConsoleJournalPage() {
     setFiltreAction("");
     setFiltreActeur("");
     setPeriode("tout");
+    setPage(1);
   };
+
+  // Point 9 — composition : filtres existants (visibles) → vue
+  // (principale = non archivées / archivées) → pagination 20/page.
+  const selonVue = useMemo(
+    () => visibles.filter((e) => (vueArchivees ? e.archive : !e.archive)),
+    [visibles, vueArchivees]
+  );
+  const pagination = useMemo(
+    () => paginerListe(selonVue, page),
+    [selonVue, page]
+  );
+  const pageAffichee = pagination.elements;
+  const nbNonLues = useMemo(
+    () => entrees.filter((e) => !e.lu && !e.archive).length,
+    [entrees]
+  );
+  const nbLuesNonArchivees = useMemo(
+    () => entrees.filter((e) => e.lu && !e.archive).length,
+    [entrees]
+  );
+  const nbArchivees = useMemo(
+    () => entrees.filter((e) => e.archive).length,
+    [entrees]
+  );
+
+  // Actions d'état de lecture : l'état local n'est mis à jour qu'après
+  // le succès fournisseur (les marqueurs vivent côté fournisseur,
+  // table latérale — le journal lui-même n'est jamais modifié).
+  const majEntrees = (patch: (e: EntreeAudit) => EntreeAudit) =>
+    setEntrees((prev) => prev.map(patch));
+  async function executerAction(fn: () => Promise<void>) {
+    if (occupe) return;
+    setOccupe(true);
+    try {
+      await fn();
+    } catch {
+      /* échec silencieux : l'affichage reste sur l'état confirmé */
+    } finally {
+      setOccupe(false);
+    }
+  }
+  const marquerLu = (e: EntreeAudit) =>
+    executerAction(async () => {
+      await getDataProvider().marquerEntreesAuditLues([e.id]);
+      majEntrees((x) => (x.id === e.id ? { ...x, lu: true } : x));
+    });
+  const toutMarquerLu = () =>
+    executerAction(async () => {
+      await getDataProvider().marquerEntreesAuditLues();
+      majEntrees((x) => ({ ...x, lu: true }));
+    });
+  const archiverEntree = (e: EntreeAudit) =>
+    executerAction(async () => {
+      await getDataProvider().archiverEntreeAudit(e.id);
+      majEntrees((x) => (x.id === e.id ? { ...x, archive: true } : x));
+    });
+  const desarchiverEntree = (e: EntreeAudit) =>
+    executerAction(async () => {
+      await getDataProvider().desarchiverEntreeAudit(e.id);
+      majEntrees((x) => (x.id === e.id ? { ...x, archive: false } : x));
+    });
+  const archiverLues = () =>
+    executerAction(async () => {
+      await getDataProvider().archiverEntreesAuditLues();
+      majEntrees((x) => (x.lu && !x.archive ? { ...x, archive: true } : x));
+    });
+
+  const btnEntreeClasse =
+    "rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-navy hover:border-gold disabled:opacity-50";
+  const badgeNouveau = (e: EntreeAudit) =>
+    !e.lu ? (
+      <span className="ml-2 inline-block rounded-full bg-gold px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-navy">
+        {t("journalNewBadge")}
+      </span>
+    ) : null;
+  const boutonsEntree = (e: EntreeAudit) => (
+    <span className="mt-2 flex flex-wrap gap-2">
+      {!e.lu ? (
+        <button type="button" disabled={occupe} onClick={() => void marquerLu(e)} className={btnEntreeClasse}>
+          {t("journalMarkRead")}
+        </button>
+      ) : null}
+      {!e.archive ? (
+        <button type="button" disabled={occupe} onClick={() => void archiverEntree(e)} className={btnEntreeClasse}>
+          {t("journalArchive")}
+        </button>
+      ) : (
+        <button type="button" disabled={occupe} onClick={() => void desarchiverEntree(e)} className={btnEntreeClasse}>
+          {t("journalUnarchive")}
+        </button>
+      )}
+    </span>
+  );
 
   const champClasse =
     "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold";
@@ -160,7 +275,7 @@ export default function ConsoleJournalPage() {
             <span className={etiquetteClasse}>{t("journalSearchLabel")}</span>
             <input
               value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
+              onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
               placeholder={t("journalSearchPlaceholder")}
               className={champClasse}
             />
@@ -169,13 +284,13 @@ export default function ConsoleJournalPage() {
             <span className={etiquetteClasse}>{t("journalFilterAction")}</span>
             <select
               value={filtreAction}
-              onChange={(e) => setFiltreAction(e.target.value)}
+              onChange={(e) => { setFiltreAction(e.target.value); setPage(1); }}
               className={champClasse}
             >
               <option value="">{t("journalFilterAllActions")}</option>
               {actionsDistinctes.map((action) => (
                 <option key={action} value={action}>
-                  {t(`audit.${action}` as "audit.compte_approuve")}
+                  {libelleCodeAction(action)}
                 </option>
               ))}
             </select>
@@ -184,7 +299,7 @@ export default function ConsoleJournalPage() {
             <span className={etiquetteClasse}>{t("journalFilterActor")}</span>
             <select
               value={filtreActeur}
-              onChange={(e) => setFiltreActeur(e.target.value)}
+              onChange={(e) => { setFiltreActeur(e.target.value); setPage(1); }}
               className={champClasse}
             >
               <option value="">{t("journalFilterAllActors")}</option>
@@ -199,7 +314,7 @@ export default function ConsoleJournalPage() {
             <span className={etiquetteClasse}>{t("journalFilterPeriod")}</span>
             <select
               value={periode}
-              onChange={(e) => setPeriode(e.target.value as PeriodeJournal)}
+              onChange={(e) => { setPeriode(e.target.value as PeriodeJournal); setPage(1); }}
               className={champClasse}
             >
               <option value="tout">{t("journalPeriodAll")}</option>
@@ -220,10 +335,53 @@ export default function ConsoleJournalPage() {
         </div>
         {charge && entrees.length > 0 ? (
           <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t("journalResultsCount", { count: visibles.length })}
+            {t("journalResultsCount", { count: selonVue.length })}
           </p>
         ) : null}
       </section>
+
+      {/* Point 9 : vues (principale / archivées) + actions de masse
+          sur l'état de lecture. */}
+      {charge && entrees.length > 0 ? (
+        <section className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-slate-300 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => { setVueArchivees(false); setPage(1); }}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${!vueArchivees ? "bg-navy text-white" : "text-navy"}`}
+            >
+              {t("journalTabMain")}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setVueArchivees(true); setPage(1); }}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${vueArchivees ? "bg-navy text-white" : "text-navy"}`}
+            >
+              {t("journalTabArchived")} ({nbArchivees})
+            </button>
+          </div>
+          {!vueArchivees ? (
+            <>
+              <button
+                type="button"
+                disabled={occupe || nbNonLues === 0}
+                onClick={() => void toutMarquerLu()}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+              >
+                {t("journalMarkAllRead")}
+              </button>
+              <button
+                type="button"
+                disabled={occupe || nbLuesNonArchivees === 0}
+                onClick={() => void archiverLues()}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+              >
+                {t("journalArchiveRead")}
+              </button>
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* Résultats : cartes sur mobile, tableau sur ordinateur —
           patron d'affichage de l'app connectée. */}
@@ -236,17 +394,20 @@ export default function ConsoleJournalPage() {
           <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
             {t("noActivity")}
           </p>
-        ) : visibles.length === 0 ? (
+        ) : selonVue.length === 0 ? (
           <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
             {t("journalNoResults")}
           </p>
         ) : (
           <>
             <div className="space-y-3 md:hidden">
-              {visibles.map((e) => (
+              {pageAffichee.map((e) => (
                 <article key={e.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-bold text-navy">{libelleAction(e)}</span>
+                    <span className="font-bold text-navy">
+                      {libelleAction(e)}
+                      {badgeNouveau(e)}
+                    </span>
                     <span className="text-xs text-slate-400">
                       {formatDateTime(e.created_at, locale)}
                     </span>
@@ -256,13 +417,14 @@ export default function ConsoleJournalPage() {
                     <span className="block text-xs text-slate-400">{e.acteur_email}</span>
                   </p>
                   <p className="mt-1 break-words text-sm text-slate-600">
-                    {e.cible_email ?? e.cible_id ?? "—"}
+                    {formatCibleAudit(e, locale)}
                   </p>
                   {formatDetailsAudit(e.details, locale) ? (
                     <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">
                       {formatDetailsAudit(e.details, locale)}
                     </p>
                   ) : null}
+                  {boutonsEntree(e)}
                 </article>
               ))}
             </div>
@@ -279,7 +441,7 @@ export default function ConsoleJournalPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibles.map((e) => (
+                  {pageAffichee.map((e) => (
                     <tr key={e.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                       <td className="whitespace-nowrap px-4 py-3 align-top text-slate-500">
                         {formatDateTime(e.created_at, locale)}
@@ -296,9 +458,11 @@ export default function ConsoleJournalPage() {
                       </td>
                       <td className="px-4 py-3 align-top font-semibold text-navy">
                         {libelleAction(e)}
+                        {badgeNouveau(e)}
+                        {boutonsEntree(e)}
                       </td>
                       <td className="break-words px-4 py-3 align-top text-slate-600">
-                        {e.cible_email ?? e.cible_id ?? "—"}
+                        {formatCibleAudit(e, locale)}
                       </td>
                       <td className="max-w-[320px] break-words px-4 py-3 align-top text-xs leading-relaxed text-slate-500">
                         {formatDetailsAudit(e.details, locale) || "—"}
@@ -308,6 +472,32 @@ export default function ConsoleJournalPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Point 9 : pagination 20/page, composée avec les
+                filtres et la vue courante. */}
+            {pagination.totalPages > 1 ? (
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setPage(pagination.page - 1)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                >
+                  {t("journalPrev")}
+                </button>
+                <span className="text-sm font-semibold text-slate-600">
+                  {t("journalPageLabel", { page: pagination.page, total: pagination.totalPages })}
+                </span>
+                <button
+                  type="button"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage(pagination.page + 1)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                >
+                  {t("journalNext")}
+                </button>
+              </div>
+            ) : null}
           </>
         )}
       </div>

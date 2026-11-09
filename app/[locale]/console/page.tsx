@@ -15,7 +15,7 @@ import { getDataProvider } from "@/lib/data";
 import type { AnnonceAValider, ComptePlateforme, DemandeRattachement, EntreeAudit } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
 import { construirePrixPlans } from "@/lib/tarifs";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { actionAuditConnue, formatCibleAudit, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 
 export default function ConsoleAccueilPage() {
   const t = useTranslations("console");
@@ -293,9 +293,13 @@ export default function ConsoleAccueilPage() {
             {journal.map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 text-sm last:border-0">
                 <span className="min-w-0">
-                  <span className="font-semibold text-navy">{t(`audit.${e.action}` as "audit.compte_approuve")}</span>{" "}
-                  <span className="text-slate-600">
-                    — {e.cible_email ?? e.cible_id ?? ""} · {t("byActor", { actor: e.acteur_nom ?? e.acteur_email })}
+                  <span className="font-semibold text-navy">
+                    {actionAuditConnue(e.action)
+                      ? t(`audit.${e.action}` as "audit.compte_approuve")
+                      : t("audit.actionInconnue" as "audit.compte_approuve")}
+                  </span>{" "}
+                  <span className="break-words text-slate-600">
+                    — {formatCibleAudit(e, locale)} · {t("byActor", { actor: e.acteur_nom ?? e.acteur_email })}
                   </span>
                 </span>
                 <span className="text-xs text-slate-400">{formatDateTime(e.created_at, locale)}</span>

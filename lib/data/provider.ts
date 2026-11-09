@@ -588,6 +588,19 @@ export interface DataProvider {
    */
   listerJournalAudit(): Promise<EntreeAudit[]>;
 
+  /**
+   * État de lecture du journal (point 9, 2026-11-08) — Super Admin
+   * uniquement (même garde que la lecture). Les marqueurs vivent
+   * dans la table LATÉRALE journal_lecture (module SQL dédié) :
+   * AUCUNE entrée du journal n'est modifiée ni supprimée.
+   * marquerEntreesAuditLues sans ids = TOUTES les entrées non lues.
+   * archiverEntreesAuditLues retourne le nombre d'entrées archivées.
+   */
+  marquerEntreesAuditLues(ids?: string[]): Promise<void>;
+  archiverEntreeAudit(entreeId: string): Promise<void>;
+  desarchiverEntreeAudit(entreeId: string): Promise<void>;
+  archiverEntreesAuditLues(): Promise<number>;
+
   /** Rattachements gestionnaires (console). */
   listerRattachements(): Promise<RattachementGestionnaire[]>;
   creerRattachement(input: {

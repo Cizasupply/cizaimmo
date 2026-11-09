@@ -778,7 +778,35 @@ export const TYPES_DOCUMENT: TypeDocument[] = [
 /** v1.3 : « compte » = document du DOSSIER d'inscription (pièce d'identité, contrat). */
 export type EntiteType = "immeuble" | "appartement" | "locataire" | "bail" | "depense" | "compte";
 export const TAILLE_MAX_DOCUMENT_OCTETS = 10 * 1024 * 1024; // 10 Mo (spec §6)
-export const FORMATS_DOCUMENT_ACCEPTES = ["application/pdf", "image/jpeg", "image/png"];
+export const FORMATS_DOCUMENT_ACCEPTES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+];
+/**
+ * Extensions acceptées pour un DOCUMENT (contrat signé, pièce,
+ * justificatif…) — liste UNIQUE partagée par les deux fournisseurs
+ * et le sélecteur de fichier (components/DocumentUpload.tsx).
+ * HEIC/HEIF ajoutés le 2026-11-08 (correctif captures fondateur,
+ * point 7) : c'est le format photo NATIF de l'iPhone — un employé
+ * qui photographie son contrat signé produit un .heic, que l'ancienne
+ * liste refusait partout (sélecteur, validation, fournisseurs) alors
+ * que le bucket privé n'impose AUCUNE restriction de type (aucun
+ * allowed_mime_types ; sa politique INSERT ne borne que le préfixe
+ * <uid>/ du chemin). Les flux PHOTO (photo de profil, photos
+ * d'immeuble) gardent leur liste propre JPG/PNG : ils retraitent
+ * l'image, un document, lui, est conservé tel quel.
+ */
+export const EXTENSIONS_DOCUMENT_ACCEPTEES = [
+  "pdf",
+  "jpg",
+  "jpeg",
+  "png",
+  "heic",
+  "heif",
+];
 
 export interface Document {
   id: string;
@@ -1069,6 +1097,15 @@ export interface EntreeAudit {
   cible_email: string | null;
   details: Record<string, unknown> | null;
   created_at: string;
+  /**
+   * État de lecture (point 9, 2026-11-08) : posé par
+   * listerJournalAudit depuis la table LATÉRALE journal_lecture —
+   * la table du journal reste append-only, aucune entrée n'est
+   * modifiée. Absent = non lue / non archivée. Les autres lectures
+   * d'entrées (historique d'un dossier) ne posent pas ces champs.
+   */
+  lu?: boolean;
+  archive?: boolean;
 }
 
 /** Avis plateforme : modèles prédéfinis UNIQUEMENT (pas de texte libre). */

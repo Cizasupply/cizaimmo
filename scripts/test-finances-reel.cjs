@@ -502,12 +502,37 @@ async function principal() {
     !!totAdminPerim2 && totAdminPerim2.depenses_en_attente === 30 &&
       totAdminPerim2.depenses_validees === 0,
     JSON.stringify(totAdminPerim2));
+
+  // --- PÉRIMÈTRE DES PAIES (fondateur, 2026-11-08, point 8) : la
+  // session est toujours celle de l'Admin. Deux paies existent pour
+  // 2026-12 : la sienne (500 000 BIF, émise plus haut) et celle du
+  // Super Admin (900 000 BIF, insérée pour le test du talon). Sa vue
+  // ne doit contenir QUE la sienne — lignes, historique ET totaux.
+  const vueAdminPaies = await provider.getVueFinancesPlateforme("2026-12");
+  check("périmètre paies réel : vue Admin — SA seule ligne de paie",
+    vueAdminPaies.lignes_paie.length === 1 &&
+      vueAdminPaies.lignes_paie[0].compte_id === ADMIN_ID);
+  check("périmètre paies réel : vue Admin — historique = SES paies seulement (pas celle du Super)",
+    vueAdminPaies.historique_paies.length === 1 &&
+      vueAdminPaies.historique_paies.every((p) => p.profil_id === ADMIN_ID));
+  const totAdminPaies = vueAdminPaies.totaux.find((t) => t.devise === "BIF");
+  check("périmètre paies réel : totaux Admin — paie_emise = SES 500 000 BIF seulement",
+    !!totAdminPaies && totAdminPaies.paie_emise === 500000);
   fauxClient.__setUtilisateur(superAdmin);
   const vueSuperPerim = await provider.getVueFinancesPlateforme("2026-12");
   check("périmètre réel : vue Super Admin — TOUTES les dépenses de décembre (la sienne + celle de l'Admin)",
     vueSuperPerim.depenses.length === 2 &&
       vueSuperPerim.depenses.some((d) => d.id === depAdmin.id),
     JSON.stringify(vueSuperPerim.depenses.map((d) => d.libelle)));
+  check("périmètre paies réel : vue Super Admin — les 2 lignes de paie (Admin + lui-même)",
+    vueSuperPerim.lignes_paie.length === 2);
+  check("périmètre paies réel : vue Super Admin — historique COMPLET (sa paie + celle de l'Admin)",
+    vueSuperPerim.historique_paies.length === 2 &&
+      vueSuperPerim.historique_paies.some((p) => p.profil_id === SUPER_ID) &&
+      vueSuperPerim.historique_paies.some((p) => p.profil_id === ADMIN_ID));
+  const totSuperPaies = vueSuperPerim.totaux.find((t) => t.devise === "BIF");
+  check("périmètre paies réel : totaux Super — paie_emise = 500 000 + 900 000 BIF",
+    !!totSuperPaies && totSuperPaies.paie_emise === 1400000);
 
   console.log(`\nFinances (fournisseur réel, faux PostgREST contraint) : ${ok} OK, ${ko} KO`);
   process.exit(ko > 0 ? 1 : 0);

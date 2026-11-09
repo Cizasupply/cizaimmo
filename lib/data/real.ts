@@ -170,7 +170,7 @@ import {
   trouverTaux,
 } from "../module4";
 import { sommeParts, validerParts } from "../indivision";
-import { FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
+import { EXTENSIONS_DOCUMENT_ACCEPTEES, FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
 import { DEMO_SESSION_COOKIE, getSupabaseBrowserClient } from "../supabase";
 import {
   envoyerEmailViaApi,
@@ -1741,7 +1741,7 @@ export class RealProvider implements DataProvider {
     const nom = input.nom_fichier.trim();
     const extension = nom.split(".").pop()?.toLowerCase() ?? "";
     const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
-    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) throw err("ERR_DOCUMENT_FORMAT");
+    if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension) || !mimeOk) throw err("ERR_DOCUMENT_FORMAT");
     if (input.taille_octets !== undefined && input.taille_octets !== null && input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS) {
       throw err("ERR_DOCUMENT_TROP_GROS");
     }
@@ -3556,7 +3556,107 @@ export class RealProvider implements DataProvider {
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    return (data as EntreeAudit[] | null) ?? [];
+    const entrees = (data as EntreeAudit[] | null) ?? [];
+    // Point 9 : fusion de l'état de lecture depuis la table
+    // LATÉRALE journal_lecture (le journal reste append-only,
+    // aucune entrée modifiée). Tolérance de déploiement : si le
+    // module SQL n'est pas encore appliqué au live, le journal
+    // reste lisible, simplement sans état (tout non lu/archivé).
+    if (entrees.length > 0) {
+      const { data: etats, error: errEtats } = await this.client()
+        .from("journal_lecture")
+        .select("entree_id, lu_le, archive_le")
+        .in("entree_id", entrees.map((e) => e.id));
+      if (!errEtats && etats) {
+        const parId = new Map(
+          (etats as { entree_id: string; lu_le: string | null; archive_le: string | null }[])
+            .map((s) => [s.entree_id, s])
+        );
+        for (const e of entrees) {
+          const s = parId.get(e.id);
+          e.lu = !!s?.lu_le;
+          e.archive = !!s?.archive_le;
+        }
+      }
+    }
+    return entrees;
+  }
+
+  // POINT 9 (2026-11-08) — état de lecture du journal : écritures
+  // sur la table latérale journal_lecture UNIQUEMENT
+  // (module-journal-lecture.sql, RLS Super Admin) ; journal_audit
+  // n'est jamais touché. Garde Super Admin comme la lecture.
+  async marquerEntreesAuditLues(ids?: string[]): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    let cibles = ids && ids.length > 0 ? ids : null;
+    if (!cibles) {
+      const { data, error } = await client.from("journal_audit").select("id");
+      if (error) throw new Error(error.message);
+      cibles = ((data as { id: string }[] | null) ?? []).map((r) => r.id);
+    }
+    if (cibles.length === 0) return;
+    const { data: etats } = await client
+      .from("journal_lecture")
+      .select("entree_id, lu_le")
+      .in("entree_id", cibles);
+    const dejaLues = new Set(
+      ((etats as { entree_id: string; lu_le: string | null }[] | null) ?? [])
+        .filter((s) => s.lu_le)
+        .map((s) => s.entree_id)
+    );
+    const maintenant = new Date().toISOString();
+    const lignes = cibles
+      .filter((id) => !dejaLues.has(id))
+      .map((id) => ({ entree_id: id, lu_le: maintenant, par: acteur.id, maj_le: maintenant }));
+    if (lignes.length === 0) return;
+    // Upsert ciblé : sur conflit, seules les colonnes fournies sont
+    // mises à jour — archive_le existant est préservé.
+    const { error } = await client
+      .from("journal_lecture")
+      .upsert(lignes, { onConflict: "entree_id" });
+    if (error) throw new Error(error.message);
+  }
+
+  async archiverEntreeAudit(entreeId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const maintenant = new Date().toISOString();
+    const { error } = await this.client()
+      .from("journal_lecture")
+      .upsert(
+        { entree_id: entreeId, archive_le: maintenant, par: acteur.id, maj_le: maintenant },
+        { onConflict: "entree_id" }
+      );
+    if (error) throw new Error(error.message);
+  }
+
+  async desarchiverEntreeAudit(entreeId: string): Promise<void> {
+    const acteur = await this.acteurSuperAdmin();
+    const { error } = await this.client()
+      .from("journal_lecture")
+      .update({ archive_le: null, par: acteur.id, maj_le: new Date().toISOString() })
+      .eq("entree_id", entreeId);
+    if (error) throw new Error(error.message);
+  }
+
+  async archiverEntreesAuditLues(): Promise<number> {
+    const acteur = await this.acteurSuperAdmin();
+    const client = this.client();
+    const { data, error } = await client
+      .from("journal_lecture")
+      .select("entree_id")
+      .not("lu_le", "is", null)
+      .is("archive_le", null);
+    if (error) throw new Error(error.message);
+    const ids = ((data as { entree_id: string }[] | null) ?? []).map((r) => r.entree_id);
+    if (ids.length === 0) return 0;
+    const maintenant = new Date().toISOString();
+    const { error: errMaj } = await client
+      .from("journal_lecture")
+      .update({ archive_le: maintenant, par: acteur.id, maj_le: maintenant })
+      .in("entree_id", ids);
+    if (errMaj) throw new Error(errMaj.message);
+    return ids.length;
   }
 
   /** Résout e-mails/noms des profils référencés par les rattachements. */
@@ -3925,7 +4025,7 @@ export class RealProvider implements DataProvider {
     const nom = input.nom_fichier.trim();
     const extension = nom.split(".").pop()?.toLowerCase() ?? "";
     const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
-    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) {
+    if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension) || !mimeOk) {
       throw err("ERR_DOCUMENT_FORMAT");
     }
     if (
@@ -4777,6 +4877,17 @@ export class RealProvider implements DataProvider {
       : toutes.filter((l) => String(l.id) === acteur.id);
 
     // Paies : historique (filtré par rôle) + repérage du mois.
+    // PÉRIMÈTRE PAIES (fondateur, 2026-11-08, point 8 — même règle
+    // que le périmètre dépenses ci-dessous) : un Admin ne reçoit
+    // QUE SES paies — sa seule ligne ci-dessus (lignesCibles filtré
+    // sur acteur.id), son seul historique (eq profil_id ci-dessous)
+    // et des totaux calculés À LA FIN depuis ces listes déjà
+    // filtrées (totauxParDevise ne voit jamais les paies des
+    // autres). Le Super Admin reçoit tout. Le verrou vit ICI, dans
+    // le fournisseur ; le talon d'un autre employé est en outre
+    // refusé par genererTalonPaie (ERR_TALON_INTROUVABLE).
+    // Verrouillé par scripts/test-finances-reel.cjs (fournisseur
+    // réel contraint) et scripts/test-correctifs-captures.cjs (démo).
     let requetePaies = client
       .from("paies_employes")
       .select("*")
@@ -4985,7 +5096,7 @@ export class RealProvider implements DataProvider {
     if (input.justificatif) {
       const nom = input.justificatif.nom_fichier.trim();
       const extension = nom.split(".").pop()?.toLowerCase() ?? "";
-      if (!["pdf", "jpg", "jpeg", "png"].includes(extension)) {
+      if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension)) {
         throw err("ERR_DOCUMENT_FORMAT");
       }
       if (

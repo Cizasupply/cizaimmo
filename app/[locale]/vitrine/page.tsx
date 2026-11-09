@@ -179,7 +179,12 @@ export default function VitrinePage() {
             <ul className="space-y-4">
               {eligibles.map((a) => (
                 <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                  {/* Mobile : colonne — le titre prend TOUTE la largeur
+                      et le bouton passe EN DESSOUS (correctif captures
+                      2026-11-08 : le titre était écrasé en colonne
+                      étroite à côté du bouton or, mots coupés au
+                      milieu). Bureau (sm+) : rangée inchangée. */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="break-words text-lg font-bold text-navy">
                         {nomImmeuble(a.immeuble_id)} — {a.numero} · {a.type}

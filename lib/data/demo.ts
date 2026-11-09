@@ -186,7 +186,7 @@ import {
   evaluerPaysPaiement,
   paysDepuisTelephone,
 } from "../grille";
-import { FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
+import { EXTENSIONS_DOCUMENT_ACCEPTEES, FORMATS_DOCUMENT_ACCEPTES, TAILLE_MAX_DOCUMENT_OCTETS } from "./types";
 import {
   envoyerEmailViaApi,
   statutEmailDepuisResultat,
@@ -2312,7 +2312,7 @@ export class DemoProvider implements DataProvider {
     // Format : PDF, JPG, PNG uniquement (extension + MIME quand connu).
     const extension = nom.split(".").pop()?.toLowerCase() ?? "";
     const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
-    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) {
+    if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension) || !mimeOk) {
       throw err("ERR_DOCUMENT_FORMAT");
     }
     if (input.taille_octets !== undefined && input.taille_octets !== null && input.taille_octets > TAILLE_MAX_DOCUMENT_OCTETS) {
@@ -4349,9 +4349,77 @@ export class DemoProvider implements DataProvider {
     // du journal d'audit est réservée au Super Admin — l'écriture
     // (journaliserAudit, tous rôles) est inchangée.
     this.acteurSuperAdmin(db);
+    // Point 9 : l'état de lecture (lu/archivé) vient de
+    // l'enregistrement LATÉRAL journalLecture — le journal lui-même
+    // (append-only) n'est jamais modifié.
+    const lecture = db.plateforme.journalLecture ?? {};
     return db.plateforme.journal
       .slice()
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((e) => ({
+        ...e,
+        lu: !!lecture[e.id]?.lu_le,
+        archive: !!lecture[e.id]?.archive_le,
+      }));
+  }
+
+  // POINT 9 (2026-11-08) — état de lecture du journal : marqueurs
+  // dans l'enregistrement latéral UNIQUEMENT (miroir de la table
+  // journal_lecture réelle) ; garde Super Admin comme la lecture.
+  async marquerEntreesAuditLues(ids?: string[]): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const lecture = (db.plateforme.journalLecture ??= {});
+    const cibles = ids && ids.length > 0 ? new Set(ids) : null;
+    const maintenant = new Date().toISOString();
+    for (const e of db.plateforme.journal) {
+      if (cibles && !cibles.has(e.id)) continue;
+      const etat = (lecture[e.id] ??= { lu_le: null, archive_le: null, par: null });
+      if (!etat.lu_le) {
+        etat.lu_le = maintenant;
+        etat.par = acteur.id;
+      }
+    }
+    saveDb(db);
+  }
+
+  async archiverEntreeAudit(entreeId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const lecture = (db.plateforme.journalLecture ??= {});
+    const etat = (lecture[entreeId] ??= { lu_le: null, archive_le: null, par: null });
+    etat.archive_le = new Date().toISOString();
+    etat.par = acteur.id;
+    saveDb(db);
+  }
+
+  async desarchiverEntreeAudit(entreeId: string): Promise<void> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const lecture = (db.plateforme.journalLecture ??= {});
+    const etat = lecture[entreeId];
+    if (etat) {
+      etat.archive_le = null;
+      etat.par = acteur.id;
+    }
+    saveDb(db);
+  }
+
+  async archiverEntreesAuditLues(): Promise<number> {
+    const db = loadDb();
+    const acteur = this.acteurSuperAdmin(db);
+    const lecture = (db.plateforme.journalLecture ??= {});
+    const maintenant = new Date().toISOString();
+    let n = 0;
+    for (const etat of Object.values(lecture)) {
+      if (etat.lu_le && !etat.archive_le) {
+        etat.archive_le = maintenant;
+        etat.par = acteur.id;
+        n += 1;
+      }
+    }
+    saveDb(db);
+    return n;
   }
 
   async listerRattachements(): Promise<RattachementGestionnaire[]> {
@@ -4671,7 +4739,7 @@ export class DemoProvider implements DataProvider {
     if (!nom) throw err("ERR_NOT_FOUND");
     const extension = nom.split(".").pop()?.toLowerCase() ?? "";
     const mimeOk = !input.mime_type || FORMATS_DOCUMENT_ACCEPTES.includes(input.mime_type);
-    if (!["pdf", "jpg", "jpeg", "png"].includes(extension) || !mimeOk) {
+    if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension) || !mimeOk) {
       throw err("ERR_DOCUMENT_FORMAT");
     }
     if (
@@ -5090,12 +5158,10 @@ export class DemoProvider implements DataProvider {
     const moi = this.moiEmploye(db);
     if (!moi) throw err("ERR_ACCES_PLATEFORME");
     if (moi.kind === "entree") {
-      const nom = this.validerTeleversementEmploye(input, [
-        "pdf",
-        "jpg",
-        "jpeg",
-        "png",
-      ]);
+      const nom = this.validerTeleversementEmploye(
+        input,
+        EXTENSIONS_DOCUMENT_ACCEPTEES
+      );
       const entree = moi.entree;
       if (
         db.plateforme.documentsComptes.some(
@@ -5556,12 +5622,10 @@ export class DemoProvider implements DataProvider {
     }
     let document: Document;
     if (moi.kind === "entree") {
-      const nom = this.validerTeleversementEmploye(input, [
-        "pdf",
-        "jpg",
-        "jpeg",
-        "png",
-      ]);
+      const nom = this.validerTeleversementEmploye(
+        input,
+        EXTENSIONS_DOCUMENT_ACCEPTEES
+      );
       const entree = moi.entree;
       if (
         db.plateforme.documentsComptes.some(
@@ -5829,6 +5893,15 @@ export class DemoProvider implements DataProvider {
       .filter((d) => estSuper || d.saisi_par === acteur.id)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((d) => this.depenseAvecNom(db, d));
+    // PÉRIMÈTRE PAIES (fondateur, 2026-11-08, point 8 — miroir du
+    // fournisseur réel et du périmètre dépenses ci-dessus) : un
+    // Admin ne reçoit QUE SES paies — sa seule ligne (filtre
+    // acteur.id sur les lignes, plus haut), son seul historique
+    // (filtre profil_id ci-dessous) et des totaux calculés depuis
+    // ces listes déjà filtrées. Le Super Admin reçoit tout. Le
+    // talon d'un autre employé est refusé par genererTalonPaie
+    // (ERR_TALON_INTROUVABLE). Verrouillé par
+    // scripts/test-correctifs-captures.cjs (point 8, runtime démo).
     const historique = this.paiesDe(db)
       .filter((p) => estSuper || p.profil_id === acteur.id)
       .sort((a, b) => b.emis_le.localeCompare(a.emis_le))
@@ -5942,7 +6015,7 @@ export class DemoProvider implements DataProvider {
     if (input.justificatif) {
       const nom = input.justificatif.nom_fichier.trim();
       const extension = nom.split(".").pop()?.toLowerCase() ?? "";
-      if (!["pdf", "jpg", "jpeg", "png"].includes(extension)) {
+      if (!EXTENSIONS_DOCUMENT_ACCEPTEES.includes(extension)) {
         throw err("ERR_DOCUMENT_FORMAT");
       }
       if (

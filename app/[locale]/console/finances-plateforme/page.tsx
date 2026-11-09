@@ -32,7 +32,7 @@ import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatReferencePaie } from "@/lib/format";
 import { moisCourant } from "@/lib/finances-plateforme";
 import {
   CATEGORIES_DEPENSE_PLATEFORME,
@@ -328,27 +328,34 @@ export default function FinancesPlateformePage() {
                     </div>
                   ) : null}
                 </div>
-                <div className="shrink-0 text-right">
+                {/* Correctif captures 2026-11-08 : le bloc ne doit
+                    JAMAIS imposer sa largeur (ancien shrink-0) — la
+                    destination composée (« Virement — BCB, agence
+                    Rohero — compte …, SWIFT … — Nom ») se replie sur
+                    plusieurs lignes (break-words + min-w-0), le
+                    montant reste sur UNE ligne, aucun défilement
+                    horizontal de la page. */}
+                <div className="min-w-0 text-right">
                   {ligne.paie ? (
                     <>
                       <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800">
                         ✓ {tf("statusIssued")}
                       </span>
-                      <p className="mt-1.5 text-sm font-bold text-navy">
+                      <p className="mt-1.5 whitespace-nowrap text-sm font-bold text-navy">
                         {formatMoney(
                           ligne.paie.montant,
                           ligne.paie.devise,
                           locale
                         )}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="break-words text-xs text-slate-500">
                         {formatDate(ligne.paie.emis_le, locale)}
                         {ligne.paie.reference
-                          ? ` · ${ligne.paie.reference}`
+                          ? ` · ${formatReferencePaie(ligne.paie.reference, locale)}`
                           : ""}
                       </p>
                       {ligne.paie.paiement_destination ? (
-                        <p className="text-xs text-slate-500">
+                        <p className="break-words text-xs text-slate-500">
                           {tf("payDestinationLabel")} :{" "}
                           {ligne.paie.paiement_destination}
                         </p>
@@ -431,17 +438,19 @@ export default function FinancesPlateformePage() {
                     <span className="font-semibold text-navy">
                       {p.employe_nom ?? p.profil_id}
                     </span>{" "}
-                    <span className="text-slate-500">
+                    <span className="break-words text-slate-500">
                       · {p.mois} · {formatDate(p.emis_le, locale)}
-                      {p.reference ? ` · ${p.reference}` : ""}
+                      {p.reference
+                        ? ` · ${formatReferencePaie(p.reference, locale)}`
+                        : ""}
                     </span>
                   </span>
-                  <span className="font-bold text-navy">
+                  <span className="whitespace-nowrap font-bold text-navy">
                     {formatMoney(p.montant, p.devise, locale)}
                   </span>
                 </div>
                 {p.paiement_destination ? (
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 break-words text-xs text-slate-500">
                     {tf("payDestinationLabel")} : {p.paiement_destination}
                   </p>
                 ) : null}
@@ -610,7 +619,7 @@ export default function FinancesPlateformePage() {
                     ) : null}
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-bold text-navy">
+                    <p className="whitespace-nowrap font-bold text-navy">
                       {formatMoney(dep.montant, dep.devise, locale)}
                     </p>
                     <span

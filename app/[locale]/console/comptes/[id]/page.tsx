@@ -20,7 +20,7 @@ import AssignationModale from "@/components/AssignationModale";
 import FilMessages from "@/components/FilMessages";
 import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { actionAuditConnue, formatDate, formatDateTime } from "@/lib/format";
 
 /** v1.7 : motifs PRÉDÉFINIS de refus de validation d'un immeuble de
  * gestionnaire (même patron que la vitrine v1.6 : la valeur stockée
@@ -769,7 +769,9 @@ export default function ConsoleDossierPage({
               {dossier.audit.map((e) => (
                 <li key={e.id} className="break-words border-b border-slate-100 pb-2 text-sm last:border-0">
                   <span className="font-semibold text-navy">
-                    {t(`audit.${e.action}` as "audit.compte_approuve")}
+                    {actionAuditConnue(e.action)
+                      ? t(`audit.${e.action}` as "audit.compte_approuve")
+                      : t("audit.actionInconnue" as "audit.compte_approuve")}
                   </span>{" "}
                   {/* Audit enrichi : nom de l'acteur (repli e-mail
                       pour les entrées anciennes), rôle, jour ET heure. */}

@@ -19,7 +19,7 @@ import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatReferencePaie } from "@/lib/format";
 import {
   MOYENS_PAIEMENT_EMPLOYE,
   instantaneDestinationPaiement,
@@ -135,7 +135,9 @@ export default function MonDossierEmployePage() {
           ? t("errorTooBig")
           : code === "ERR_COORDONNEES_PAIEMENT_INVALIDES"
             ? t("errorInvalidPayment")
-            : t("errorGeneric");
+            : code === "ERR_STATUT_INVALIDE"
+              ? t("errorContractStatus")
+              : t("errorGeneric");
   }
 
   async function envoyer(kind: "photo" | "piece") {
@@ -769,6 +771,14 @@ export default function MonDossierEmployePage() {
                         </span>
                       </p>
                     ) : null}
+                    {/* Contrat VALIDÉ : la section le dit proprement —
+                        aucun nouveau dépôt n'est proposé ni nécessaire
+                        (correctif 2026-11-08, point 7). */}
+                    {pack.contrat_statut === "valide" ? (
+                      <p className="mt-2 text-sm font-semibold text-green-700">
+                        {tp("contratValidatedNote")}
+                      </p>
+                    ) : null}
                   </>
                 )}
               </section>
@@ -816,11 +826,13 @@ export default function MonDossierEmployePage() {
                         <span className="font-semibold text-navy">{p.mois}</span>{" "}
                         <span className="text-slate-500">
                           · {tf("colIssuedOn")} {formatDate(p.emis_le, locale)}
-                          {p.reference ? ` · ${p.reference}` : ""}
+                          {p.reference
+                            ? ` · ${formatReferencePaie(p.reference, locale)}`
+                            : ""}
                           {p.modalites ? ` · ${p.modalites}` : ""}
                         </span>
                       </span>
-                      <span className="font-bold text-navy">
+                      <span className="whitespace-nowrap font-bold text-navy">
                         {formatMoney(p.montant, p.devise, locale)}
                       </span>
                     </div>

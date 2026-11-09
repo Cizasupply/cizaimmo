@@ -18,6 +18,10 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
  * « Contact » tombait sur une deuxième ligne),
  * (3) Connexion + Essai gratuit côte à côte. Ordinateur large (xl+) :
  * une seule ligne logo | nav | Connexion | Essai | langue.
+ * Durcissement captures 2026-11-08 : aucun débordement horizontal —
+ * la navigation passe en 11 px espacements réduits sous 400 px (les
+ * 4 liens restent sur UNE ligne) et les deux boutons sont flexibles
+ * (min-w-0, libellé insécable, padding réduit sur petit écran).
  * Le bouton « Connexion » est un bouton encadré doré, distinct du
  * bouton doré plein « Essai gratuit ».
  * Logo responsive : 180 px sur mobile, 260 px à partir de md.
@@ -52,7 +56,7 @@ export default function PublicHeader({
           />
         </Link>
         <LanguageSwitcher className="order-2 ml-auto border-gold text-gold hover:bg-gold hover:text-navy-dark xl:order-5 xl:ml-0" />
-        <nav className="order-3 flex w-full flex-nowrap items-center gap-x-2 text-xs font-semibold sm:gap-x-4 sm:text-sm xl:order-2 xl:w-auto xl:gap-x-5">
+        <nav className="order-3 flex w-full min-w-0 flex-nowrap items-center gap-x-1 text-[11px] font-semibold min-[400px]:gap-x-2 min-[400px]:text-xs sm:gap-x-4 sm:text-sm xl:order-2 xl:w-auto xl:gap-x-5">
           <Link href="/tarifs" className="whitespace-nowrap rounded px-0.5 py-2 hover:text-gold sm:px-1">
             {tn("pricing")}
           </Link>
@@ -66,17 +70,17 @@ export default function PublicHeader({
             {tn("contact")}
           </Link>
         </nav>
-        <div className="order-4 flex w-full items-center gap-3 xl:order-3 xl:w-auto xl:shrink-0">
+        <div className="order-4 flex w-full min-w-0 items-center gap-2 min-[400px]:gap-3 xl:order-3 xl:w-auto xl:shrink-0">
           <Link
             href="/connexion"
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-gold px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold hover:text-navy-dark xl:flex-none"
+            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-gold px-3 py-2.5 text-sm font-semibold text-gold hover:bg-gold hover:text-navy-dark min-[400px]:px-5 xl:flex-none"
           >
             {ta("loginButton")}
           </Link>
           {masquerEssai ? null : (
             <Link
               href="/inscription"
-              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-navy-dark hover:bg-gold-light xl:flex-none"
+              className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-gold px-3 py-2.5 text-sm font-bold text-navy-dark hover:bg-gold-light min-[400px]:px-5 xl:flex-none"
             >
               {t("ctaTrialShort")}
             </Link>
