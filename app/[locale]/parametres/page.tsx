@@ -8,6 +8,7 @@ import AppShell from "@/components/AppShell";
 import SuppressionCompteDialog from "@/components/SuppressionCompteDialog";
 import Field from "@/components/Field";
 import RattachementDisplayId from "@/components/RattachementDisplayId";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import { dernierTauxAuto, doitActualiserTaux } from "@/lib/taux";
@@ -386,7 +387,7 @@ export default function ParametresPage() {
         <>
           {/* Profil */}
           <section aria-labelledby="profil-titre" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="profil-titre" className="text-lg font-semibold text-navy">{ts("profileTitle")}</h2>
+            <h2 id="profil-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="tenants" />{ts("profileTitle")}</h2>
             <form onSubmit={sauverProfil} noValidate className="mt-4 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="profil-nom" label={ts("name")} value={nom} onChange={setNom} required />
@@ -417,7 +418,7 @@ export default function ParametresPage() {
           {/* Grille tarifaire du compte (v1.2 — anti-fraude, lecture seule) */}
           {grilleCompte ? (
             <section aria-labelledby="grille-titre" className="mt-6 rounded-2xl border border-gold/50 bg-gold/10 p-6 shadow-sm">
-              <h2 id="grille-titre" className="text-lg font-semibold text-navy">{ts("pricingGridTitle")}</h2>
+              <h2 id="grille-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="subscription" />{ts("pricingGridTitle")}</h2>
               <p className="mt-2 text-base font-semibold text-navy">
                 {ts("pricingGridCurrent", {
                   grid: grilleCompte === "afrique" ? tsub("gridAfrique") : tsub("gridInternationale"),
@@ -429,7 +430,7 @@ export default function ParametresPage() {
 
           {/* Taux de change manuels + automatiques (module 6, spec §9) */}
           <section aria-labelledby="taux-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="taux-titre" className="text-lg font-semibold text-navy">{ts("ratesTitle")}</h2>
+            <h2 id="taux-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="finances" />{ts("ratesTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("ratesText")}</p>
             {taux.length > 0 ? (
               <p className="mt-2 text-sm font-semibold text-navy">
@@ -500,7 +501,7 @@ export default function ParametresPage() {
 
           {/* Gestionnaires */}
           <section aria-labelledby="gest-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="gest-titre" className="text-lg font-semibold text-navy">{ts("managersTitle")}</h2>
+            <h2 id="gest-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="managers" />{ts("managersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("managersText")}</p>
             {gestionnaires.length === 0 ? (
               <p className="mt-3 text-sm text-slate-600">{ts("noManager")}</p>
@@ -552,7 +553,7 @@ export default function ParametresPage() {
 
           {/* Rattachement par Display ID (v1.3) : triple validation. */}
           <section aria-labelledby="rattach-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="rattach-titre" className="text-lg font-semibold text-navy">{td("linkTitle")}</h2>
+            <h2 id="rattach-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="managers" />{td("linkTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{td("linkText")}</p>
             <div className="mt-4">
               <RattachementDisplayId />
@@ -561,7 +562,7 @@ export default function ParametresPage() {
 
           {/* Co-propriétaires d'indivision (module 6, spec §6 suite) */}
           <section aria-labelledby="coprop-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="coprop-titre" className="text-lg font-semibold text-navy">{ts("coOwnersTitle")}</h2>
+            <h2 id="coprop-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="accounts" />{ts("coOwnersTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("coOwnersText")}</p>
             {coproprietaires.length === 0 ? (
               <p className="mt-2 text-sm text-slate-600">{ts("noCoOwner")}</p>
@@ -584,7 +585,7 @@ export default function ParametresPage() {
 
           {/* Préférences de notifications */}
           <section aria-labelledby="notif-titre" className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="notif-titre" className="text-lg font-semibold text-navy">{ts("notificationsTitle")}</h2>
+            <h2 id="notif-titre" className="text-lg font-semibold text-navy"><TuileIcone nom="alerts" />{ts("notificationsTitle")}</h2>
             <p className="mt-2 text-sm text-slate-600">{ts("notificationsText")}</p>
             {prefs ? (
               <div className="mt-4 space-y-3">

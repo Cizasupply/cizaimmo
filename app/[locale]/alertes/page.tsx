@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
 import WhatsAppSendButton from "@/components/WhatsAppSendButton";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import type { Alerte, StatutWhatsApp, TypeAlerte } from "@/lib/data";
@@ -229,7 +230,7 @@ export default function AlertesPage() {
         <>
           <section aria-labelledby="actives-titre">
             <h2 id="actives-titre" className="text-lg font-semibold text-navy">
-              {ta("activeTitle", { count: actives.length })}
+              <TuileIcone nom="alerts" />{ta("activeTitle", { count: actives.length })}
             </h2>
             {actives.length === 0 ? (
               <p className="mt-2 rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm">{ta("noActive")}</p>
@@ -239,7 +240,7 @@ export default function AlertesPage() {
           </section>
           <section aria-labelledby="traitees-titre" className="mt-6">
             <h2 id="traitees-titre" className="text-lg font-semibold text-navy">
-              {ta("treatedTitle", { count: traitees.length })}
+              <TuileIcone nom="alerts" />{ta("treatedTitle", { count: traitees.length })}
             </h2>
             {traitees.length === 0 ? (
               <p className="mt-2 rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm">{ta("noTreated")}</p>

@@ -16,6 +16,8 @@ import type { AnnonceAValider, ComptePlateforme, DemandeRattachement, EntreeAudi
 import type { Conversation } from "@/lib/data/types";
 import { construirePrixPlans } from "@/lib/tarifs";
 import { actionAuditConnue, formatCibleAudit, formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import TuileIcone from "@/components/TuileIcone";
+import EtatVideCentre from "@/components/EtatVideCentre";
 
 export default function ConsoleAccueilPage() {
   const t = useTranslations("console");
@@ -173,8 +175,8 @@ export default function ConsoleAccueilPage() {
       {/* Bureau large (xl) : carte Messages et Activité récente
           côte à côte (les files d'attente restent empilées sous la
           carte Messages, dans le même ordre qu'en mobile). */}
-      <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
-      <div className="space-y-8 xl:space-y-6 min-w-0">
+      <div className="mt-8 xl:grid xl:grid-cols-3 xl:items-start xl:gap-6">
+      <div className="space-y-8 xl:space-y-6 min-w-0 xl:order-2">
       {/* Notification : messages clients non lus (mise en évidence
           ambre dès qu'il y en a ; carte calme à zéro). */}
       <section
@@ -190,7 +192,7 @@ export default function ConsoleAccueilPage() {
               totalMessagesNonLus > 0 ? "text-amber-800" : "text-navy"
             }`}
           >
-            {t("unreadMessagesTitle")}
+            <TuileIcone nom="messages" />{t("unreadMessagesTitle")}
           </h2>
           <span
             className={`rounded-full px-3 py-1 text-sm font-bold ${
@@ -241,7 +243,7 @@ export default function ConsoleAccueilPage() {
 
       {enAttente.length > 0 ? (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
-          <h2 className="font-bold text-amber-800">{t("reviewQueueTitle")}</h2>
+          <h2 className="font-bold text-amber-800"><TuileIcone nom="accounts" />{t("reviewQueueTitle")}</h2>
           <ul className="mt-3 space-y-2">
             {enAttente.slice(0, 5).map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3">
@@ -270,7 +272,7 @@ export default function ConsoleAccueilPage() {
 
       {enRetard.length > 0 ? (
         <section className="rounded-2xl border border-red-200 bg-white p-5">
-          <h2 className="font-bold text-red-700">{t("lateTitle")}</h2>
+          <h2 className="font-bold text-red-700"><TuileIcone nom="alerts" />{t("lateTitle")}</h2>
           <ul className="mt-3 space-y-2">
             {enRetard.slice(0, 5).map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-red-50 px-4 py-3">
@@ -289,12 +291,12 @@ export default function ConsoleAccueilPage() {
 
       </div>
 
-      <section className="mt-8 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0 min-w-0">
-        <h2 className="font-semibold text-navy">{t("recentActivity")}</h2>
+      <section className="mt-8 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0 min-w-0 xl:order-1 xl:col-span-2">
+        <h2 className="font-semibold text-navy"><TuileIcone nom="journal" />{t("recentActivity")}</h2>
         {!charge ? (
           <p className="mt-3 text-sm text-slate-500">{t("loading")}</p>
         ) : journal.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">{t("noActivity")}</p>
+          <EtatVideCentre><p className="text-sm text-slate-500">{t("noActivity")}</p></EtatVideCentre>
         ) : (
           <ul className="mt-3 space-y-2">
             {journal.map((e) => (

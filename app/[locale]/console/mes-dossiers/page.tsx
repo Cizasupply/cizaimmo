@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
 import { erreurV15 } from "@/components/FilMessages";
+import TuileIcone from "@/components/TuileIcone";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { ComptePlateforme, Profil } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
@@ -108,7 +110,7 @@ export default function ConsoleMesDossiersPage() {
 
       {filsNonLus.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold text-navy">{t("unreadThreads")}</h2>
+          <h2 className="font-semibold text-navy"><TuileIcone nom="messages" />{t("unreadThreads")}</h2>
           <ul className="mt-3 space-y-2">
             {filsNonLus.map((c) => (
               <li
@@ -150,9 +152,9 @@ export default function ConsoleMesDossiersPage() {
             {tc("loading")}
           </p>
         ) : dossiers.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-            {t("myFilesEmpty")}
-          </p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("myFilesEmpty")}</p></EtatVideCentre>
+          </div>
         ) : (
           dossiers.map((c) => (
             <article

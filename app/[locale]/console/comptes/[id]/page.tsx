@@ -24,6 +24,8 @@ import type { ChecklistDossierSaisie, Conversation } from "@/lib/data/types";
 import AssignationModale from "@/components/AssignationModale";
 import BandeauPage from "@/components/BandeauPage";
 import FilMessages from "@/components/FilMessages";
+import TuileIcone from "@/components/TuileIcone";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
 import { actionAuditConnue, formatDate, formatDateTime } from "@/lib/format";
@@ -56,6 +58,11 @@ export default function ConsoleDossierPage({
   // pour raccourcir la page ; arrivée par l'ancre #messages (boîte
   // de réception console, carte Vue d'ensemble) = section dépliée.
   const [messagesOuverts, setMessagesOuverts] = useState(false);
+  // Accordéons mobiles des sections longues (système
+  // d'organisation, 2026-11-08) : Documents et Historique repliés
+  // sous lg, toujours ouverts en lg+ (contenu forcé par lg:block).
+  const [docsOuverts, setDocsOuverts] = useState(false);
+  const [auditOuvert, setAuditOuvert] = useState(false);
   const [introuvable, setIntrouvable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -493,7 +500,7 @@ export default function ConsoleDossierPage({
           qu'AVANT la décision. */}
       {decisions.length > 0 ? (
         <section className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
-          <h2 className="font-bold text-green-900">{t("decisionsTitle")}</h2>
+          <h2 className="font-bold text-green-900"><TuileIcone nom="admins" />{t("decisionsTitle")}</h2>
           <ul className="mt-2 space-y-1.5 text-sm text-green-900">
             {decisions.map((d) => (
               <li key={d.cle} className="break-words">
@@ -530,7 +537,7 @@ export default function ConsoleDossierPage({
             photo à gauche et informations à droite, la liste de
             définitions passant en 2 colonnes en xl. */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 lg:col-span-2 min-w-0">
-          <h2 className="font-semibold text-navy">{t("fileIdentity")}</h2>
+          <h2 className="font-semibold text-navy"><TuileIcone nom="accounts" />{t("fileIdentity")}</h2>
           <div className="mt-3 lg:flex lg:items-start lg:gap-6">
             <div className="shrink-0">
               <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-slate-600">
@@ -606,7 +613,7 @@ export default function ConsoleDossierPage({
 
         {/* Abonnement */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0">
-          <h2 className="font-semibold text-navy">{t("fileSubscription")}</h2>
+          <h2 className="font-semibold text-navy"><TuileIcone nom="subscription" />{t("fileSubscription")}</h2>
           {compte.abonnement ? (
             <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 min-w-0">
@@ -642,9 +649,28 @@ export default function ConsoleDossierPage({
 
         {/* Documents */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0">
-          <h2 className="font-semibold text-navy">{t("fileDocuments")}</h2>
+          {/* Accordéon mobile (système d'organisation, 2026-11-08) :
+              section longue repliée sous lg — l'en-tête reste
+              visible, le chevron n'existe que sous lg, et le contenu
+              est forcé visible en lg+ par lg:block. */}
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold text-navy"><TuileIcone nom="documents" />{t("fileDocuments")}</h2>
+            <button
+              type="button"
+              onClick={() => setDocsOuverts((v) => !v)}
+              aria-expanded={docsOuverts}
+              aria-controls="documents-contenu"
+              aria-label={t("fileDocuments")}
+              className="shrink-0 rounded-full border border-slate-300 bg-white p-1.5 text-navy hover:border-gold lg:hidden"
+            >
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`h-5 w-5 transition-transform duration-200 ${docsOuverts ? "rotate-180" : ""}`}>
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div id="documents-contenu" className={`${docsOuverts ? "block" : "hidden"} lg:block`}>
           {dossier.documents_compte.length === 0 && dossier.preuves_propriete.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">{t("noDocuments")}</p>
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("noDocuments")}</p></EtatVideCentre>
           ) : (
             <ul className="mt-3 space-y-2">
               {dossier.documents_compte.map((d) => (
@@ -683,15 +709,16 @@ export default function ConsoleDossierPage({
               ))}
             </ul>
           )}
+          </div>
         </section>
 
         {/* Rattachements + demandes */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0">
-          <h2 className="font-semibold text-navy">{t("fileLinks")}</h2>
+          <h2 className="font-semibold text-navy"><TuileIcone nom="managers" />{t("fileLinks")}</h2>
           {dossier.rattachements_comme_proprietaire.length === 0 &&
           dossier.rattachements_comme_gestionnaire.length === 0 &&
           dossier.demandes.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">{t("noLinks")}</p>
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("noLinks")}</p></EtatVideCentre>
           ) : (
             <div className="mt-3 space-y-3 text-sm text-slate-600">
               {dossier.rattachements_comme_gestionnaire.map((r) => (
@@ -722,7 +749,7 @@ export default function ConsoleDossierPage({
 
         {/* Immeubles + annonces */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0 lg:col-span-2">
-          <h2 className="font-semibold text-navy">{t("fileBuildings")}</h2>
+          <h2 className="font-semibold text-navy"><TuileIcone nom="buildings" />{t("fileBuildings")}</h2>
           {dossier.immeubles_possedes.length === 0 && dossier.immeubles_geres.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">{t("noBuildings")}</p>
           ) : (
@@ -897,9 +924,27 @@ export default function ConsoleDossierPage({
             (filet vertical + points or), carte épinglée en haut de
             la colonne pendant le défilement de la zone principale. */}
         <section className="rounded-2xl border border-gold/40 bg-white p-5 xl:sticky xl:top-6 xl:self-start min-w-0">
-          <h2 className="font-semibold text-navy">{t("fileAudit")}</h2>
+          {/* Accordéon mobile (système d'organisation, 2026-11-08) :
+              même patron que Documents — replié sous lg, toujours
+              ouvert en lg+ (la colonne latérale xl reste épinglée). */}
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold text-navy"><TuileIcone nom="journal" />{t("fileAudit")}</h2>
+            <button
+              type="button"
+              onClick={() => setAuditOuvert((v) => !v)}
+              aria-expanded={auditOuvert}
+              aria-controls="historique-contenu"
+              aria-label={t("fileAudit")}
+              className="shrink-0 rounded-full border border-slate-300 bg-white p-1.5 text-navy hover:border-gold lg:hidden"
+            >
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`h-5 w-5 transition-transform duration-200 ${auditOuvert ? "rotate-180" : ""}`}>
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div id="historique-contenu" className={`${auditOuvert ? "block" : "hidden"} lg:block`}>
           {dossier.audit.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">{t("noActivity")}</p>
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("noActivity")}</p></EtatVideCentre>
           ) : (
             <ul className="mt-3 space-y-2 xl:border-l xl:border-slate-200">
               {dossier.audit.map((e) => (
@@ -925,6 +970,7 @@ export default function ConsoleDossierPage({
               ))}
             </ul>
           )}
+          </div>
         </section>
       </div>
 
@@ -948,7 +994,7 @@ export default function ConsoleDossierPage({
             className="flex w-full items-center justify-between gap-3 text-left"
           >
             <span className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-navy">{t15("messagesTitle")}</span>
+              <TuileIcone nom="messages" /><span className="font-semibold text-navy">{t15("messagesTitle")}</span>
               {conversation?.non_lus ? (
                 <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-bold text-navy-dark">
                   {conversation.non_lus}

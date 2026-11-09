@@ -8,6 +8,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import DepenseForm from "@/components/DepenseForm";
 import EmptyState from "@/components/EmptyState";
 import Pagination from "@/components/Pagination";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { formatDate, formatMoney } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import type {
@@ -389,7 +390,7 @@ export default function DepensesPage() {
           ) : null}
 
           {filtrees.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">{tc("noResults")}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><EtatVideCentre><p className="text-slate-600">{tc("noResults")}</p></EtatVideCentre></div>
           ) : (
             <>
               <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">

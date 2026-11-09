@@ -8,6 +8,7 @@ import AppShell from "@/components/AppShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import Pagination from "@/components/Pagination";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { formatMoney, formatPct } from "@/lib/format";
 import { statsImmeuble } from "@/lib/parc";
 import { getDataProvider, limiteBlocs } from "@/lib/data";
@@ -269,7 +270,7 @@ export default function ImmeublesPage() {
           </div>
 
           {visibles.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">{t("common.noResults")}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"><EtatVideCentre><p className="text-slate-500">{t("common.noResults")}</p></EtatVideCentre></div>
           ) : (
             <>
               {/* Cartes — téléphone */}

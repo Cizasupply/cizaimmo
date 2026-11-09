@@ -528,7 +528,7 @@ export default function AppShell({
           </Link>
         ) : null}
       </header>
-      <main className="px-6 py-6 md:ml-60 md:p-10">
+      <main className="px-6 py-6 md:ml-60 md:p-10 md:max-w-[1600px]">
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="min-w-0 break-words text-2xl md:text-3xl font-bold text-navy">{title}</h1>
           <div className="flex shrink-0 items-center gap-2">

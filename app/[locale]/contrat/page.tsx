@@ -19,6 +19,7 @@ import DiscussionRattachement from "@/components/DiscussionRattachement";
 import SectionContratProprietaire from "@/components/SectionContratProprietaire";
 import LienGuideUtilisation from "@/components/LienGuideUtilisation";
 import DocumentUpload from "@/components/DocumentUpload";
+import TuileIcone from "@/components/TuileIcone";
 import { getDataProvider } from "@/lib/data";
 import type { DemandeRattachement, Profil, StatutContrat } from "@/lib/data";
 
@@ -171,7 +172,7 @@ export default function ContratPage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-navy">{t("contractTitle")}</h2>
+          <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="contract" />{t("contractTitle")}</h2>
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${COULEUR_CONTRAT[statut]}`}>
             {t(`contractStatus.${statut}` as "contractStatus.valide")}
           </span>
@@ -224,7 +225,7 @@ export default function ContratPage() {
       <LienGuideUtilisation />
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-navy">{t("requestsTitle")}</h2>
+        <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="managers" />{t("requestsTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("requestsText")}</p>
         {demandes.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">{t("noRequests")}</p>

@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { AnnonceAValider } from "@/lib/data";
 import { formatMoney } from "@/lib/format";
@@ -140,8 +141,10 @@ export default function ConsoleVitrinePage() {
         <p className="mt-6 rounded-2xl border border-gold/40 bg-white p-8 text-slate-500 shadow-sm">{tc("loading")}</p>
       ) : liste.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-gold/40 bg-white p-8 shadow-sm">
-          <p className="font-bold text-navy">{t("consoleEmpty")}</p>
-          <p className="mt-2 text-slate-600">{t("consoleEmptyText")}</p>
+          <EtatVideCentre>
+            <p className="font-bold text-navy">{t("consoleEmpty")}</p>
+            <p className="mt-2 text-slate-600">{t("consoleEmptyText")}</p>
+          </EtatVideCentre>
         </div>
       ) : (
         <ul className="mt-6 space-y-4">

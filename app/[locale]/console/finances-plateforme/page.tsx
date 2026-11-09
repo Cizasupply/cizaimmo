@@ -46,6 +46,7 @@ import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatReferencePaie } from "@/lib/format";
 import { moisCourant } from "@/lib/finances-plateforme";
 import {
@@ -270,7 +271,7 @@ export default function FinancesPlateformePage() {
       {estSuper ? (
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
-          {tf("totalsTitle")}
+          <TuileIcone nom="platformFinances" />{tf("totalsTitle")}
         </h2>
         {vue && vue.totaux.length > 0 ? (
           // Équilibrage bureau (2026-11-08) : une seule devise =
@@ -327,7 +328,7 @@ export default function FinancesPlateformePage() {
           demandes de dépenses ci-dessous) ---- */}
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
-          {estSuper ? tf("payTitle") : tf("payTitleAdmin")}
+          <TuileIcone nom="finances" />{estSuper ? tf("payTitle") : tf("payTitleAdmin")}
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("payIntro") : tf("payIntroAdmin")}
@@ -565,7 +566,7 @@ export default function FinancesPlateformePage() {
           fonctionnement de la plateforme) ---- */}
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
-          {estSuper ? tf("expensesTitle") : tf("expensesTitleRequestsAdmin")}
+          <TuileIcone nom="expenses" />{estSuper ? tf("expensesTitle") : tf("expensesTitleRequestsAdmin")}
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("expensesIntroSuper") : tf("expensesIntroAdmin")}

@@ -28,6 +28,7 @@ import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
 import { telechargerBase64Pdf } from "@/components/PackEmployeAdmin";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatReferencePaie } from "@/lib/format";
 import {
   MOYENS_PAIEMENT_EMPLOYE,
@@ -426,7 +427,7 @@ export default function MonDossierEmployePage() {
           {pack ? (
             <section className={`${CARTE} min-w-0`}>
               <h2 className="text-base font-bold text-navy">
-                {tp("progressTitle")}
+                <TuileIcone nom="myEmployeeFile" />{tp("progressTitle")}
               </h2>
               <ol className="mt-3 grid gap-2 sm:grid-cols-4">
                 {pack.progression.map((etape) => (
@@ -469,7 +470,7 @@ export default function MonDossierEmployePage() {
           <div className="space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5 xl:space-y-0">
           {/* Identité : photo + pièce d'identité (bucket privé). */}
           <section className={`${CARTE} min-w-0`}>
-            <h2 className="text-base font-bold text-navy">{t("idSection")}</h2>
+            <h2 className="text-base font-bold text-navy"><TuileIcone nom="myEmployeeFile" />{t("idSection")}</h2>
             <div className="mt-3 grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-3 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -726,7 +727,7 @@ export default function MonDossierEmployePage() {
               structurées selon le moyen. Elles ne conditionnent QUE
               l'émission de la paie (ni le dossier, ni la carte). */}
           <section className={`${CARTE} min-w-0`}>
-            <h2 className="text-base font-bold text-navy">{t("paymentSection")}</h2>
+            <h2 className="text-base font-bold text-navy"><TuileIcone nom="finances" />{t("paymentSection")}</h2>
             <p className="mt-1 text-sm text-slate-600">{t("paymentIntro")}</p>
             {dossier.coordonnees_paiement ? (
               <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
@@ -869,7 +870,7 @@ export default function MonDossierEmployePage() {
               {/* Charte de confidentialité : statut de l'acceptation datée. */}
               <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
-                  {tp("charteSectionTitle")}
+                  <TuileIcone nom="contract" />{tp("charteSectionTitle")}
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
                   {pack.charte_acceptee_le
@@ -883,7 +884,7 @@ export default function MonDossierEmployePage() {
               {/* Contrat d'engagement : téléchargement + dépôt du signé. */}
               <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
-                  {tp("contratSectionTitle")}
+                  <TuileIcone nom="contract" />{tp("contratSectionTitle")}
                 </h2>
                 {pack.contrat_statut === "sans_objet" ? (
                   <p className="mt-2 text-sm text-slate-600">
@@ -989,7 +990,7 @@ export default function MonDossierEmployePage() {
               {/* Carte employé à code-barres (dossier complet + contrat validé). */}
               <section className={`${CARTE} min-w-0`}>
                 <h2 className="text-base font-bold text-navy">
-                  {tp("carteSectionTitle")}
+                  <TuileIcone nom="myEmployeeFile" />{tp("carteSectionTitle")}
                 </h2>
                 {pack.carte_emise ? (
                   <div className="mt-3 xl:flex xl:justify-center">
@@ -1018,7 +1019,7 @@ export default function MonDossierEmployePage() {
           {/* Ma paie : paies émises par la plateforme (lecture seule,
               mes données uniquement — finances de la plateforme). */}
           <section className={`${CARTE} min-w-0`}>
-            <h2 className="text-base font-bold text-navy">{tf("myPayTitle")}</h2>
+            <h2 className="text-base font-bold text-navy"><TuileIcone nom="platformFinances" />{tf("myPayTitle")}</h2>
             <p className="mt-1 text-sm text-slate-600">{tf("myPayIntro")}</p>
             {paies.length > 0 ? (
               <ul className="mt-3 divide-y divide-slate-100">

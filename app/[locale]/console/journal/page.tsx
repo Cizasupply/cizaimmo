@@ -36,6 +36,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { EntreeAudit, Profil } from "@/lib/data";
 import { actionAuditConnue, formatCibleAudit, formatDateTime, formatDetailsAudit, paginerListe, periodeJournalContient } from "@/lib/format";
@@ -398,13 +399,13 @@ export default function ConsoleJournalPage() {
             {t("loading")}
           </p>
         ) : entrees.length === 0 ? (
-          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500">
-            {t("noActivity")}
-          </p>
+          <div className="rounded-2xl border border-gold/40 bg-white p-6">
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("noActivity")}</p></EtatVideCentre>
+          </div>
         ) : selonVue.length === 0 ? (
-          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500">
-            {t("journalNoResults")}
-          </p>
+          <div className="rounded-2xl border border-gold/40 bg-white p-6">
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("journalNoResults")}</p></EtatVideCentre>
+          </div>
         ) : (
           <>
             <div className="space-y-3 md:hidden">

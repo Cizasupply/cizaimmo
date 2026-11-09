@@ -21,6 +21,13 @@ export default function EmptyState({
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+      {/* Anneau or de l'état vide centré (système d'organisation
+          des pages, 2026-11-08 : tout état vide est centré avec un
+          élément visuel simple — même anneau que EtatVideCentre). */}
+      <span
+        aria-hidden="true"
+        className="mx-auto mb-4 block h-12 w-12 rounded-full border-[3px] border-gold/50 bg-gold/10"
+      />
       <h2 className="text-lg font-semibold text-navy">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-base text-slate-600">{text}</p>
       {actionHref ? (

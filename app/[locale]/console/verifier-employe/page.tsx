@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
+import TuileIcone from "@/components/TuileIcone";
 import { getDataProvider } from "@/lib/data";
 import type { MembreEquipe, Profil, VerificationEmploye } from "@/lib/data";
 import { filtrerMembresEmployes } from "@/lib/pack-employe";
@@ -165,7 +166,7 @@ export default function PageVerifierEmploye() {
           clic charge la fiche de vérification du membre. */}
       <section className="mt-5 rounded-2xl border border-gold/40 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
-          {t("verifyListTitle")}
+          <TuileIcone nom="verifyEmployee" />{t("verifyListTitle")}
         </h2>
         <p className="mt-1 text-sm text-slate-600">{t("verifyListHint")}</p>
         <input

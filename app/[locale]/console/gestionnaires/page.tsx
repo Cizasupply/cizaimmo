@@ -12,6 +12,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
+import TuileIcone from "@/components/TuileIcone";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { ComptePlateforme, Immeuble, RattachementGestionnaire } from "@/lib/data";
 
@@ -88,7 +90,7 @@ export default function ConsoleGestionnairesPage() {
 
       <div className="mt-6 space-y-3">
         {rattachements.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{t("noManagers")}</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6"><EtatVideCentre><p className="text-sm text-slate-500">{t("noManagers")}</p></EtatVideCentre></div>
         ) : null}
         {rattachements.map((r) => (
           <article key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
@@ -133,7 +135,7 @@ export default function ConsoleGestionnairesPage() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-navy">{t("createAttachmentTitle")}</h2>
+        <h2 className="font-semibold text-navy"><TuileIcone nom="managers" />{t("createAttachmentTitle")}</h2>
         <form
           className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2"
           onSubmit={(e) => {

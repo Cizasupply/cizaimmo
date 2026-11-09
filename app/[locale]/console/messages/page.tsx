@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
 import { erreurV15 } from "@/components/FilMessages";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
 import { formatDateTime } from "@/lib/format";
@@ -72,9 +73,9 @@ export default function ConsoleMessagesPage() {
             {t("loading")}
           </p>
         ) : conversations.length === 0 ? (
-          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-sm text-slate-500 xl:col-span-2">
-            {t("messagesEmpty")}
-          </p>
+          <div className="rounded-2xl border border-gold/40 bg-white p-6 xl:col-span-2">
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("messagesEmpty")}</p></EtatVideCentre>
+          </div>
         ) : (
           conversations.map((c) => (
             <Link

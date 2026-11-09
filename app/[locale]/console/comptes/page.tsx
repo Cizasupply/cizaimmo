@@ -15,6 +15,7 @@ import BandeauPage from "@/components/BandeauPage";
 import { getDataProvider } from "@/lib/data";
 import type { ComptePlateforme, ModeleAvis, MotifRefus, Profil } from "@/lib/data";
 import AssignationModale from "@/components/AssignationModale";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { MODELES_AVIS, MOTIFS_REFUS, libellerMotif } from "@/lib/avis";
 import { nomPaysDepuisCode } from "@/lib/grille";
 import { formatDate } from "@/lib/format";
@@ -289,9 +290,9 @@ export default function ConsoleComptesPage() {
 
       <div className="mt-6 space-y-4">
         {visibles.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-            {t("noAccounts")}
-          </p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <EtatVideCentre><p className="text-sm text-slate-500">{t("noAccounts")}</p></EtatVideCentre>
+          </div>
         ) : null}
         {visibles.map((compte) => {
           const enAttente = compte.abonnement?.statut === "en_attente";

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatPct } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import type {
@@ -266,7 +267,7 @@ export default function RapportsPage() {
           </div>
 
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-navy">{tr("byBuilding")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="buildings" />{tr("byBuilding")}</h2>
             {/* Cartes — téléphone : le tableau 7 colonnes ne tient pas à 390 px. */}
             <div className="mt-3 space-y-3 md:hidden">
               {rapport.lignes.map((l) => (
@@ -317,7 +318,7 @@ export default function RapportsPage() {
 
           {immeubleId && aptsRoi.length > 0 ? (
             <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-semibold text-navy">{tr("byApartment")}</h2>
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="apartments" />{tr("byApartment")}</h2>
               <ul className="mt-3 divide-y divide-slate-100">
                 {aptsRoi.map(({ appartement, roi }) => (
                   <li key={appartement.id} className="flex justify-between gap-2 py-2">
@@ -330,7 +331,7 @@ export default function RapportsPage() {
           ) : null}
 
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-navy">{tr("evolution")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="reports" />{tr("evolution")}</h2>
             <p className="text-sm text-slate-600">{tr("evolutionInCurrency", { currency: deviseAffichage })}</p>
             <div className="mt-4 overflow-x-auto">
               <svg viewBox={`0 0 ${Math.max(360, serieMensuelle.length * 60)} 170`} className="w-full min-w-[320px]" role="img" aria-label={tr("evolution")}>
@@ -358,7 +359,7 @@ export default function RapportsPage() {
           </section>
 
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-navy">{tr("ratesUsed")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="settings" />{tr("ratesUsed")}</h2>
             {tauxUtilises.length === 0 ? (
               <p className="mt-2 text-sm text-slate-600">{tr("noConversion")}</p>
             ) : (

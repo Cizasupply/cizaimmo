@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
+import TuileIcone from "@/components/TuileIcone";
 import { getDataProvider } from "@/lib/data";
 import type { Grille, ParametresFinance, Plan, TarifPlateforme } from "@/lib/data";
 
@@ -135,7 +136,7 @@ export default function ConsoleFinancesPage() {
           {GRILLES.map((grille) => (
             <section key={grille} className="rounded-2xl border border-slate-200 bg-white p-5">
               <h2 className="font-semibold text-navy">
-                {grille === "afrique" ? t("grid.afrique") : t("grid.internationale")}
+                <TuileIcone nom="finances" />{grille === "afrique" ? t("grid.afrique") : t("grid.internationale")}
               </h2>
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                 {PLANS.map((plan) => (
@@ -160,7 +161,7 @@ export default function ConsoleFinancesPage() {
           ))}
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold text-navy">{t("financeParamsTitle")}</h2>
+            <h2 className="font-semibold text-navy"><TuileIcone nom="finances" />{t("financeParamsTitle")}</h2>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {champNombre(t("annualDiscount"), parametres.remise_annuelle_pct, (n) =>
                 setParametres({ ...parametres, remise_annuelle_pct: n }), "%")}

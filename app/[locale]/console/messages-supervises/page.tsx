@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
 import FilMessages, { erreurV15 } from "@/components/FilMessages";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { Conversation } from "@/lib/data/types";
 import { formatDate } from "@/lib/format";
@@ -68,7 +69,7 @@ export default function ConsoleMessagesSupervisesPage() {
           {chargement ? (
             <p className="px-2 py-4 text-sm text-slate-500">{tc("loading")}</p>
           ) : fils.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-slate-500">{t("supervisedEmpty")}</p>
+            <EtatVideCentre className="py-4"><p className="text-sm text-slate-500">{t("supervisedEmpty")}</p></EtatVideCentre>
           ) : (
             <ul className="space-y-1">
               {fils.map((c) => (

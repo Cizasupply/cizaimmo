@@ -8,6 +8,7 @@ import AppShell from "@/components/AppShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DocumentList from "@/components/DocumentList";
 import IndivisionSection from "@/components/IndivisionSection";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatPct } from "@/lib/format";
 import { bailActif, statsImmeuble } from "@/lib/parc";
 import { getDataProvider } from "@/lib/data";
@@ -312,10 +313,15 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
         </dl>
       </div>
 
+      {/* Organisation bureau (système d’organisation, 2026-11-08) :
+          modèle Fiche — principale (Appartements, Dépenses) en 2/3,
+          latérale (Documents, Passeport) en 1/3 dès lg ; mobile :
+          colonne unique, ordre DOM inchangé. */}
+      <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-6 lg:mt-6">
       {/* Appartements */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 lg:mt-0 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-navy">{t("buildings.detailApartments")}</h2>
+          <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="apartments" />{t("buildings.detailApartments")}</h2>
           {!estCoproprietaire ? (
             <div className="flex gap-2">
               <Link href={`/${locale}/appartements/nouveau?immeuble=${immeuble.id}`} className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy hover:bg-gold-light">
@@ -355,8 +361,8 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       </section>
 
       {/* Dépenses */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-navy">{t("buildings.detailExpenses")}</h2>
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 lg:mt-0 min-w-0">
+        <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="expenses" />{t("buildings.detailExpenses")}</h2>
         {depenses.length === 0 ? (
           <p className="mt-2 text-slate-600">{t("expenses.empty")}</p>
         ) : (
@@ -372,8 +378,8 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       </section>
 
       {/* Documents (module 4 : vrais documents, stockage privé) */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-navy">{t("buildings.detailDocuments")}</h2>
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:mt-0 min-w-0">
+        <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="documents" />{t("buildings.detailDocuments")}</h2>
         <DocumentList documents={documents} onChange={charger} />
         <Link href="/documents" className="mt-3 inline-block text-sm font-semibold text-navy underline">
           {t("buildings.detailDocumentsAll")}
@@ -383,9 +389,9 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
       {/* Passeport du bien (spec §6 suite) — complet : identité, acquisition,
           valeur (+ date d'estimation, ROI), travaux (avec justificatifs),
           historique complet (baux, paiements, alertes, fil), documents. */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-navy">{t("passport.title")}</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:mt-0 min-w-0">
+        <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="buildings" />{t("passport.title")}</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-3 lg:grid-cols-1">
           <div>
             <h3 className="font-semibold text-navy">{t("passport.identity")}</h3>
             <p className="mt-1 text-sm text-slate-700">
@@ -521,6 +527,7 @@ export default function ImmeubleDetailPage({ params }: { params: { id: string } 
           </ul>
         )}
       </section>
+      </div>
 
       {/* Indivision familiale (spec §6 suite) */}
       <IndivisionSection immeuble={immeuble} />

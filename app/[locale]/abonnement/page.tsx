@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SuppressionCompteDialog from "@/components/SuppressionCompteDialog";
 import Field from "@/components/Field";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney } from "@/lib/format";
 import { telechargerFactureAboPdf } from "@/lib/facture-pdf";
 import {
@@ -369,7 +370,7 @@ export default function AbonnementPage() {
 
           {/* Plan actuel */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-navy">{ts("currentPlan")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="subscription" />{ts("currentPlan")}</h2>
             <dl className="mt-3 space-y-2 text-base text-slate-700">
               <div className="flex justify-between gap-4">
                 <dt className="shrink-0 font-semibold">{ts("plan")}</dt>
@@ -428,7 +429,7 @@ export default function AbonnementPage() {
               paiement, il est seulement enregistré (plan_apres_essai). */}
           {abonnement.statut === "essai" ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-navy">{ts("trialPackTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="subscription" />{ts("trialPackTitle")}</h2>
               <p className="mt-1 text-sm text-slate-600">{ts("trialPackText")}</p>
               <div className="mt-4 space-y-2">
                 {PLANS.map((plan) => (
@@ -469,7 +470,7 @@ export default function AbonnementPage() {
 
           {/* Comparaison des plans */}
           <section className="mb-6">
-            <h2 className="mb-3 text-lg font-semibold text-navy">{ts("compareTitle")}</h2>
+            <h2 className="mb-3 text-lg font-semibold text-navy"><TuileIcone nom="subscription" />{ts("compareTitle")}</h2>
             <div className="grid gap-4 md:grid-cols-3">
               {PLANS.map((plan) => {
                 const estActuel = plan === abonnement.plan && !abonnement.plan_en_attente;
@@ -528,7 +529,7 @@ export default function AbonnementPage() {
           {planChoisi ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-navy">
-                {ts("payTitle", { plan: ts(`plans.${planChoisi}`) })}
+                <TuileIcone nom="subscription" />{ts("payTitle", { plan: ts(`plans.${planChoisi}`) })}
               </h2>
               <p className="mt-1 text-base text-slate-700">
                 {formatMoney(prixPlans[planChoisi][abonnement.grille], "USD", locale)} {ts("perMonth")} —{" "}
@@ -592,7 +593,7 @@ export default function AbonnementPage() {
           {/* Paiements mobile money */}
           {paiementsMm.length > 0 ? (
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-navy">{ts("mmTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="finances" />{ts("mmTitle")}</h2>
               <ul className="mt-3 space-y-3">
                 {paiementsMm.map((p) => (
                   <li key={p.id} className="rounded-xl border border-slate-200 p-4">
@@ -634,7 +635,7 @@ export default function AbonnementPage() {
 
           {/* Factures */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-navy">{ts("invoicesTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="receipts" />{ts("invoicesTitle")}</h2>
             {factures.length === 0 ? (
               <p className="mt-3 text-base text-slate-500">{ts("invoicesEmpty")}</p>
             ) : (
@@ -670,7 +671,7 @@ export default function AbonnementPage() {
 
           {/* Annulation */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-navy">{ts("cancelTitle")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="settings" />{ts("cancelTitle")}</h2>
             {abonnement.resiliation_programmee ? (
               <p className="mt-2 text-base text-slate-700">
                 {ts("cancellationScheduledText", { date: formatDate(abonnement.fin_periode, locale) })}

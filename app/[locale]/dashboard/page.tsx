@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
+import TuileIcone from "@/components/TuileIcone";
 import { formatDate, formatMoney, formatPct } from "@/lib/format";
 import { getDataProvider } from "@/lib/data";
 import type {
@@ -242,7 +243,7 @@ export default function DashboardPage() {
         </div>
       ) : immeubles.filter((i) => i.statut === "actif").length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-semibold text-navy">{td("starterTitle")}</h2>
+          <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="subscription" />{td("starterTitle")}</h2>
           <p className="mt-2 text-slate-600">{td("starterText")}</p>
           <ol className="mt-4 space-y-3">
             <li className="flex gap-3">
@@ -391,7 +392,7 @@ export default function DashboardPage() {
 
           {/* Retards */}
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-navy">{td("lateList")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="alerts" />{td("lateList")}</h2>
             {indicateurs.retards.length === 0 ? (
               <p className="mt-2 text-slate-600">{td("noLate")}</p>
             ) : (
@@ -417,9 +418,9 @@ export default function DashboardPage() {
           </section>
 
           {/* Fins de bail + dépenses du mois */}
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-semibold text-navy">{td("leasesEnding")}</h2>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="contract" />{td("leasesEnding")}</h2>
               {indicateurs.finsDeBail60j.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noLeaseEnding")}</p>
               ) : (
@@ -437,8 +438,8 @@ export default function DashboardPage() {
                 </ul>
               )}
             </section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-semibold text-navy">{td("expensesMonth")}</h2>
+            <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="expenses" />{td("expensesMonth")}</h2>
               {indicateurs.depensesMois.length === 0 ? (
                 <p className="mt-2 text-slate-600">{td("noExpenseMonth")}</p>
               ) : (
@@ -457,7 +458,7 @@ export default function DashboardPage() {
 
           {/* Graphique collecte 6 mois */}
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-navy">{td("collectionChart")}</h2>
+            <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="reports" />{td("collectionChart")}</h2>
             <p className="text-sm text-slate-600">{td("chartInCurrency", { currency: deviseAffichage })}</p>
             <div className="mx-auto mt-4 max-w-[560px] overflow-x-auto">
               <svg viewBox="0 0 360 100" className="w-full min-w-[320px]" role="img" aria-label={td("collectionChart")}>
@@ -487,7 +488,7 @@ export default function DashboardPage() {
           {/* Fil d'actualité */}
           <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-navy">{td("feedTitle")}</h2>
+              <h2 className="text-lg font-semibold text-navy"><TuileIcone nom="journal" />{td("feedTitle")}</h2>
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 {td("feedFilterBuilding")}
                 <select

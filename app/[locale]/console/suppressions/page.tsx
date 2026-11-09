@@ -12,6 +12,7 @@ import { useLocale, useTranslations } from "next-intl";
 import BandeauPage from "@/components/BandeauPage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { erreurV15 } from "@/components/FilMessages";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { getDataProvider } from "@/lib/data";
 import type { Profil } from "@/lib/data";
 import type { SuppressionEnAttente } from "@/lib/data/types";
@@ -140,7 +141,7 @@ export default function ConsoleSuppressionsPage() {
           </tbody>
         </table>
         {!chargement && liste.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">{t("deletionsEmpty")}</p>
+          <EtatVideCentre><p className="text-sm text-slate-500">{t("deletionsEmpty")}</p></EtatVideCentre>
         ) : null}
         {chargement ? (
           <p className="p-6 text-sm text-slate-500">{tc("loading")}</p>

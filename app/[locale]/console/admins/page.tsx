@@ -14,6 +14,7 @@ import BandeauPage from "@/components/BandeauPage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import CoordonneesPaiementVue from "@/components/CoordonneesPaiementVue";
 import PackEmployeAdmin from "@/components/PackEmployeAdmin";
+import TuileIcone from "@/components/TuileIcone";
 import { getDataProvider } from "@/lib/data";
 import type { CompteAdmin, DossierEmploye } from "@/lib/data";
 import type { MembreEquipe } from "@/lib/data/types";
@@ -336,7 +337,7 @@ export default function ConsoleAdminsPage() {
       {/* Bureau large (xl) : promotion et création côte à côte. */}
       <div className="mt-8 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
       <section className="rounded-2xl border border-gold/40 bg-white p-5 min-w-0">
-        <h2 className="font-semibold text-navy">{t("promoteTitle")}</h2>
+        <h2 className="font-semibold text-navy"><TuileIcone nom="admins" />{t("promoteTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("promoteText")}</p>
         <form
           className="mt-3 flex flex-wrap gap-2"
@@ -362,8 +363,8 @@ export default function ConsoleAdminsPage() {
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-gold/40 bg-white p-5 xl:mt-0 min-w-0">
-        <h2 className="font-semibold text-navy">{t("createAdminTitle")}</h2>
+      <section className="mt-6 rounded-2xl border border-gold/40 bg-cream p-5 xl:mt-0 min-w-0">
+        <h2 className="font-semibold text-navy"><TuileIcone nom="admins" />{t("createAdminTitle")}</h2>
         <p className="mt-1 text-sm text-slate-600">{t("createAdminText")}</p>
         <form
           className="mt-3 flex flex-wrap gap-2"

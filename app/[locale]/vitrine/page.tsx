@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import EtatVideCentre from "@/components/EtatVideCentre";
 import { formatMoney } from "@/lib/format";
 import { getDataProvider, VITRINE_PAR_PLAN } from "@/lib/data";
 import type { Appartement, Immeuble, Plan } from "@/lib/data";
@@ -172,8 +173,10 @@ export default function VitrinePage() {
           <p className="mb-4 text-sm text-slate-600">{t("manageHint")}</p>
           {eligibles.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-              <p className="font-bold text-navy">{t("empty")}</p>
-              <p className="mt-2 text-slate-600">{t("emptyText")}</p>
+              <EtatVideCentre>
+                <p className="font-bold text-navy">{t("empty")}</p>
+                <p className="mt-2 text-slate-600">{t("emptyText")}</p>
+              </EtatVideCentre>
             </div>
           ) : (
             <ul className="space-y-4">

@@ -115,7 +115,7 @@ check("Mon dossier : racine mobile inchangée (pile space-y-5)", contient(monDos
 // ---------- 5. Vue d'ensemble ----------
 const vue = lire("app/[locale]/console/page.tsx");
 check("Vue d'ensemble : bande KPI 4 colonnes (lg) conservée", contient(vue, "lg:grid-cols-4"));
-check("Vue d'ensemble : Messages | Activité côte à côte (xl)", contient(vue, "xl:grid xl:grid-cols-2 xl:items-start xl:gap-6"));
+check("Vue d'ensemble : Messages | Activité côte à côte (xl)", contient(vue, "xl:order-2") && contient(vue, "xl:order-1 xl:col-span-2"));
 check("Vue d'ensemble : file d'attente empilée sous Messages", contient(vue, "space-y-8 xl:space-y-6"));
 check("Vue d'ensemble : cartes KPI teintées or", contient(vue, "border-gold/40"));
 
@@ -271,6 +271,172 @@ check("Accordéon Messages : pastille des non-lus déjà chargés (aucun nouvel 
   contient(dossier, "conversation?.non_lus"));
 check("Accordéon Messages : chevron qui pivote à l'ouverture",
   contient(dossier, 'messagesOuverts ? "rotate-180" : ""'));
+
+// ---------------------------------------------------------------------------
+// SYSTÈME D'ORGANISATION DES PAGES (2026-11-08) — déploiement de la
+// maquette validée par le fondateur (4 modèles : Tableau de bord,
+// Fiche/Dossier, Liste + panneau, Cartes ; anatomie de carte
+// premium ; règles anti-vide) à TOUT l'espace connecté (console +
+// client). Pages publiques NON touchées.
+//   - Anatomie : en-tête de section avec tuile or portant l'icône
+//     EXISTANTE de la section (composant partagé TuileIcone, jeu
+//     IconeNav) — insérée en ligne dans le titre, sans changer ni
+//     ses classes ni sa structure.
+//   - États vides centrés : composant partagé EtatVideCentre
+//     (anneau or pâle en CSS + texte existant), et le même anneau
+//     dans EmptyState (pleine page).
+//   - Dossier : Documents et Historique en accordéon MOBILE
+//     (repliés sous lg, toujours ouverts en lg+ par lg:block).
+//   - Vue d'ensemble console : modèle 1 — Activité 2/3 (xl:order-1
+//     xl:col-span-2), colonne Messages 1/3 (xl:order-2), l'ordre
+//     DOM (mobile) est inchangé.
+//   - Dashboard client : modèle 1 — paire Fins de bail (2/3) |
+//     Dépenses du mois (1/3) en lg. Fiche immeuble : modèle 2 —
+//     principale (Appartements, Dépenses) 2/3 | latérale
+//     (Documents, Passeport) 1/3 en lg, grille interne du
+//     passeport ramenée à 1 colonne dans la latérale.
+//   - Équipe : panneau de création teinté crème (bg-cream).
+//   - AppShell client : contenu plafonné à 1600 px comme la
+//     console (md:max-w-[1600px]).
+//   - ZÉRO DÉBORDEMENT MOBILE (exigence du fondateur) : garde
+//     statique — aucune largeur rigide w-[NNNpx] dans les fichiers
+//     touchés ; les seuls min-w-[...]px sont les tableaux bureau
+//     préexistants, contenus dans des overflow-x-auto ; chaque
+//     nouvelle grille a ses items en min-w-0.
+const tuile = lire("components/TuileIcone.tsx");
+check("Système : TuileIcone — tuile or + jeu d'icônes existant (IconeNav), aucune icône dessinée",
+  contient(tuile, "bg-gold") && contient(tuile, 'from "./IconeNav"') && !contient(tuile, "<path"));
+check("Système : TuileIcone — en ligne dans le titre (inline-flex, flex-none)",
+  contient(tuile, "inline-flex") && contient(tuile, "flex-none"));
+const etatVide = lire("components/EtatVideCentre.tsx");
+check("Système : EtatVideCentre — centré (flex col, items/justify center) + anneau or pâle",
+  contient(etatVide, "items-center justify-center") && contient(etatVide, "border-gold/50"));
+const emptyState = lire("components/EmptyState.tsx");
+check("Système : EmptyState pleine page — même anneau or centré",
+  contient(emptyState, "border-gold/50") && contient(emptyState, "mx-auto mb-4 block"));
+
+const tuilesParPage = [
+  ["Vue d'ensemble", vue, 4],
+  ["Dossier client", dossier, 8],
+  ["Finances plateforme", fin, 3],
+  ["Mon dossier employé", monDossier, 7],
+  ["Équipe", equipe, 2],
+  ["Gestionnaires", gestionnaires, 1],
+  ["Mes dossiers", mesDossiers, 1],
+  ["Finances (paramètres)", financesParametres, 2],
+  ["Vérifier un employé", verifier, 1],
+];
+for (const [nom, src, min] of tuilesParPage) {
+  check(`Système : tuiles d'en-tête — ${nom} (≥ ${min})`, compte(src, "<TuileIcone") >= min);
+}
+const dash = lire("app/[locale]/dashboard/page.tsx");
+const fiche = lire("app/[locale]/immeubles/[id]/page.tsx");
+const rapports = lire("app/[locale]/rapports/page.tsx");
+const alertes = lire("app/[locale]/alertes/page.tsx");
+const abonnement = lire("app/[locale]/abonnement/page.tsx");
+const parametres = lire("app/[locale]/parametres/page.tsx");
+const contratClient = lire("app/[locale]/contrat/page.tsx");
+const tuilesClient = [
+  ["Dashboard client", dash, 6],
+  ["Fiche immeuble", fiche, 4],
+  ["Rapports", rapports, 4],
+  ["Alertes", alertes, 2],
+  ["Abonnement", abonnement, 7],
+  ["Paramètres", parametres, 7],
+  ["Contrat client", contratClient, 2],
+];
+for (const [nom, src, min] of tuilesClient) {
+  check(`Système : tuiles d'en-tête — ${nom} (≥ ${min})`, compte(src, "<TuileIcone") >= min);
+}
+
+check("Système : Vue d'ensemble — grille xl 3 colonnes (modèle 1)",
+  contient(vue, "xl:grid xl:grid-cols-3 xl:items-start xl:gap-6"));
+check("Système : Dashboard client — paire principale 2/3 | latérale 1/3 (lg:grid-cols-3 + col-span-2)",
+  contient(dash, "mt-4 grid gap-4 lg:grid-cols-3") && compte(dash, "sm:p-6 lg:col-span-2") === 1);
+check("Système : Dashboard client — items de la paire en min-w-0 (anti-débordement)",
+  compte(dash, "min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6") === 2);
+check("Système : Fiche immeuble — enveloppe modèle 2 (lg:grid-cols-3, items-start)",
+  contient(fiche, "lg:grid lg:grid-cols-3 lg:items-start lg:gap-6 lg:mt-6"));
+check("Système : Fiche immeuble — principale en col-span-2 (2 sections), sections en min-w-0 (4)",
+  compte(fiche, "lg:col-span-2 lg:mt-0 min-w-0") === 2 && compte(fiche, "lg:mt-0 min-w-0") === 4);
+check("Système : Fiche immeuble — grille interne du passeport à 1 colonne dans la latérale (lg:grid-cols-1)",
+  contient(fiche, "md:grid-cols-3 lg:grid-cols-1"));
+check("Système : Équipe — panneau de création teinté crème à bordure or",
+  contient(equipe, "border-gold/40 bg-cream p-5 xl:mt-0 min-w-0"));
+check("Système : AppShell client — contenu plafonné 1600 px (md:max-w-[1600px])",
+  contient(lire("components/AppShell.tsx"), "md:p-10 md:max-w-[1600px]"));
+
+// Dossier : accordéons mobiles Documents + Historique.
+check("Système : Dossier — états des accordéons mobiles (docsOuverts / auditOuvert, repliés par défaut)",
+  contient(dossier, "const [docsOuverts, setDocsOuverts] = useState(false)") &&
+  contient(dossier, "const [auditOuvert, setAuditOuvert] = useState(false)"));
+check("Système : Dossier — accordéon Documents (aria, chevron lg:hidden, contenu forcé lg:block)",
+  contient(dossier, 'aria-controls="documents-contenu"') && contient(dossier, 'id="documents-contenu"') &&
+  contient(dossier, '${docsOuverts ? "block" : "hidden"} lg:block'));
+check("Système : Dossier — accordéon Historique (aria, chevron lg:hidden, contenu forcé lg:block)",
+  contient(dossier, 'aria-controls="historique-contenu"') && contient(dossier, 'id="historique-contenu"') &&
+  contient(dossier, '${auditOuvert ? "block" : "hidden"} lg:block'));
+check("Système : Dossier — la Revue/Décision et l'Identité restent toujours visibles (aucun accordéon)",
+  !contient(dossier, 'aria-controls="revue-contenu"') && !contient(dossier, 'aria-controls="identite-contenu"'));
+
+// États vides centrés (EtatVideCentre) sur les listes console + client.
+const etatsVides = [
+  ["Vue d'ensemble (aucune activité)", vue],
+  ["Dossier (documents / rattachements / historique)", dossier],
+  ["Comptes (aucun compte)", comptesListe],
+  ["Mes dossiers (vide)", mesDossiers],
+  ["Gestionnaires (aucun)", gestionnaires],
+  ["Messages console (vide)", messages],
+  ["Messages supervisés (vide)", messagesSupervises],
+  ["Vitrine supervision (vide)", vitrine],
+  ["Suppressions (vide)", suppressions],
+  ["Journal (vide / aucun résultat)", journal],
+  ["Immeubles client (aucun résultat)", lire("app/[locale]/immeubles/page.tsx")],
+  ["Dépenses client (aucun résultat)", lire("app/[locale]/depenses/page.tsx")],
+  ["Vitrine client (vide)", lire("app/[locale]/vitrine/page.tsx")],
+];
+for (const [nom, src] of etatsVides) {
+  check(`Système : état vide centré — ${nom}`, contient(src, "<EtatVideCentre"));
+}
+check("Système : Journal — les deux états vides centrés (vide + aucun résultat)",
+  compte(journal, "<EtatVideCentre") >= 2);
+check("Système : Dossier — trois états vides centrés (documents, rattachements, historique)",
+  compte(dossier, "<EtatVideCentre") >= 3);
+
+// ZÉRO DÉBORDEMENT MOBILE — garde statique sur les fichiers touchés :
+// aucune largeur rigide w-[NNNpx] (les max-w/min-w préexistants des
+// tableaux bureau vivent dans des conteneurs overflow-x-auto).
+const fichiersTouches = [
+  "app/[locale]/console/page.tsx", "app/[locale]/console/comptes/[id]/page.tsx",
+  "app/[locale]/console/finances-plateforme/page.tsx", "app/[locale]/console/mon-dossier/page.tsx",
+  "app/[locale]/console/admins/page.tsx", "app/[locale]/console/gestionnaires/page.tsx",
+  "app/[locale]/console/mes-dossiers/page.tsx", "app/[locale]/console/comptes/page.tsx",
+  "app/[locale]/console/messages/page.tsx", "app/[locale]/console/messages-supervises/page.tsx",
+  "app/[locale]/console/vitrine/page.tsx", "app/[locale]/console/suppressions/page.tsx",
+  "app/[locale]/console/journal/page.tsx", "app/[locale]/console/finances/page.tsx",
+  "app/[locale]/console/verifier-employe/page.tsx", "app/[locale]/dashboard/page.tsx",
+  "app/[locale]/immeubles/[id]/page.tsx", "app/[locale]/immeubles/page.tsx",
+  "app/[locale]/rapports/page.tsx", "app/[locale]/alertes/page.tsx",
+  "app/[locale]/abonnement/page.tsx", "app/[locale]/parametres/page.tsx",
+  "app/[locale]/contrat/page.tsx", "app/[locale]/depenses/page.tsx",
+  "app/[locale]/vitrine/page.tsx", "components/AppShell.tsx",
+  "components/EmptyState.tsx", "components/EtatVideCentre.tsx",
+];
+// TuileIcone est volontairement hors balayage : ses seules tailles
+// fixes sont la tuile (h-8 w-8) et l'icône interne (18 px), toutes
+// deux flex-none dans le flux du titre — elles ne peuvent pas
+// élargir la page. Contrôle dédié :
+check("Anti-débordement : TuileIcone — tailles fixes bornées au composant (tuile 32 px, icône 18 px, flex-none)",
+  contient(tuile, "h-8 w-8 flex-none") && contient(tuile, 'className="h-[18px] w-[18px]"'));
+for (const f of fichiersTouches) {
+  const src = lire(f);
+  check(`Anti-débordement : aucune largeur rigide w-[NNNpx] — ${f.split("/").slice(-2).join("/")}`,
+    !/(^|[\s"'])w-\[\d+px\]/.test(src));
+}
+check("Anti-débordement : tableaux bureau à min-w contenus dans un overflow-x-auto (journal, suppressions, rapports)",
+  contient(journal, "overflow-x-auto") && contient(suppressions, "overflow-x-auto") && contient(rapports, "overflow-x-auto"));
+check("Anti-débordement : les accordéons mobiles n'ajoutent aucune largeur (bouton en p-1.5, shrink-0)",
+  compte(dossier, "shrink-0 rounded-full border border-slate-300 bg-white p-1.5 text-navy hover:border-gold lg:hidden") === 2);
 
 console.log(`\nOrganisation desktop premium : ${ok} OK / ${ko} KO`);
 process.exit(ko ? 1 : 0);
