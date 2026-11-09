@@ -24,6 +24,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getDataProvider } from "@/lib/data";
 import type { DossierEmploye, PackEmploye, PaieEmploye } from "@/lib/data";
 import BandeauPage from "@/components/BandeauPage";
+import LienGuideEmploye from "@/components/LienGuideEmploye";
 import DocumentUpload from "@/components/DocumentUpload";
 import Field from "@/components/Field";
 import CarteEmploye from "@/components/CarteEmploye";
@@ -378,6 +379,12 @@ export default function MonDossierEmployePage() {
         <h1 className="text-xl font-bold text-white">{t("title")}</h1>
         <p className="mt-1 max-w-2xl text-sm text-slate-300">{t("subtitle")}</p>
       </BandeauPage>
+
+      {/* Guide employé téléchargeable (branchement « Les deux »
+          validé par le fondateur le 2026-11-08) : le même PDF que
+          celui joint à l'e-mail du contrat préparé, dans la langue
+          de l'interface. */}
+      <LienGuideEmploye />
 
       {message ? (
         <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">

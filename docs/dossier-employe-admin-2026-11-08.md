@@ -153,3 +153,43 @@ Tests : 5 contrôles statiques ajoutés à
 `t("intro")`) — bloc Dossier employé 31 OK / 0 KO ; parité i18n
 2 136 clés FR = EN ; suite complète : seuls les 3 KO préexistants
 du Module 3 (fixtures sensibles à la date) subsistent.
+
+## Guide employé branché (2026-11-08, « Les deux »)
+
+Le guide employé validé par le fondateur (7 pages FR + EN,
+`cizaimmo-guide-employe-<langue>.pdf`) est branché aux **deux**
+emplacements décidés, sur le patron du guide client
+(`docs/guide-bienvenue-2026-11-08.md`) :
+
+1. **Téléchargement** : lien « Guide employé (PDF) » dans la page
+   console « Mon dossier employé », juste sous le bandeau de titre
+   (composant `components/LienGuideEmploye.tsx`, même présentation
+   que `LienGuideUtilisation` de la page « Mon contrat »), dans la
+   langue de l'interface — clé `dossierEmploye.guideDownload`
+   (FR « Guide employé (PDF) » / EN « Employee guide (PDF) »,
+   parité 2 137 clés).
+2. **Pièce jointe e-mail** : à la préparation d'un contrat employé
+   (`preparerContratEmploye`, fournisseurs réel **et** démo),
+   l'e-mail de mise à disposition part avec **[contrat employé,
+   guide employé]**, le guide dans la **langue du compte de
+   l'employé**. Helper `piecesJointesAvecGuideEmploye` dans
+   `lib/guide.ts` (variante du helper client, même chargeur
+   statique `public/guides/`), **repli non bloquant** : guide
+   illisible → l'e-mail part avec le contrat seul.
+
+**Correctif démo associé** : `resoudreMembre` (fournisseur démo)
+codait la langue des entrées Admin en dur à « fr » ; elle est
+désormais retrouvée sur le compte lié (compte client promu ou
+profil local, même identifiant), comme le réel la lit sur la
+ligne `profils` — un employé promu au compte en anglais reçoit
+donc ses e-mails du pack (et le guide joint) en anglais. Aucun
+changement pour les comptes FR ni pour le fournisseur réel.
+
+Tests : nouveau bloc `scripts/test-guide-employe.cjs` (enregistré
+dans `run-tests.sh`) — **27 OK / 0 KO** : fichiers présents, vrais
+PDF, identiques aux finaux validés du dossier du goal ; helper
+(noms, chemins, chargement, ordre [contrat, guide], repli) ;
+câblage statique réel + démo dans `preparerContratEmploye` ;
+flux démo FR / EN / repli de bout en bout. Suite complète :
+1 930 OK, seuls les 3 KO préexistants du Module 3 (fixtures
+sensibles à la date). Build + tsc propres.

@@ -1449,6 +1449,7 @@
     "errorGeneric": "Saving failed. Please try again.",
     "errorInvalidPayment": "Invalid payment method.",
     "errorTooBig": "File too large: 10 MB maximum.",
+    "guideDownload": "Employee guide (PDF)",
     "hideDetail": "Hide details",
     "idSection": "Identity",
     "incomplete": "Incomplete file",

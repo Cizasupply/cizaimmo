@@ -1449,6 +1449,7 @@
     "errorGeneric": "L'enregistrement a échoué. Réessayez.",
     "errorInvalidPayment": "Moyen de paiement invalide.",
     "errorTooBig": "Fichier trop lourd : 10 Mo maximum.",
+    "guideDownload": "Guide employé (PDF)",
     "hideDetail": "Masquer le détail",
     "idSection": "Identité",
     "incomplete": "Dossier incomplet",

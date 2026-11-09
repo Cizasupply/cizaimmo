@@ -129,7 +129,10 @@ import {
   type ParametresContratEmploye,
   type StatutContratEmploye,
 } from "../pack-employe";
-import { piecesJointesAvecGuide } from "../guide";
+import {
+  piecesJointesAvecGuide,
+  piecesJointesAvecGuideEmploye,
+} from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
 import {
   blocagesPaie,
@@ -4544,12 +4547,20 @@ export class RealProvider implements DataProvider {
       nettoyes.voie,
       langue
     );
+    // Guide employé : joint en plus du contrat, dans la langue du
+    // compte de l'employé (repli non bloquant intégré au helper —
+    // si le guide est illisible, l'e-mail part avec le contrat
+    // seul ; branchement validé par le fondateur le 2026-11-08).
+    const piecesAvecGuide = await piecesJointesAvecGuideEmploye(
+      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }],
+      langue
+    );
     const emailStatut = await this.envoyerEmailPlateforme(
       donnees.email,
       mail.sujet,
       mail.corps,
       langue,
-      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }]
+      piecesAvecGuide
     );
     await this.journaliserAudit(
       acteur,

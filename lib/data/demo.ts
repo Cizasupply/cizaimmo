@@ -165,7 +165,10 @@ import {
   type ParametresContratEmploye,
   type StatutContratEmploye,
 } from "../pack-employe";
-import { piecesJointesAvecGuide } from "../guide";
+import {
+  piecesJointesAvecGuide,
+  piecesJointesAvecGuideEmploye,
+} from "../guide";
 import { evaluerDossierEmploye } from "../dossier-employe";
 import {
   blocagesPaie,
@@ -5291,12 +5294,25 @@ export class DemoProvider implements DataProvider {
     };
     const entree = db.plateforme.comptesAdmins.find((a) => a.id === id);
     if (entree) {
+      // Langue du compte : l'entrée Admin ne la porte pas — on la
+      // retrouve sur le compte lié (même identifiant : compte
+      // client promu, ou profil local), comme le fournisseur réel
+      // la lit sur la ligne profils. Repli « fr » (entrées du seed
+      // sans compte lié). Sans cela, un employé promu dont le
+      // compte est en anglais recevait ses e-mails du pack (et le
+      // guide employé joint) en français.
+      const clientLie = db.plateforme.comptesClients.find(
+        (c) => c.id === entree.id
+      );
+      const langueLiee =
+        clientLie?.langue ??
+        (db.profil.id === entree.id ? db.profil.langue : "fr");
       return {
         id: entree.id,
         email: entree.email,
         nom: entree.nom,
         role: entree.role,
-        langue: "fr",
+        langue: langueLiee === "en" ? "en" : "fr",
         display_id: displayIdPour(),
         suspendu: entree.statut === "suspendu",
         acces: this.resoudreAccesAdmin(db, entree),
@@ -5548,12 +5564,20 @@ export class DemoProvider implements DataProvider {
       nettoyes.voie,
       membre.langue
     );
+    // Guide employé : joint en plus du contrat, dans la langue du
+    // compte de l'employé (repli non bloquant intégré au helper —
+    // si le guide est illisible, l'e-mail part avec le contrat
+    // seul ; branchement validé par le fondateur le 2026-11-08).
+    const piecesAvecGuide = await piecesJointesAvecGuideEmploye(
+      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }],
+      membre.langue
+    );
     const emailStatut = await this.envoyerEmailPlateforme(
       membre.email,
       mail.sujet,
       mail.corps,
       membre.langue,
-      [{ nom: pdf.nomFichier, contenuBase64: pdf.contenuBase64 }]
+      piecesAvecGuide
     );
     this.journaliserAudit(db, acteur, "contrat_employe_prepare", "compte", adminId, membre.email, {
       display_id: membre.display_id,

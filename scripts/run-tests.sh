@@ -477,6 +477,20 @@ else
   ECHEC=1
 fi
 
+# Guide employé branché (2026-11-08, « Les deux » emplacements
+# validés par le fondateur) : joint à l'e-mail de mise à
+# disposition du contrat employé préparé (réel + démo, langue du
+# compte, repli non bloquant) + lien de téléchargement dans la
+# page console « Mon dossier employé » ; fichiers statiques
+# public/guides/cizaimmo-guide-employe-<langue>.pdf identiques aux
+# finaux validés.
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-guide-employe.cjs"; then
+  echo "Guide employé : OK"
+else
+  echo "Guide employé : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 # Dossier employé complet des Admins (2026-11-08, décision du
 # fondateur) : photo + pièce + téléphone + ADRESSE postale (nouveau
 # champ, module SQL dédié NON appliqué par le code) ; complétude
