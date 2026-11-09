@@ -9,6 +9,14 @@
  * conditionné à ce dossier (le Super Admin le suit dans l'Équipe).
  * Les clients n'ont pas accès à cette page (garde du ConsoleShell +
  * ERR_ACCES_PLATEFORME du fournisseur).
+ *
+ * Réorganisation (2026-11-08, décision du fondateur) : chaque
+ * section renseignée s'affiche en LECTURE SEULE (carte
+ * d'information) — photo sans téléversement ouvert, pièce en
+ * lecture, adresse et coordonnées en valeurs — et le formulaire
+ * ne s'ouvre qu'au clic sur « Modifier » ; enregistrement réussi
+ * = retour à la lecture. Le contrat VALIDÉ s'affiche en ligne de
+ * résultat (document + date), jamais en formulaire.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -45,6 +53,7 @@ export default function MonDossierEmployePage() {
   const t = useTranslations("dossierEmploye");
   const tp = useTranslations("packEmploye");
   const tf = useTranslations("financesPlateforme");
+  const tc = useTranslations("common");
   const locale = useLocale();
   const [dossier, setDossier] = useState<DossierEmploye | null>(null);
   const [pack, setPack] = useState<PackEmploye | null>(null);
@@ -55,6 +64,16 @@ export default function MonDossierEmployePage() {
   const [fichierPhoto, setFichierPhoto] = useState<File | null>(null);
   const [fichierPiece, setFichierPiece] = useState<File | null>(null);
   const [occupe, setOccupe] = useState<"photo" | "piece" | "form" | "paiement" | null>(null);
+  // Réorganisation dossiers (2026-11-08, décision du fondateur) :
+  // chaque section RENSEIGNÉE s'affiche en LECTURE SEULE (carte
+  // d'information) ; son formulaire / téléversement ne s'ouvre
+  // qu'au clic sur « Modifier ». sectionOuverte = la section en
+  // cours d'édition (null = toutes en lecture). Une section NON
+  // renseignée présente directement son formulaire (rien à
+  // protéger, l'action d'apport reste immédiate).
+  const [sectionOuverte, setSectionOuverte] = useState<
+    "photo" | "piece" | "adresse" | "paiement" | null
+  >(null);
   const [talonEnCours, setTalonEnCours] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -170,6 +189,8 @@ export default function MonDossierEmployePage() {
       setDossier(maj);
       if (kind === "photo") setFichierPhoto(null);
       else setFichierPiece(null);
+      // Enregistrement réussi : retour à la lecture seule.
+      setSectionOuverte(null);
       setMessage(t("savedMsg"));
     } catch (e) {
       setErreur(messageErreur(e));
@@ -195,6 +216,7 @@ export default function MonDossierEmployePage() {
         adresse_pays: vide(form.adresse_pays),
       });
       setDossier(maj);
+      setSectionOuverte(null);
       setMessage(t("savedMsg"));
     } catch (e) {
       setErreur(messageErreur(e));
@@ -238,6 +260,7 @@ export default function MonDossierEmployePage() {
         operateur: maj.paiement_operateur ?? "",
         numero_mobile: maj.paiement_numero_mobile ?? "",
       });
+      setSectionOuverte(null);
       setMessage(t("savedMsg"));
     } catch (e) {
       setErreur(messageErreur(e));
@@ -322,6 +345,26 @@ export default function MonDossierEmployePage() {
   if (chargement) {
     return <p className="text-sm text-slate-500">…</p>;
   }
+
+  // Réorganisation dossiers (2026-11-08) : une section est en
+  // ÉDITION si elle a été ouverte par « Modifier » OU si elle n'est
+  // pas encore renseignée (formulaire d'apport direct) ; renseignée
+  // et non ouverte = LECTURE SEULE.
+  const photoRenseignee = Boolean(dossier?.photo_profil_path);
+  const pieceRenseignee = Boolean(dossier?.piece_identite);
+  const adresseRenseignee = Boolean(
+    dossier &&
+      (dossier.telephone ||
+        dossier.adresse ||
+        dossier.adresse_ville ||
+        dossier.adresse_code_postal ||
+        dossier.adresse_pays)
+  );
+  const paiementRenseigne = Boolean(dossier?.coordonnees_paiement);
+  const editionPhoto = sectionOuverte === "photo" || !photoRenseignee;
+  const editionPiece = sectionOuverte === "piece" || !pieceRenseignee;
+  const editionAdresse = sectionOuverte === "adresse" || !adresseRenseignee;
+  const editionPaiement = sectionOuverte === "paiement" || !paiementRenseigne;
 
   return (
     <div className="space-y-5">
@@ -441,23 +484,50 @@ export default function MonDossierEmployePage() {
                     className="mt-3 h-28 w-28 rounded-xl border border-slate-200 object-cover"
                   />
                 ) : null}
-                <div className="mt-3">
-                  <DocumentUpload
-                    fichier={fichierPhoto}
-                    onFichierChange={setFichierPhoto}
-                    label={t("uploadPhoto")}
-                  />
-                  {fichierPhoto ? (
+                {editionPhoto ? (
+                  <div className="mt-3">
+                    <DocumentUpload
+                      fichier={fichierPhoto}
+                      onFichierChange={setFichierPhoto}
+                      label={t("uploadPhoto")}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {fichierPhoto ? (
+                        <button
+                          type="button"
+                          disabled={occupe !== null}
+                          onClick={() => envoyer("photo")}
+                          className={BOUTON_MARINE}
+                        >
+                          {t("uploadPhoto")}
+                        </button>
+                      ) : null}
+                      {photoRenseignee ? (
+                        <button
+                          type="button"
+                          disabled={occupe !== null}
+                          onClick={() => {
+                            setFichierPhoto(null);
+                            setSectionOuverte(null);
+                          }}
+                          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                        >
+                          {tc("cancel")}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
                     <button
                       type="button"
-                      disabled={occupe !== null}
-                      onClick={() => envoyer("photo")}
-                      className={`mt-2 ${BOUTON_MARINE}`}
+                      onClick={() => setSectionOuverte("photo")}
+                      className={BOUTON_MARINE}
                     >
-                      {t("uploadPhoto")}
+                      {tc("edit")}
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-slate-200 p-3">
@@ -489,76 +559,151 @@ export default function MonDossierEmployePage() {
                     </button>
                   </p>
                 ) : null}
-                <div className="mt-3">
-                  <DocumentUpload
-                    fichier={fichierPiece}
-                    onFichierChange={setFichierPiece}
-                    label={t("uploadId")}
-                  />
-                  {fichierPiece ? (
+                {editionPiece ? (
+                  <div className="mt-3">
+                    <DocumentUpload
+                      fichier={fichierPiece}
+                      onFichierChange={setFichierPiece}
+                      label={t("uploadId")}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {fichierPiece ? (
+                        <button
+                          type="button"
+                          disabled={occupe !== null}
+                          onClick={() => envoyer("piece")}
+                          className={BOUTON_MARINE}
+                        >
+                          {t("uploadId")}
+                        </button>
+                      ) : null}
+                      {pieceRenseignee ? (
+                        <button
+                          type="button"
+                          disabled={occupe !== null}
+                          onClick={() => {
+                            setFichierPiece(null);
+                            setSectionOuverte(null);
+                          }}
+                          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                        >
+                          {tc("cancel")}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
                     <button
                       type="button"
-                      disabled={occupe !== null}
-                      onClick={() => envoyer("piece")}
-                      className={`mt-2 ${BOUTON_MARINE}`}
+                      onClick={() => setSectionOuverte("piece")}
+                      className={BOUTON_MARINE}
                     >
-                      {t("uploadId")}
+                      {tc("edit")}
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
 
-          {/* Téléphone + adresse postale. */}
+          {/* Téléphone + adresse postale : lecture seule si
+              renseignés, formulaire derrière « Modifier ». */}
           <section className={CARTE}>
             <h2 className="text-base font-bold text-navy">{t("addressSection")}</h2>
             <p className="mt-1 text-sm text-slate-600">{t("addressHint")}</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <Field
-                id="employe-telephone"
-                label={t("phone")}
-                value={form.telephone}
-                onChange={(v) => setForm({ ...form, telephone: v })}
-                autoComplete="tel"
-              />
-              <Field
-                id="employe-adresse"
-                label={t("address")}
-                value={form.adresse}
-                onChange={(v) => setForm({ ...form, adresse: v })}
-                autoComplete="street-address"
-              />
-              <Field
-                id="employe-ville"
-                label={t("city")}
-                value={form.adresse_ville}
-                onChange={(v) => setForm({ ...form, adresse_ville: v })}
-                autoComplete="address-level2"
-              />
-              <Field
-                id="employe-code-postal"
-                label={t("postalCode")}
-                value={form.adresse_code_postal}
-                onChange={(v) => setForm({ ...form, adresse_code_postal: v })}
-                autoComplete="postal-code"
-              />
-              <Field
-                id="employe-pays"
-                label={t("country")}
-                value={form.adresse_pays}
-                onChange={(v) => setForm({ ...form, adresse_pays: v })}
-                autoComplete="country-name"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={occupe !== null}
-              onClick={enregistrer}
-              className={`mt-4 ${BOUTON_OR}`}
-            >
-              {occupe === "form" ? "…" : t("save")}
-            </button>
+            {editionAdresse ? (
+              <>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <Field
+                    id="employe-telephone"
+                    label={t("phone")}
+                    value={form.telephone}
+                    onChange={(v) => setForm({ ...form, telephone: v })}
+                    autoComplete="tel"
+                  />
+                  <Field
+                    id="employe-adresse"
+                    label={t("address")}
+                    value={form.adresse}
+                    onChange={(v) => setForm({ ...form, adresse: v })}
+                    autoComplete="street-address"
+                  />
+                  <Field
+                    id="employe-ville"
+                    label={t("city")}
+                    value={form.adresse_ville}
+                    onChange={(v) => setForm({ ...form, adresse_ville: v })}
+                    autoComplete="address-level2"
+                  />
+                  <Field
+                    id="employe-code-postal"
+                    label={t("postalCode")}
+                    value={form.adresse_code_postal}
+                    onChange={(v) => setForm({ ...form, adresse_code_postal: v })}
+                    autoComplete="postal-code"
+                  />
+                  <Field
+                    id="employe-pays"
+                    label={t("country")}
+                    value={form.adresse_pays}
+                    onChange={(v) => setForm({ ...form, adresse_pays: v })}
+                    autoComplete="country-name"
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={occupe !== null}
+                    onClick={enregistrer}
+                    className={BOUTON_OR}
+                  >
+                    {occupe === "form" ? "…" : t("save")}
+                  </button>
+                  {adresseRenseignee ? (
+                    <button
+                      type="button"
+                      disabled={occupe !== null}
+                      onClick={() => setSectionOuverte(null)}
+                      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                    >
+                      {tc("cancel")}
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
+                  {(
+                    [
+                      [t("phone"), dossier.telephone],
+                      [t("address"), dossier.adresse],
+                      [t("city"), dossier.adresse_ville],
+                      [t("postalCode"), dossier.adresse_code_postal],
+                      [t("country"), dossier.adresse_pays],
+                    ] as [string, string | null][]
+                  ).map(([libelle, valeur]) => (
+                    <div
+                      key={libelle}
+                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
+                    >
+                      <dt className="shrink-0 font-semibold">{libelle}</dt>
+                      <dd className="min-w-0 break-words text-right">
+                        {valeur ?? t("notProvided")}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <button
+                  type="button"
+                  onClick={() => setSectionOuverte("adresse")}
+                  className={`mt-4 ${BOUTON_MARINE}`}
+                >
+                  {tc("edit")}
+                </button>
+              </>
+            )}
           </section>
 
           {/* Coordonnées de paiement (2026-11-08) : où l'employé
@@ -578,6 +723,8 @@ export default function MonDossierEmployePage() {
                 {t("paymentMissing")}
               </p>
             )}
+            {editionPaiement ? (
+              <>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="min-w-0">
                 <label
@@ -670,14 +817,36 @@ export default function MonDossierEmployePage() {
                 </>
               ) : null}
             </div>
-            <button
-              type="button"
-              disabled={occupe !== null}
-              onClick={enregistrerPaiement}
-              className={`mt-4 ${BOUTON_OR}`}
-            >
-              {occupe === "paiement" ? "…" : t("save")}
-            </button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={occupe !== null}
+                onClick={enregistrerPaiement}
+                className={BOUTON_OR}
+              >
+                {occupe === "paiement" ? "…" : t("save")}
+              </button>
+              {paiementRenseigne ? (
+                <button
+                  type="button"
+                  disabled={occupe !== null}
+                  onClick={() => setSectionOuverte(null)}
+                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold disabled:opacity-50"
+                >
+                  {tc("cancel")}
+                </button>
+              ) : null}
+            </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSectionOuverte("paiement")}
+                className={`mt-4 ${BOUTON_MARINE}`}
+              >
+                {tc("edit")}
+              </button>
+            )}
           </section>
 
           {pack ? (
@@ -763,7 +932,7 @@ export default function MonDossierEmployePage() {
                         ) : null}
                       </div>
                     ) : null}
-                    {pack.contrat_document ? (
+                    {pack.contrat_document && pack.contrat_statut !== "valide" ? (
                       <p className="mt-3 text-sm text-slate-600">
                         {tp("contratStatus.signe_depose")} :{" "}
                         <span className="break-all font-medium">
@@ -771,13 +940,24 @@ export default function MonDossierEmployePage() {
                         </span>
                       </p>
                     ) : null}
-                    {/* Contrat VALIDÉ : la section le dit proprement —
-                        aucun nouveau dépôt n'est proposé ni nécessaire
-                        (correctif 2026-11-08, point 7). */}
+                    {/* Contrat VALIDÉ = RÉSULTAT, pas formulaire
+                        (réorganisation 2026-11-08, lot B3) : la ligne
+                        de résultat nomme le document validé et sa date
+                        de dépôt ; aucun nouveau dépôt n'est proposé. */}
                     {pack.contrat_statut === "valide" ? (
-                      <p className="mt-2 text-sm font-semibold text-green-700">
-                        {tp("contratValidatedNote")}
-                      </p>
+                      pack.contrat_document ? (
+                        <p className="mt-2 text-sm font-semibold text-green-700">
+                          ✓{" "}
+                          {tp("contratResultLine", {
+                            nom: pack.contrat_document.nom_fichier,
+                            date: formatDate(pack.contrat_document.created_at, locale),
+                          })}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-sm font-semibold text-green-700">
+                          {tp("contratValidatedNote")}
+                        </p>
+                      )
                     ) : null}
                   </>
                 )}

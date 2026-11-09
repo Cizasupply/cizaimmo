@@ -17,9 +17,17 @@
  *    réel pour la validation).
  *  - PRÉSENTATION PAR RÔLE (2026-11-08) : la vue Admin porte des
  *    libellés à la première personne (« Ma paie et mes dépenses »,
- *    « Mes totaux du mois », « Ma paie », « Mon historique de
- *    paies ») pour ne pas laisser croire à une vue plateforme —
- *    la vue Super Admin garde les libellés plateforme inchangés.
+ *    « Ma paie », « Mon historique de paies ») pour ne pas laisser
+ *    croire à une vue plateforme — la vue Super Admin garde les
+ *    libellés plateforme inchangés.
+ *  - LOT A (2026-11-08, modèle du fondateur : « sa paie et les
+ *    dépenses de la plateforme, deux choses différentes ») : chez
+ *    l'Admin, les deux domaines sont nettement SÉPARÉS — bloc
+ *    « Ma paie » puis bloc « Mes demandes de dépenses » — et la
+ *    boîte de totaux DISPARAÎT (aucun total ne mélange paie et
+ *    dépenses chez l'employé ; le fournisseur continue de renvoyer
+ *    ses totaux filtrés, la page ne les rend simplement pas). Les
+ *    totaux plateforme restent affichés pour le Super Admin seul.
  *  - Totaux du mois PAR DEVISE — aucune conversion inventée.
  */
 
@@ -249,10 +257,14 @@ export default function FinancesPlateformePage() {
         </p>
       ) : null}
 
-      {/* ---- Totaux du mois, par devise ---- */}
+      {/* ---- Totaux du mois, par devise — SUPER ADMIN SEUL (lot A,
+          2026-11-08) : chez l'employé, aucun total ne mélange sa
+          paie et les dépenses ; la boîte n'existe que dans la vue
+          plateforme du Super Admin. ---- */}
+      {estSuper ? (
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
-          {estSuper ? tf("totalsTitle") : tf("totalsTitleAdmin")}
+          {tf("totalsTitle")}
         </h2>
         {vue && vue.totaux.length > 0 ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -288,8 +300,10 @@ export default function FinancesPlateformePage() {
           <p className="mt-2 text-sm text-slate-600">{tf("totalsEmpty")}</p>
         )}
       </section>
+      ) : null}
 
-      {/* ---- Paie des employés ---- */}
+      {/* ---- Bloc PAIE (lot A : domaine 1, nettement séparé des
+          demandes de dépenses ci-dessous) ---- */}
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
           {estSuper ? tf("payTitle") : tf("payTitleAdmin")}
@@ -485,10 +499,13 @@ export default function FinancesPlateformePage() {
         )}
       </section>
 
-      {/* ---- Dépenses de fonctionnement ---- */}
+      {/* ---- Bloc DÉPENSES (lot A : domaine 2 — chez l'Admin, ses
+          DEMANDES de dépenses : soumises par lui, validées par le
+          Super Admin ; chez le Super Admin, les dépenses de
+          fonctionnement de la plateforme) ---- */}
       <section className={CARTE}>
         <h2 className="text-base font-bold text-navy">
-          {estSuper ? tf("expensesTitle") : tf("expensesTitleAdmin")}
+          {estSuper ? tf("expensesTitle") : tf("expensesTitleRequestsAdmin")}
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           {estSuper ? tf("expensesIntroSuper") : tf("expensesIntroAdmin")}

@@ -585,13 +585,13 @@ const PARAMS_A = {
   check("page : titre et sous-titre conditionnels par rôle (patron estSuper)",
     finances.includes('estSuper ? tf("title") : tf("titleAdmin")') &&
     finances.includes('estSuper ? tf("subtitle") : tf("subtitleAdmin")'));
-  check("page : totaux, section paie et historique conditionnels par rôle",
-    finances.includes('estSuper ? tf("totalsTitle") : tf("totalsTitleAdmin")') &&
+  check("page : section paie et historique conditionnels par rôle ; totaux SUPER ADMIN SEUL (lot A, 2026-11-08)",
+    !finances.includes('tf("totalsTitleAdmin")') &&
     finances.includes('estSuper ? tf("payTitle") : tf("payTitleAdmin")') &&
     finances.includes('estSuper ? tf("historyTitle") : tf("historyTitleAdmin")'));
   check("FR : libellés Admin exacts",
     msgFr10.titleAdmin === "Ma paie et mes dépenses" &&
-    msgFr10.totalsTitleAdmin === "Mes totaux du mois" &&
+    msgFr10.expensesTitleRequestsAdmin === "Mes demandes de dépenses" &&
     msgFr10.payTitleAdmin === "Ma paie" &&
     msgFr10.historyTitleAdmin === "Mon historique de paies" &&
     typeof msgFr10.subtitleAdmin === "string" && msgFr10.subtitleAdmin.length > 0);
@@ -603,7 +603,7 @@ const PARAMS_A = {
     msgFr10.historyTitle === "Historique des paies émises");
   check("EN : libellés Admin exacts, Super inchangés",
     msgEn10.titleAdmin === "My pay and my expenses" &&
-    msgEn10.totalsTitleAdmin === "My monthly totals" &&
+    msgEn10.expensesTitleRequestsAdmin === "My expense requests" &&
     msgEn10.payTitleAdmin === "My pay" &&
     msgEn10.historyTitleAdmin === "My pay history" &&
     typeof msgEn10.subtitleAdmin === "string" && msgEn10.subtitleAdmin.length > 0 &&

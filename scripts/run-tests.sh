@@ -596,6 +596,30 @@ else
   ECHEC=1
 fi
 
+# Réorganisation dossiers + finances Admin (2026-11-08, modèle du
+# fondateur : « sa paie et les dépenses de la plateforme, deux
+# choses différentes ») : (A) vue Admin — la boîte de totaux
+# DISPARAÎT (Super Admin seul), deux blocs séparés « Ma paie » /
+# « Mes demandes de dépenses », fournisseurs intacts (runtime
+# démo : périmètre toujours filtré) ; (B) dossiers — section
+# renseignée en LECTURE SEULE, formulaire derrière « Modifier »
+# (Mon dossier employé : photo, pièce, adresse, coordonnées ;
+# DossierBloc client : photo, pièce) et validations prononcées
+# converties en lignes de résultat (contrat employé validé ;
+# « Décisions enregistrées » de la page console Dossier, alimenté
+# par le journal et les documents déjà chargés) ; (C) photos
+# d'immeuble : sélecteur à activation NATIVE (label htmlFor +
+# useId + sr-only), le clic programmé sur input caché a disparu,
+# règles photos inchangées.
+echo ""
+echo "===== Réorganisation dossiers + finances Admin (2026-11-08) ====="
+if python3 "scripts/i18n-check.py" && python3 "scripts/i18n-cles-utilisees.py" && node "scripts/test-reorganisation-dossiers.cjs"; then
+  echo "Réorganisation dossiers + finances Admin : OK"
+else
+  echo "Réorganisation dossiers + finances Admin : ÉCHEC" >&2
+  ECHEC=1
+fi
+
 echo ""
 if [ "$ECHEC" -eq 0 ]; then
   echo "Tous les tests demandés sont passés."

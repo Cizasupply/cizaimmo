@@ -8,6 +8,11 @@
  * gérés, annonces vitrine, abonnement et journal d'audit du compte.
  * Actions contextuelles selon l'état : approuver/refuser, valider le
  * contrat signé, valider/refuser un rattachement en attente.
+ * Réorganisation (2026-11-08, lot B3) : les validations DÉJÀ
+ * prononcées s'affichent en « Décisions enregistrées » (lignes de
+ * résultat : document, date, acteur) — seuls les éléments EN
+ * ATTENTE portent des blocs d'action, la checklist restant
+ * l'outil de revue avant décision.
  */
 
 import Link from "next/link";
@@ -180,6 +185,72 @@ export default function ConsoleDossierPage({
       ? [{ cle: "antifraude_examinee" as keyof ChecklistDossierSaisie, libelle: t("checklistAntifraude") }]
       : []),
   ];
+
+  // Décisions DÉJÀ prononcées (réorganisation 2026-11-08, lot B3) :
+  // elles s'affichent en lignes de RÉSULTAT (action + nom du
+  // document + date + acteur), tirées du journal du dossier et de
+  // ses documents — jamais en formulaire d'action. Les blocs
+  // d'action ci-dessous ne concernent que ce qui est EN ATTENTE
+  // (revue du compte, contrats déposés, demandes, immeubles).
+  const derniereDecision = (actions: string[]) =>
+    dossier.audit
+      .filter((e) => actions.includes(e.action))
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] ?? null;
+  const docContrat =
+    dossier.documents_compte
+      .filter((d) => d.type === "contrat")
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] ?? null;
+  const decisions: {
+    cle: string;
+    action: string;
+    date: string;
+    acteur: string | null;
+    document: string | null;
+  }[] = [];
+  if (!enAttente) {
+    const dCompte = derniereDecision(["compte_approuve", "compte_refuse"]);
+    if (dCompte) {
+      decisions.push({
+        cle: "compte",
+        action: dCompte.action,
+        date: dCompte.created_at,
+        acteur: dCompte.acteur_nom ?? dCompte.acteur_email,
+        document: null,
+      });
+    }
+  }
+  if (compte.statut_contrat === "valide") {
+    const dContrat = derniereDecision(["contrat_valide"]);
+    decisions.push({
+      cle: "contrat",
+      action: "contrat_valide",
+      date: dContrat?.created_at ?? docContrat?.created_at ?? compte.created_at,
+      acteur: dContrat ? (dContrat.acteur_nom ?? dContrat.acteur_email) : null,
+      document: docContrat?.nom_fichier ?? null,
+    });
+  }
+  if (
+    compte.type_intention === "proprietaire" &&
+    (compte.statut_contrat_proprietaire === "valide" ||
+      compte.statut_contrat_proprietaire === "refuse")
+  ) {
+    const dProp = derniereDecision([
+      "contrat_proprietaire_valide",
+      "contrat_proprietaire_refuse",
+    ]);
+    if (dProp || docContrat) {
+      decisions.push({
+        cle: "contrat_proprietaire",
+        action:
+          compte.statut_contrat_proprietaire === "valide"
+            ? "contrat_proprietaire_valide"
+            : "contrat_proprietaire_refuse",
+        date: dProp?.created_at ?? docContrat?.created_at ?? compte.created_at,
+        acteur: dProp ? (dProp.acteur_nom ?? dProp.acteur_email) : null,
+        document: docContrat?.nom_fichier ?? null,
+      });
+    }
+  }
 
   return (
     <div>
@@ -388,6 +459,31 @@ export default function ConsoleDossierPage({
                     ✕ {t("refuse")}
                   </button>
                 </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Décisions déjà prononcées : lignes de résultat (lot B3) —
+          la checklist et les blocs d'action ci-dessus ne servent
+          qu'AVANT la décision. */}
+      {decisions.length > 0 ? (
+        <section className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
+          <h2 className="font-bold text-green-900">{t("decisionsTitle")}</h2>
+          <ul className="mt-2 space-y-1.5 text-sm text-green-900">
+            {decisions.map((d) => (
+              <li key={d.cle} className="break-words">
+                ✓{" "}
+                <strong>
+                  {t(`audit.${d.action}` as "audit.compte_approuve")}
+                </strong>
+                {d.document ? (
+                  <> — {t("decisionDocument", { nom: d.document })}</>
+                ) : null}
+                {" — "}
+                {formatDateTime(d.date, locale)}
+                {d.acteur ? <> — {t("decisionBy", { acteur: d.acteur })}</> : null}
               </li>
             ))}
           </ul>

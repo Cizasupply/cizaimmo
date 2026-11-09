@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import Field from "@/components/Field";
 import MoneyField from "@/components/MoneyField";
@@ -36,6 +36,11 @@ function ApercuFichier({ fichier }: { fichier: File }) {
  * v1.7 : photos du bien (au moins une — la première est la photo du
  * passeport) et, pour un créateur GESTIONNAIRE, autorisation de
  * gestion + propriétaire déclaré au lieu de la preuve de propriété.
+ *
+ * Lot C (2026-11-08) : le sélecteur de photos passe à l'activation
+ * NATIVE par label (comme DocumentUpload) — le clic programmé sur
+ * input caché était mort sur iPhone. Règles inchangées : JPG/PNG,
+ * 10 Mo max, au moins une photo, bucket et chemins identiques.
  */
 export default function ImmeubleForm({
   initial,
@@ -102,7 +107,12 @@ export default function ImmeubleForm({
   const [declareNom, setDeclareNom] = useState(initial?.proprietaire_declare_nom ?? "");
   const [declareEmail, setDeclareEmail] = useState(initial?.proprietaire_declare_email ?? "");
   const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
-  const inputPhotosRef = useRef<HTMLInputElement>(null);
+  // Lot C (2026-11-08) : ouverture du sélecteur photos par LABEL
+  // natif (htmlFor + useId, input sr-only) — même patron que
+  // DocumentUpload. L'ancien patron (clic programmé sur un input
+  // display:none via ref) est MORT sur iOS Safari : aucun
+  // sélecteur, aucune erreur.
+  const inputPhotosId = `photos-${useId().replace(/:/g, "")}`;
   const [valeur, setValeur] = useState(initial?.valeur_bien != null ? String(initial.valeur_bien) : "");
   const [deviseValeur, setDeviseValeur] = useState<Devise>(initial?.devise_valeur ?? initial?.devise ?? "USD");
   const [dateAcquisition, setDateAcquisition] = useState(initial?.date_acquisition ?? "");
@@ -276,19 +286,18 @@ export default function ImmeubleForm({
             ))}
           </ul>
         ) : null}
-        <button
-          type="button"
-          onClick={() => inputPhotosRef.current?.click()}
-          className="mt-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold"
+        <label
+          htmlFor={inputPhotosId}
+          className="mt-3 inline-block cursor-pointer rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold"
         >
           {t17("photoAdd")}
-        </button>
+        </label>
         <input
-          ref={inputPhotosRef}
+          id={inputPhotosId}
           type="file"
           accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           multiple
-          className="hidden"
+          className="sr-only"
           onChange={(e) => {
             choisirPhotos(e.target.files);
             e.target.value = "";
